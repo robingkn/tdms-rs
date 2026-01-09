@@ -14,7 +14,7 @@ use std::io::BufReader;
 use crate::error::Result;
 use crate::reader::TdmsReader;
 
-use std::collections::HashMap;
+use indexmap::IndexMap;
 
 /// A TDMS file containing groups and channels with their associated data and properties.
 /// 
@@ -61,14 +61,14 @@ pub struct TdmsFile {
     /// - Creation time and author information
     /// - File format version
     /// - Custom application-specific metadata
-    pub properties: HashMap<String, PropertyValue>,
+    pub properties: IndexMap<String, PropertyValue>,
     
     /// Groups contained in this TDMS file, indexed by group name.
     /// 
     /// Group names are the path components from the TDMS file structure.
     /// For example, a path like `/'Sensors'/'Temperature'` creates a group named "Sensors"
     /// containing a channel named "Temperature".
-    pub groups: HashMap<String, TdmsGroup>,
+    pub groups: IndexMap<String, TdmsGroup>,
 }
 
 pub use crate::datatypes::{PropertyValue, TdmsData};
@@ -98,12 +98,12 @@ pub struct TdmsGroup {
     /// 
     /// Properties are key-value pairs that provide metadata about the group.
     /// Common properties might include creation time, description, or custom metadata.
-    pub properties: HashMap<String, PropertyValue>,
+    pub properties: IndexMap<String, PropertyValue>,
     
     /// Channels contained in this group, indexed by channel name.
     /// 
     /// Each channel represents a single data stream (e.g., a sensor reading over time).
-    pub channels: HashMap<String, TdmsChannel>,
+    pub channels: IndexMap<String, TdmsChannel>,
 }
 
 /// A channel within a TDMS group containing data and channel-level properties.
@@ -151,7 +151,7 @@ pub struct TdmsChannel {
     /// - `wf_start_time`: Start time for waveform data
     /// - `wf_samples`: Number of samples in the waveform
     /// - Custom properties defined by the application
-    pub properties: HashMap<String, PropertyValue>,
+    pub properties: IndexMap<String, PropertyValue>,
     
     /// The actual measurement data for this channel.
     /// 
@@ -161,7 +161,172 @@ pub struct TdmsChannel {
     pub data: Option<TdmsData>,
 }
 
+impl Default for TdmsGroup {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TdmsGroup {
+    /// Create a new empty group.
+    pub fn new() -> Self {
+        Self {
+            properties: IndexMap::new(),
+            channels: IndexMap::new(),
+        }
+    }
+
+    /// Get an iterator over channels in this group.
+    pub fn iter_channels(&self) -> impl Iterator<Item = (&str, &TdmsChannel)> {
+        self.channels.iter().map(|(k, v)| (k.as_str(), v))
+    }
+}
+
+impl Default for TdmsChannel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TdmsChannel {
+    /// Create a new empty channel.
+    pub fn new() -> Self {
+        Self {
+            properties: IndexMap::new(),
+            data: None,
+        }
+    }
+    /// Get channel data as f64 slice if the data type is Double.
+    pub fn as_f64(&self) -> Option<&[f64]> {
+        match &self.data {
+            Some(TdmsData::Double(values)) => Some(values),
+            _ => None,
+        }
+    }
+
+    /// Get channel data as f32 slice if the data type is Float.
+    pub fn as_f32(&self) -> Option<&[f32]> {
+        match &self.data {
+            Some(TdmsData::Float(values)) => Some(values),
+            _ => None,
+        }
+    }
+
+    /// Get channel data as i32 slice if the data type is I32.
+    pub fn as_i32(&self) -> Option<&[i32]> {
+        match &self.data {
+            Some(TdmsData::I32(values)) => Some(values),
+            _ => None,
+        }
+    }
+
+    /// Get channel data as String slice if the data type is String.
+    pub fn as_string(&self) -> Option<&[String]> {
+        match &self.data {
+            Some(TdmsData::String(values)) => Some(values),
+            _ => None,
+        }
+    }
+
+    /// Convert any numeric data to f64 vector.
+    /// Returns None if the data is not numeric.
+    pub fn as_numeric(&self) -> Option<Vec<f64>> {
+        match &self.data {
+            Some(TdmsData::Double(values)) => Some(values.clone()),
+            Some(TdmsData::Float(values)) => Some(values.iter().map(|&v| v as f64).collect()),
+            Some(TdmsData::I8(values)) => Some(values.iter().map(|&v| v as f64).collect()),
+            Some(TdmsData::I16(values)) => Some(values.iter().map(|&v| v as f64).collect()),
+            Some(TdmsData::I32(values)) => Some(values.iter().map(|&v| v as f64).collect()),
+            Some(TdmsData::I64(values)) => Some(values.iter().map(|&v| v as f64).collect()),
+            Some(TdmsData::U8(values)) => Some(values.iter().map(|&v| v as f64).collect()),
+            Some(TdmsData::U16(values)) => Some(values.iter().map(|&v| v as f64).collect()),
+            Some(TdmsData::U32(values)) => Some(values.iter().map(|&v| v as f64).collect()),
+            Some(TdmsData::U64(values)) => Some(values.iter().map(|&v| v as f64).collect()),
+            _ => None,
+        }
+    }
+
+    /// Get the number of data samples in this channel.
+    pub fn data_len(&self) -> usize {
+        match &self.data {
+            Some(data) => data.len(),
+            None => 0,
+        }
+    }
+
+    /// Get a human-readable name for the data type.
+    pub fn data_type_name(&self) -> Option<&'static str> {
+        match &self.data {
+            Some(data) => Some(data.type_name()),
+            None => None,
+        }
+    }
+
+    // Property helpers for common TDMS properties
+    
+    /// Get the unit string property (wf_unit_string).
+    pub fn unit(&self) -> Option<&str> {
+        self.get_string_property("wf_unit_string")
+    }
+
+    /// Get the increment property (wf_increment) as f64.
+    pub fn increment(&self) -> Option<f64> {
+        self.get_double_property("wf_increment")
+    }
+
+    /// Get the start time property (wf_start_time) as f64.
+    pub fn start_time(&self) -> Option<f64> {
+        self.get_double_property("wf_start_time")
+    }
+
+    /// Get a string property value by name.
+    pub fn get_string_property(&self, name: &str) -> Option<&str> {
+        match self.properties.get(name) {
+            Some(PropertyValue::String(s)) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// Get a double property value by name.
+    pub fn get_double_property(&self, name: &str) -> Option<f64> {
+        match self.properties.get(name) {
+            Some(PropertyValue::Double(d)) => Some(*d),
+            Some(PropertyValue::Float(f)) => Some(*f as f64),
+            _ => None,
+        }
+    }
+
+    /// Get an i32 property value by name.
+    pub fn get_i32_property(&self, name: &str) -> Option<i32> {
+        match self.properties.get(name) {
+            Some(PropertyValue::I32(i)) => Some(*i),
+            Some(PropertyValue::I16(i)) => Some(*i as i32),
+            Some(PropertyValue::I8(i)) => Some(*i as i32),
+            _ => None,
+        }
+    }
+}
+
+impl Default for TdmsFile {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TdmsFile {
+    /// Create a new empty TDMS file.
+    pub fn new() -> Self {
+        Self {
+            properties: IndexMap::new(),
+            groups: IndexMap::new(),
+        }
+    }
+
+    /// Get an iterator over groups in this file.
+    pub fn iter_groups(&self) -> impl Iterator<Item = (&str, &TdmsGroup)> {
+        self.groups.iter().map(|(k, v)| (k.as_str(), v))
+    }
+
     /// Load a TDMS file from the specified path.
     /// 
     /// This method reads and parses the entire TDMS file, extracting all groups,
@@ -206,8 +371,8 @@ impl TdmsFile {
         let file = File::open(path)?;
         let mut reader = TdmsReader::new(BufReader::new(file));
         
-        let mut groups = HashMap::new();
-        let mut file_properties = HashMap::new();
+        let mut groups = IndexMap::new();
+        let mut file_properties = IndexMap::new();
         
         loop {
             let segment = match reader.read_segment() {
@@ -224,14 +389,14 @@ impl TdmsFile {
                 if let Some(g_name) = obj.path.group_name() {
                     // Ensure group exists
                     let group = groups.entry(g_name.to_string()).or_insert(TdmsGroup {
-                        properties: HashMap::new(),
-                        channels: HashMap::new(),
+                        properties: IndexMap::new(),
+                        channels: IndexMap::new(),
                     });
                     
                     if let Some(c_name) = obj.path.channel_name() {
                         // Add channel
                         let channel = group.channels.entry(c_name.to_string()).or_insert(TdmsChannel {
-                             properties: HashMap::new(),
+                             properties: IndexMap::new(),
                              data: None, 
                         });
                         channel.properties.extend(obj.properties);

@@ -17,10 +17,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut writer = TdmsFileWriter::new("examples/output/minimal.tdms");
     
     // Add a group
-    let group = writer.add_group("Measurements");
+    let group = writer.add_group("Measurements")?;
     
     // Add a channel with some sample data
-    group.add_channel("Temperature", TdmsData::Double(vec![20.1, 21.5, 22.3, 23.0, 22.8]));
+    group.add_channel("Temperature", TdmsData::Double(vec![20.1, 21.5, 22.3, 23.0, 22.8]))?;
     
     // Write the file
     writer.write()?;

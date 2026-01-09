@@ -7,6 +7,7 @@
 //! - [`DataType`] - Internal enum for TDMS type codes
 
 use std::io::{Read, Seek};
+use std::fmt::{Display, Formatter};
 use byteorder::{ReadBytesExt, LittleEndian};
 use crate::error::{Result, TdmsError};
 
@@ -157,6 +158,58 @@ pub enum TdmsData {
 }
 
 impl TdmsData {
+    /// Get the number of elements in this data.
+    pub fn len(&self) -> usize {
+        match self {
+            TdmsData::I8(v) => v.len(),
+            TdmsData::I16(v) => v.len(),
+            TdmsData::I32(v) => v.len(),
+            TdmsData::I64(v) => v.len(),
+            TdmsData::U8(v) => v.len(),
+            TdmsData::U16(v) => v.len(),
+            TdmsData::U32(v) => v.len(),
+            TdmsData::U64(v) => v.len(),
+            TdmsData::Float(v) => v.len(),
+            TdmsData::Double(v) => v.len(),
+            TdmsData::String(v) => v.len(),
+            TdmsData::Boolean(v) => v.len(),
+            TdmsData::TimeStamp(v) => v.len(),
+        }
+    }
+
+    /// Check if this data is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Get a human-readable name for this data type.
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            TdmsData::I8(_) => "I8",
+            TdmsData::I16(_) => "I16",
+            TdmsData::I32(_) => "I32",
+            TdmsData::I64(_) => "I64",
+            TdmsData::U8(_) => "U8",
+            TdmsData::U16(_) => "U16",
+            TdmsData::U32(_) => "U32",
+            TdmsData::U64(_) => "U64",
+            TdmsData::Float(_) => "Float",
+            TdmsData::Double(_) => "Double",
+            TdmsData::String(_) => "String",
+            TdmsData::Boolean(_) => "Boolean",
+            TdmsData::TimeStamp(_) => "TimeStamp",
+        }
+    }
+
+    /// Check if this data type is numeric.
+    pub fn is_numeric(&self) -> bool {
+        matches!(self, 
+            TdmsData::I8(_) | TdmsData::I16(_) | TdmsData::I32(_) | TdmsData::I64(_) |
+            TdmsData::U8(_) | TdmsData::U16(_) | TdmsData::U32(_) | TdmsData::U64(_) |
+            TdmsData::Float(_) | TdmsData::Double(_)
+        )
+    }
+
     /// Extend this data with additional data of the same type.
     /// 
     /// This method is used internally when reading multi-segment TDMS files
@@ -398,6 +451,50 @@ pub fn read_raw_data<R: Read + Seek>(reader: &mut R, data_type: &DataType, count
             }
             Ok(TdmsData::TimeStamp(data))
         },
+    }
+}
+
+impl Display for PropertyValue {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            PropertyValue::String(s) => write!(f, "\"{}\"", s),
+            PropertyValue::Double(d) => {
+                if d.is_nan() {
+                    write!(f, "NaN")
+                } else if d.is_infinite() {
+                    write!(f, "{}", if *d > 0.0 { "∞" } else { "-∞" })
+                } else {
+                    write!(f, "{:.6}", d)
+                }
+            },
+            PropertyValue::Float(fl) => {
+                if fl.is_nan() {
+                    write!(f, "NaN")
+                } else if fl.is_infinite() {
+                    write!(f, "{}", if *fl > 0.0 { "∞" } else { "-∞" })
+                } else {
+                    write!(f, "{:.6}", fl)
+                }
+            },
+            PropertyValue::I8(i) => write!(f, "{}", i),
+            PropertyValue::I16(i) => write!(f, "{}", i),
+            PropertyValue::I32(i) => write!(f, "{}", i),
+            PropertyValue::I64(i) => write!(f, "{}", i),
+            PropertyValue::U8(u) => write!(f, "{}", u),
+            PropertyValue::U16(u) => write!(f, "{}", u),
+            PropertyValue::U32(u) => write!(f, "{}", u),
+            PropertyValue::U64(u) => write!(f, "{}", u),
+            PropertyValue::Boolean(b) => write!(f, "{}", b),
+            PropertyValue::TimeStamp((s, frac)) => {
+                write!(f, "{}.{:019}", s, frac)
+            },
+        }
+    }
+}
+
+impl Display for TdmsData {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        write!(f, "{} [{}]", self.type_name(), self.len())
     }
 }
 

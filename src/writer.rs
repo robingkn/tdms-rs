@@ -108,7 +108,8 @@
 //! ```
 
 use std::path::{Path, PathBuf};
-use std::collections::{HashMap, BTreeMap};
+use std::collections::BTreeMap;
+use indexmap::IndexMap;
 use std::fs::File;
 use std::io::{Write, BufWriter};
 use byteorder::{WriteBytesExt, LittleEndian};
@@ -149,20 +150,20 @@ use crate::error::Result;
 /// ```
 pub struct TdmsFileWriter {
     path: PathBuf,
-    groups: HashMap<String, TdmsGroupWriter>,
-    properties: HashMap<String, PropertyValue>,
+    groups: IndexMap<String, TdmsGroupWriter>,
+    properties: IndexMap<String, PropertyValue>,
 }
 
 /// A group writer for organizing related channels.
 pub struct TdmsGroupWriter {
     channels: BTreeMap<String, TdmsChannelWriter>,
-    properties: HashMap<String, PropertyValue>,
+    properties: IndexMap<String, PropertyValue>,
 }
 
 /// A channel writer containing data and properties.
 pub struct TdmsChannelWriter {
     data: TdmsData,
-    properties: HashMap<String, PropertyValue>,
+    properties: IndexMap<String, PropertyValue>,
 }
 
 impl TdmsFileWriter {
@@ -170,24 +171,65 @@ impl TdmsFileWriter {
     pub fn new(path: impl AsRef<Path>) -> Self {
         Self {
             path: path.as_ref().to_path_buf(),
-            groups: HashMap::new(),
-            properties: HashMap::new(),
+            groups: IndexMap::new(),
+            properties: IndexMap::new(),
         }
     }
 
     /// Add a group to the file and return a mutable reference to it.
-    pub fn add_group(&mut self, name: &str) -> &mut TdmsGroupWriter {
+    /// 
+    /// # Arguments
+    /// 
+    /// * `name` - The name of the group to create
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a mutable reference to the created group.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns `TdmsError::InvalidName` if the group name is empty.
+    /// Returns `TdmsError::DuplicateName` if a group with this name already exists.
+    pub fn add_group(&mut self, name: impl Into<String>) -> crate::error::Result<&mut TdmsGroupWriter> {
+        let name = name.into();
+        
+        if name.is_empty() {
+            return Err(crate::error::TdmsError::InvalidName("Group name cannot be empty".into()));
+        }
+        
+        if self.groups.contains_key(&name) {
+            return Err(crate::error::TdmsError::DuplicateName(
+                format!("Group '{}' already exists", name)
+            ));
+        }
+        
         let group = TdmsGroupWriter {
             channels: BTreeMap::new(),
-            properties: HashMap::new(),
+            properties: IndexMap::new(),
         };
-        self.groups.insert(name.to_string(), group);
-        self.groups.get_mut(name).unwrap()
+        self.groups.insert(name.clone(), group);
+        Ok(self.groups.get_mut(&name).unwrap())
     }
 
     /// Add a property to the file.
-    pub fn add_property(&mut self, key: &str, value: PropertyValue) {
-        self.properties.insert(key.to_string(), value);
+    /// 
+    /// # Arguments
+    /// 
+    /// * `key` - The property name
+    /// * `value` - The property value
+    /// 
+    /// # Errors
+    /// 
+    /// Returns `TdmsError::InvalidName` if the property key is empty.
+    pub fn add_property(&mut self, key: impl Into<String>, value: PropertyValue) -> crate::error::Result<()> {
+        let key = key.into();
+        
+        if key.is_empty() {
+            return Err(crate::error::TdmsError::InvalidName("Property key cannot be empty".into()));
+        }
+        
+        self.properties.insert(key, value);
+        Ok(())
     }
 
     /// Write the TDMS file to disk.
@@ -281,7 +323,7 @@ impl TdmsFileWriter {
         Ok((metadata, raw_data))
     }
 
-    fn write_object_metadata<W: Write>(&self, writer: &mut W, path: &str, raw_data_index: Option<u32>, properties: &HashMap<String, PropertyValue>) -> Result<()> {
+    fn write_object_metadata<W: Write>(&self, writer: &mut W, path: &str, raw_data_index: Option<u32>, properties: &IndexMap<String, PropertyValue>) -> Result<()> {
         // Object path length
         writer.write_u32::<LittleEndian>(path.len() as u32)?;
         
@@ -302,7 +344,7 @@ impl TdmsFileWriter {
         Ok(())
     }
 
-    fn write_channel_object_metadata<W: Write>(&self, writer: &mut W, path: &str, raw_data_index: u32, raw_data_info: &[u8], properties: &HashMap<String, PropertyValue>, is_string: bool) -> Result<()> {
+    fn write_channel_object_metadata<W: Write>(&self, writer: &mut W, path: &str, raw_data_index: u32, raw_data_info: &[u8], properties: &IndexMap<String, PropertyValue>, is_string: bool) -> Result<()> {
         // Object path length
         writer.write_u32::<LittleEndian>(path.len() as u32)?;
         
@@ -329,7 +371,7 @@ impl TdmsFileWriter {
         Ok(())
     }
 
-    fn build_raw_data_info_with_properties(&self, data: &TdmsData, properties: &HashMap<String, PropertyValue>) -> Result<Vec<u8>> {
+    fn build_raw_data_info_with_properties(&self, data: &TdmsData, properties: &IndexMap<String, PropertyValue>) -> Result<Vec<u8>> {
         let mut raw_data_info = Vec::new();
         
         match data {
@@ -523,25 +565,83 @@ impl TdmsFileWriter {
 
 impl TdmsGroupWriter {
     /// Add a channel to this group with the specified data.
-    pub fn add_channel(&mut self, name: &str, data: TdmsData) -> &mut TdmsChannelWriter {
+    /// 
+    /// # Arguments
+    /// 
+    /// * `name` - The name of the channel to create
+    /// * `data` - The data to store in the channel
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a mutable reference to the created channel.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns `TdmsError::InvalidName` if the channel name is empty.
+    /// Returns `TdmsError::DuplicateName` if a channel with this name already exists in this group.
+    pub fn add_channel(&mut self, name: impl Into<String>, data: TdmsData) -> crate::error::Result<&mut TdmsChannelWriter> {
+        let name = name.into();
+        
+        if name.is_empty() {
+            return Err(crate::error::TdmsError::InvalidName("Channel name cannot be empty".into()));
+        }
+        
+        if self.channels.contains_key(&name) {
+            return Err(crate::error::TdmsError::DuplicateName(
+                format!("Channel '{}' already exists in this group", name)
+            ));
+        }
+        
         let channel = TdmsChannelWriter {
             data,
-            properties: HashMap::new(),
+            properties: IndexMap::new(),
         };
-        self.channels.insert(name.to_string(), channel);
-        self.channels.get_mut(name).unwrap()
+        self.channels.insert(name.clone(), channel);
+        Ok(self.channels.get_mut(&name).unwrap())
     }
 
     /// Add a property to this group.
-    pub fn add_property(&mut self, key: &str, value: PropertyValue) {
-        self.properties.insert(key.to_string(), value);
+    /// 
+    /// # Arguments
+    /// 
+    /// * `key` - The property name
+    /// * `value` - The property value
+    /// 
+    /// # Errors
+    /// 
+    /// Returns `TdmsError::InvalidName` if the property key is empty.
+    pub fn add_property(&mut self, key: impl Into<String>, value: PropertyValue) -> crate::error::Result<()> {
+        let key = key.into();
+        
+        if key.is_empty() {
+            return Err(crate::error::TdmsError::InvalidName("Property key cannot be empty".into()));
+        }
+        
+        self.properties.insert(key, value);
+        Ok(())
     }
 }
 
 impl TdmsChannelWriter {
     /// Add a property to this channel.
-    pub fn add_property(&mut self, key: &str, value: PropertyValue) {
-        self.properties.insert(key.to_string(), value);
+    /// 
+    /// # Arguments
+    /// 
+    /// * `key` - The property name
+    /// * `value` - The property value
+    /// 
+    /// # Errors
+    /// 
+    /// Returns `TdmsError::InvalidName` if the property key is empty.
+    pub fn add_property(&mut self, key: impl Into<String>, value: PropertyValue) -> crate::error::Result<()> {
+        let key = key.into();
+        
+        if key.is_empty() {
+            return Err(crate::error::TdmsError::InvalidName("Property key cannot be empty".into()));
+        }
+        
+        self.properties.insert(key, value);
+        Ok(())
     }
 }
 
@@ -558,8 +658,8 @@ mod tests {
         
         let output_path = "tests/output/group_path.tdms";
         let mut writer = TdmsFileWriter::new(output_path);
-        let group = writer.add_group("Integers");
-        group.add_channel("Chan1", TdmsData::I32(vec![1, 2, 3]));
+        let group = writer.add_group("Integers")?;
+        group.add_channel("Chan1", TdmsData::I32(vec![1, 2, 3]))?;
         writer.write()?;
         
         let written = TdmsFile::load(std::path::Path::new(output_path))?;
@@ -573,12 +673,12 @@ mod tests {
         
         let output_path = "tests/output/channel_order.tdms";
         let mut writer = TdmsFileWriter::new(output_path);
-        let group = writer.add_group("Test");
+        let group = writer.add_group("Test")?;
         
         // Add channels in non-alphabetical order
-        group.add_channel("Zebra", TdmsData::I32(vec![3]));
-        group.add_channel("Alpha", TdmsData::I32(vec![1]));
-        group.add_channel("Beta", TdmsData::I32(vec![2]));
+        group.add_channel("Zebra", TdmsData::I32(vec![3]))?;
+        group.add_channel("Alpha", TdmsData::I32(vec![1]))?;
+        group.add_channel("Beta", TdmsData::I32(vec![2]))?;
         
         writer.write()?;
         
@@ -613,21 +713,21 @@ mod tests {
         let mut writer = TdmsFileWriter::new(output_path);
         
         // Add file-level properties
-        writer.add_property("file_prop", PropertyValue::String("file_value".to_string()));
-        writer.add_property("file_number", PropertyValue::I32(42));
+        writer.add_property("file_prop", PropertyValue::String("file_value".to_string()))?;
+        writer.add_property("file_number", PropertyValue::I32(42))?;
         
-        let group = writer.add_group("TestGroup");
+        let group = writer.add_group("TestGroup")?;
         
         // Add group-level properties
-        group.add_property("group_prop", PropertyValue::String("group_value".to_string()));
-        group.add_property("group_double", PropertyValue::Double(3.14));
+        group.add_property("group_prop", PropertyValue::String("group_value".to_string()))?;
+        group.add_property("group_double", PropertyValue::Double(3.14))?;
         
-        let channel = group.add_channel("TestChannel", TdmsData::Double(vec![1.0, 2.0, 3.0]));
+        let channel = group.add_channel("TestChannel", TdmsData::Double(vec![1.0, 2.0, 3.0]))?;
         
         // Add channel-level properties
-        channel.add_property("wf_unit_string", PropertyValue::String("V".to_string()));
-        channel.add_property("wf_increment", PropertyValue::Double(0.001));
-        channel.add_property("channel_bool", PropertyValue::Boolean(true));
+        channel.add_property("wf_unit_string", PropertyValue::String("V".to_string()))?;
+        channel.add_property("wf_increment", PropertyValue::Double(0.001))?;
+        channel.add_property("channel_bool", PropertyValue::Boolean(true))?;
         
         writer.write()?;
         
@@ -656,7 +756,7 @@ mod tests {
         
         let output_path = "tests/output/string_data.tdms";
         let mut writer = TdmsFileWriter::new(output_path);
-        let group = writer.add_group("StringGroup");
+        let group = writer.add_group("StringGroup")?;
         
         // Test multiple strings with different lengths
         let string_data = vec![
@@ -667,7 +767,7 @@ mod tests {
             "String Data".to_string(),
         ];
         
-        group.add_channel("StringChannel", TdmsData::String(string_data.clone()));
+        group.add_channel("StringChannel", TdmsData::String(string_data.clone()))?;
         
         writer.write()?;
         
@@ -719,17 +819,17 @@ mod tests {
         
         let output_path = "tests/output/bool_timestamp.tdms";
         let mut writer = TdmsFileWriter::new(output_path);
-        let group = writer.add_group("MixedGroup");
+        let group = writer.add_group("MixedGroup")?;
         
         // Test boolean data
-        group.add_channel("BoolChannel", TdmsData::Boolean(vec![true, false, true, false, true]));
+        group.add_channel("BoolChannel", TdmsData::Boolean(vec![true, false, true, false, true]))?;
         
         // Test timestamp data
         group.add_channel("TimestampChannel", TdmsData::TimeStamp(vec![
             (1000, 0),
             (2000, 500000000),
             (3000, 1000000000),
-        ]));
+        ]))?;
         
         writer.write()?;
         
@@ -767,7 +867,7 @@ mod tests {
         
         let output_path = "tests/output/strings_corpus.tdms";
         let mut writer = TdmsFileWriter::new(output_path);
-        let group = writer.add_group("Strings");
+        let group = writer.add_group("Strings")?;
         
         // Match the exact strings corpus data
         let string_data = vec![
@@ -778,7 +878,7 @@ mod tests {
             "File Format".to_string(),
         ];
         
-        group.add_channel("Basic", TdmsData::String(string_data.clone()));
+        group.add_channel("Basic", TdmsData::String(string_data.clone()))?;
         
         writer.write()?;
         

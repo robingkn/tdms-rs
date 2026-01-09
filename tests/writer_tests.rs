@@ -11,8 +11,8 @@ fn round_trip_minimal_file() -> Result<(), Box<dyn std::error::Error>> {
     
     // Build file using writer API to match minimal.tdms
     let mut file_writer = TdmsFileWriter::new(output_path);
-    let group = file_writer.add_group("Group");
-    group.add_channel("Channel1", TdmsData::Double(vec![1.1, 2.2, 3.3]));
+    let group = file_writer.add_group("Group")?;
+    group.add_channel("Channel1", TdmsData::Double(vec![1.1, 2.2, 3.3]))?;
     file_writer.write()?;
     
     // Load the written file with read API
@@ -57,14 +57,14 @@ fn assert_round_trip(path: &str) -> Result<(), Box<dyn std::error::Error>> {
     
     // Copy structure & data
     for (group_name, group) in &file.groups {
-        let g = writer.add_group(group_name);
+        let g = writer.add_group(group_name)?;
         for (chan_name, chan) in &group.channels {
             if let Some(data) = &chan.data {
-                g.add_channel(chan_name, data.clone());
+                g.add_channel(chan_name, data.clone())?;
             }
         }
         for (k, v) in &group.properties {
-            g.add_property(k, v.clone());
+            g.add_property(k, v.clone())?;
         }
     }
     writer.write()?;
@@ -103,18 +103,18 @@ fn round_trip_integers() -> Result<(), Box<dyn std::error::Error>> {
     let mut file_writer = TdmsFileWriter::new(output_path);
     
     // Add Integers group
-    let integers_group = file_writer.add_group("Integers");
-    integers_group.add_channel("Int8", TdmsData::I8(vec![-128, -1, 0, 1, 127]));
-    integers_group.add_channel("Int16", TdmsData::I16(vec![-32768, -1, 0, 1, 32767]));
-    integers_group.add_channel("Int32", TdmsData::I32(vec![-2147483648, -1, 0, 1, 2147483647]));
-    integers_group.add_channel("Int64", TdmsData::I64(vec![-9223372036854775808, -1, 0, 1, 9223372036854775807]));
+    let integers_group = file_writer.add_group("Integers")?;
+    integers_group.add_channel("Int8", TdmsData::I8(vec![-128, -1, 0, 1, 127]))?;
+    integers_group.add_channel("Int16", TdmsData::I16(vec![-32768, -1, 0, 1, 32767]))?;
+    integers_group.add_channel("Int32", TdmsData::I32(vec![-2147483648, -1, 0, 1, 2147483647]))?;
+    integers_group.add_channel("Int64", TdmsData::I64(vec![-9223372036854775808, -1, 0, 1, 9223372036854775807]))?;
     
     // Add Unsigned group
-    let unsigned_group = file_writer.add_group("Unsigned");
-    unsigned_group.add_channel("Uint8", TdmsData::U8(vec![0, 1, 255]));
-    unsigned_group.add_channel("Uint16", TdmsData::U16(vec![0, 1, 65535]));
-    unsigned_group.add_channel("Uint32", TdmsData::U32(vec![0, 1, 4294967295]));
-    unsigned_group.add_channel("Uint64", TdmsData::U64(vec![0, 1, 18446744073709551615]));
+    let unsigned_group = file_writer.add_group("Unsigned")?;
+    unsigned_group.add_channel("Uint8", TdmsData::U8(vec![0, 1, 255]))?;
+    unsigned_group.add_channel("Uint16", TdmsData::U16(vec![0, 1, 65535]))?;
+    unsigned_group.add_channel("Uint32", TdmsData::U32(vec![0, 1, 4294967295]))?;
+    unsigned_group.add_channel("Uint64", TdmsData::U64(vec![0, 1, 18446744073709551615]))?;
     
     file_writer.write()?;
     
@@ -165,14 +165,14 @@ fn round_trip_file_properties() -> Result<(), Box<dyn std::error::Error>> {
     let mut file_writer = TdmsFileWriter::new(output_path);
     
     // Add file-level properties
-    file_writer.add_property("Author", PropertyValue::String("TDMS Writer".into()));
-    file_writer.add_property("Version", PropertyValue::I32(1));
-    file_writer.add_property("Sample_Rate", PropertyValue::Double(1000.0));
-    file_writer.add_property("Test_Timestamp", PropertyValue::TimeStamp((1000, 500000000)));
+    file_writer.add_property("Author", PropertyValue::String("TDMS Writer".into()))?;
+    file_writer.add_property("Version", PropertyValue::I32(1))?;
+    file_writer.add_property("Sample_Rate", PropertyValue::Double(1000.0))?;
+    file_writer.add_property("Test_Timestamp", PropertyValue::TimeStamp((1000, 500000000)))?;
     
     // Add minimal data structure
-    let group = file_writer.add_group("TestGroup");
-    group.add_channel("TestChannel", TdmsData::Double(vec![1.0, 2.0, 3.0]));
+    let group = file_writer.add_group("TestGroup")?;
+    group.add_channel("TestChannel", TdmsData::Double(vec![1.0, 2.0, 3.0]))?;
     
     file_writer.write()?;
     
