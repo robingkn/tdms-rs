@@ -1,0 +1,21 @@
+{
+  "file_properties": {},
+  "groups": {
+    "Limits": {
+      "channels": {
+        "SpecialFloats": {
+          "data": [
+            "Infinity",
+            "-Infinity",
+            "NaN",
+            "-0.0",
+            0.0
+          ],
+          "dtype": "float64",
+          "properties": {}
+        }
+      },
+      "properties": {}
+    }
+  }
+}

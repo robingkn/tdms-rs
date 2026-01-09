@@ -1,0 +1,30 @@
+{
+  "file_properties": {},
+  "groups": {
+    "Scaling": {
+      "channels": {
+        "Linear": {
+          "data": [
+            0.0,
+            1.0,
+            2.0,
+            3.0,
+            4.0
+          ],
+          "dtype": "float64",
+          "properties": {
+            "NI_UnitDescription": "Volts",
+            "unit_string": "V",
+            "wf_increment": 0.5,
+            "wf_start_offset": 10.0,
+            "wf_start_time": {
+              "fraction": 2917942871067524096,
+              "seconds": 3850769707
+            }
+          }
+        }
+      },
+      "properties": {}
+    }
+  }
+}

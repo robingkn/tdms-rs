@@ -1,0 +1,19 @@
+{
+  "file_properties": {},
+  "groups": {
+    "Gröup_Ω": {
+      "channels": {
+        "Chånnel_Ω": {
+          "data": [
+            1,
+            2,
+            3
+          ],
+          "dtype": "int8",
+          "properties": {}
+        }
+      },
+      "properties": {}
+    }
+  }
+}

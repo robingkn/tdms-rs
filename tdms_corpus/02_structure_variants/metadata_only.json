@@ -1,0 +1,19 @@
+{
+  "file_properties": {
+    "type": "metadata_only"
+  },
+  "groups": {
+    "Group1": {
+      "channels": {
+        "Channel1": {
+          "data": [],
+          "dtype": "float64",
+          "properties": {}
+        }
+      },
+      "properties": {
+        "desc": "An empty group"
+      }
+    }
+  }
+}

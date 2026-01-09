@@ -1,0 +1,32 @@
+{
+  "file_properties": {},
+  "groups": {
+    "Floats": {
+      "channels": {
+        "Float32": {
+          "data": [
+            0.0,
+            -1.0,
+            1.0,
+            3.141590118408203,
+            1.2299999907483539e-10
+          ],
+          "dtype": "float32",
+          "properties": {}
+        },
+        "Float64": {
+          "data": [
+            0.0,
+            -1.0,
+            1.0,
+            3.1415926535,
+            1.23e-20
+          ],
+          "dtype": "float64",
+          "properties": {}
+        }
+      },
+      "properties": {}
+    }
+  }
+}

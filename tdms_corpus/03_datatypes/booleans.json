@@ -1,0 +1,22 @@
+{
+  "file_properties": {},
+  "groups": {
+    "Booleans": {
+      "channels": {
+        "Flags": {
+          "data": [
+            1,
+            0,
+            1,
+            1,
+            0,
+            0
+          ],
+          "dtype": "int8",
+          "properties": {}
+        }
+      },
+      "properties": {}
+    }
+  }
+}

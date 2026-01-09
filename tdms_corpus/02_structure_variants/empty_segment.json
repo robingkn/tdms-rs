@@ -1,0 +1,21 @@
+{
+  "file_properties": {
+    "updated": "true"
+  },
+  "groups": {
+    "Group": {
+      "channels": {
+        "Channel1": {
+          "data": [
+            1,
+            2,
+            3
+          ],
+          "dtype": "int8",
+          "properties": {}
+        }
+      },
+      "properties": {}
+    }
+  }
+}

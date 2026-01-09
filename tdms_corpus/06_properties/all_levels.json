@@ -1,0 +1,33 @@
+{
+  "file_properties": {
+    "author": "Antigravity",
+    "date": {
+      "fraction": 2801765276891301376,
+      "seconds": 3850769707
+    },
+    "is_valid": 1,
+    "version": 1.0
+  },
+  "groups": {
+    "Group": {
+      "channels": {
+        "Channel": {
+          "data": [
+            1.0,
+            2.0
+          ],
+          "dtype": "float64",
+          "properties": {
+            "max_val": 10.5,
+            "sensor": "A1",
+            "units": "Volts"
+          }
+        }
+      },
+      "properties": {
+        "department": "Test Engineering",
+        "id": 42
+      }
+    }
+  }
+}

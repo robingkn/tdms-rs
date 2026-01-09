@@ -1,0 +1,28 @@
+{
+  "file_properties": {},
+  "groups": {
+    "Time": {
+      "channels": {
+        "Extremes": {
+          "data": [
+            {
+              "fraction": 0,
+              "seconds": 0
+            },
+            {
+              "fraction": 0,
+              "seconds": -3281817600
+            },
+            {
+              "fraction": 0,
+              "seconds": 34586524800
+            }
+          ],
+          "dtype": "datetime64[us]",
+          "properties": {}
+        }
+      },
+      "properties": {}
+    }
+  }
+}

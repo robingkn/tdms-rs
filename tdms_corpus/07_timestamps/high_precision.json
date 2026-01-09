@@ -1,0 +1,32 @@
+{
+  "file_properties": {},
+  "groups": {
+    "Time": {
+      "channels": {
+        "SubSecond": {
+          "data": [
+            {
+              "fraction": 2840171398052764672,
+              "seconds": 3850769707
+            },
+            {
+              "fraction": 2840189844796838400,
+              "seconds": 3850769707
+            },
+            {
+              "fraction": 2842016072460135936,
+              "seconds": 3850769707
+            },
+            {
+              "fraction": 2858618142126474240,
+              "seconds": 3850769707
+            }
+          ],
+          "dtype": "datetime64[us]",
+          "properties": {}
+        }
+      },
+      "properties": {}
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "file_properties": {
+    "standard": "value",
+    "unicode_Ω": "Ohm",
+    "with spaces": "value",
+    "with.dot": "value",
+    "with/slash": "value"
+  },
+  "groups": {}
+}

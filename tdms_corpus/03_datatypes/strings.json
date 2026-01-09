@@ -1,0 +1,21 @@
+{
+  "file_properties": {},
+  "groups": {
+    "Strings": {
+      "channels": {
+        "Basic": {
+          "data": [
+            "Hello",
+            "World",
+            "",
+            "TDMS",
+            "File Format"
+          ],
+          "dtype": "object",
+          "properties": {}
+        }
+      },
+      "properties": {}
+    }
+  }
+}

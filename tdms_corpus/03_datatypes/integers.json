@@ -1,0 +1,95 @@
+{
+  "file_properties": {},
+  "groups": {
+    "Integers": {
+      "channels": {
+        "Int16": {
+          "data": [
+            -32768,
+            -1,
+            0,
+            1,
+            32767
+          ],
+          "dtype": "int16",
+          "properties": {}
+        },
+        "Int32": {
+          "data": [
+            -2147483648,
+            -1,
+            0,
+            1,
+            2147483647
+          ],
+          "dtype": "int32",
+          "properties": {}
+        },
+        "Int64": {
+          "data": [
+            -9223372036854775808,
+            -1,
+            0,
+            1,
+            9223372036854775807
+          ],
+          "dtype": "int64",
+          "properties": {}
+        },
+        "Int8": {
+          "data": [
+            -128,
+            -1,
+            0,
+            1,
+            127
+          ],
+          "dtype": "int8",
+          "properties": {}
+        }
+      },
+      "properties": {}
+    },
+    "Unsigned": {
+      "channels": {
+        "Uint16": {
+          "data": [
+            0,
+            1,
+            65535
+          ],
+          "dtype": "uint16",
+          "properties": {}
+        },
+        "Uint32": {
+          "data": [
+            0,
+            1,
+            4294967295
+          ],
+          "dtype": "uint32",
+          "properties": {}
+        },
+        "Uint64": {
+          "data": [
+            0,
+            1,
+            18446744073709551615
+          ],
+          "dtype": "uint64",
+          "properties": {}
+        },
+        "Uint8": {
+          "data": [
+            0,
+            1,
+            255
+          ],
+          "dtype": "uint8",
+          "properties": {}
+        }
+      },
+      "properties": {}
+    }
+  }
+}

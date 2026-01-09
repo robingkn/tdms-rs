@@ -1,0 +1,19 @@
+{
+  "file_properties": {},
+  "groups": {
+    "Group": {
+      "channels": {
+        "Bool3": {
+          "data": [
+            1,
+            0,
+            1
+          ],
+          "dtype": "int8",
+          "properties": {}
+        }
+      },
+      "properties": {}
+    }
+  }
+}
