@@ -63,7 +63,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tdms-rs = "0.1"
+tdms-rs = "1.0"
 ```
 
 ## Usage
