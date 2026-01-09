@@ -1,7 +1,5 @@
 
 
-use std::fmt;
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ObjectPath {
     pub raw: String,

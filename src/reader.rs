@@ -1,6 +1,6 @@
 
 use std::io::{Read, Seek};
-use byteorder::{ReadBytesExt, LittleEndian, BigEndian};
+use byteorder::{ReadBytesExt, LittleEndian};
 use crate::error::{Result, TdmsError};
 use crate::segment::Segment;
 

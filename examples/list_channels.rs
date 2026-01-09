@@ -85,6 +85,9 @@ fn format_property_value(value: &PropertyValue) -> String {
         PropertyValue::Double(v) => format!("{:.6}", v),
         PropertyValue::String(v) => format!("\"{}\"", v),
         PropertyValue::Boolean(v) => v.to_string(),
+        PropertyValue::TimeStamp((seconds, fraction)) => {
+            format!("timestamp({}, {})", seconds, fraction)
+        },
     }
 }
 

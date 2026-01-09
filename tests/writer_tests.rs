@@ -152,3 +152,71 @@ fn round_trip_integers() -> Result<(), Box<dyn std::error::Error>> {
 fn round_trip_integers_corpus() -> Result<(), Box<dyn std::error::Error>> {
     assert_round_trip("tests/fixtures/tdms_corpus/03_datatypes/integers.tdms")
 }
+#[test]
+fn round_trip_file_properties() -> Result<(), Box<dyn std::error::Error>> {
+    use tdms_rs::PropertyValue;
+    
+    // Create output directory if it doesn't exist
+    fs::create_dir_all("tests/output")?;
+    
+    let output_path = "tests/output/file_properties_test.tdms";
+    
+    // Build file with file-level properties
+    let mut file_writer = TdmsFileWriter::new(output_path);
+    
+    // Add file-level properties
+    file_writer.add_property("Author", PropertyValue::String("TDMS Writer".into()));
+    file_writer.add_property("Version", PropertyValue::I32(1));
+    file_writer.add_property("Sample_Rate", PropertyValue::Double(1000.0));
+    file_writer.add_property("Test_Timestamp", PropertyValue::TimeStamp((1000, 500000000)));
+    
+    // Add minimal data structure
+    let group = file_writer.add_group("TestGroup");
+    group.add_channel("TestChannel", TdmsData::Double(vec![1.0, 2.0, 3.0]));
+    
+    file_writer.write()?;
+    
+    // Load the written file and verify file properties
+    let written_file = TdmsFile::load(Path::new(output_path))?;
+    
+    // Verify file properties exist and match
+    assert_eq!(written_file.properties.len(), 4);
+    
+    match written_file.properties.get("Author") {
+        Some(PropertyValue::String(s)) => assert_eq!(s, "TDMS Writer"),
+        _ => panic!("Author property missing or wrong type"),
+    }
+    
+    match written_file.properties.get("Version") {
+        Some(PropertyValue::I32(v)) => assert_eq!(*v, 1),
+        _ => panic!("Version property missing or wrong type"),
+    }
+    
+    match written_file.properties.get("Sample_Rate") {
+        Some(PropertyValue::Double(d)) => assert!((d - 1000.0).abs() < f64::EPSILON),
+        _ => panic!("Sample_Rate property missing or wrong type"),
+    }
+    
+    match written_file.properties.get("Test_Timestamp") {
+        Some(PropertyValue::TimeStamp((seconds, fraction))) => {
+            assert_eq!(*seconds, 1000);
+            assert_eq!(*fraction, 500000000);
+        },
+        _ => panic!("Test_Timestamp property missing or wrong type"),
+    }
+    
+    // Verify the data structure is intact
+    assert_eq!(written_file.groups.len(), 1);
+    let group = written_file.groups.get("TestGroup").unwrap();
+    assert_eq!(group.channels.len(), 1);
+    let channel = group.channels.get("TestChannel").unwrap();
+    
+    match &channel.data {
+        Some(TdmsData::Double(data)) => {
+            assert_eq!(data, &vec![1.0, 2.0, 3.0]);
+        },
+        _ => panic!("Channel data missing or wrong type"),
+    }
+    
+    Ok(())
+}

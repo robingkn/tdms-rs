@@ -108,6 +108,11 @@ fn format_property_detailed(value: &PropertyValue) -> String {
             }
         },
         PropertyValue::Boolean(v) => format!("{} (bool)", v),
+        PropertyValue::TimeStamp((seconds, fraction)) => {
+            // TDMS timestamps are seconds since 1904-01-01 00:00:00 UTC
+            // with 2^-64 second precision in the fraction
+            format!("timestamp({} seconds + {} fraction since 1904-01-01 UTC)", seconds, fraction)
+        },
     }
 }
 

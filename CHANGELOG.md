@@ -5,7 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-01-09
+
+### Added
+- **File-Level Property Support**: Complete implementation of file-level property reading and writing
+- **Timestamp Property Handling**: Full support for TDMS timestamp properties with (i64, u64) format
+- **Error-Path Test Coverage**: Comprehensive error handling tests for malformed files
+- **Enhanced Documentation**: Added TDMS format guarantees, memory behavior, and performance characteristics
+- **Writer API Clarification**: Documented channel data requirements and output guarantees
+
+### Fixed
+- **Eliminated All Compiler Warnings**: Removed unused imports, variables, and unreachable patterns
+- **Binary Tool Accuracy**: Updated `tdms-to-json` to accurately describe its validation functionality
+- **Property Round-Trip**: Added tests ensuring file-level properties survive write → read cycles
+
+### Changed
+- **Version 1.0.0**: Production-ready release with stable API
+- **Enhanced README**: Added conceptual documentation and performance transparency
+- **Improved Error Messages**: Better error reporting for common failure cases
 
 ## [0.1.0] - 2026-01-09
 

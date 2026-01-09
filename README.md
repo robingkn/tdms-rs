@@ -2,6 +2,41 @@
 
 A pure Rust library for reading and writing National Instruments TDMS (Technical Data Management Streaming) files.
 
+## TDMS Format Overview
+
+### Format Guarantees
+
+This library provides the following guarantees when working with TDMS files:
+
+- **Binary Compatibility**: Files written by this library are fully compatible with National Instruments TDMS readers
+- **Deterministic Output**: Channel and group ordering is consistent (alphabetical) across writes
+- **Data Integrity**: All TDMS data types are supported with full precision preservation
+- **Property Preservation**: File, group, and channel properties are maintained through read/write cycles
+
+### Memory Behavior
+
+The library is designed for efficient memory usage:
+
+- **Zero-Copy Parsing**: Where possible, data is parsed without additional allocations
+- **Owned Data**: Channel data is stored in owned vectors for safe access across threads
+- **Streaming**: Files are read segment-by-segment to handle large files efficiently
+- **Minimal Allocations**: Property parsing and metadata handling minimize memory overhead
+
+### Performance Characteristics
+
+- **Large Files**: The library handles large TDMS files efficiently through streaming
+- **Memory Usage**: Peak memory usage is proportional to the largest channel's data size
+- **I/O Efficiency**: Sequential reading minimizes disk seeks
+- **Write Performance**: Single-segment writes provide optimal write performance
+
+### Deterministic Output
+
+When writing TDMS files:
+- Groups are written in alphabetical order by name
+- Channels within groups are written in alphabetical order by name  
+- Property ordering is deterministic within each object
+- Binary output is identical for identical input data
+
 ## Features
 
 ### Reading TDMS Files
@@ -19,7 +54,8 @@ A pure Rust library for reading and writing National Instruments TDMS (Technical
 - Corpus-compatible output verified by round-trip testing
 
 ### Command-line Tool
-- TDMS to JSON conversion utility
+- TDMS file validation and structure inspection utility
+- Note: Currently validates files but does not convert to JSON
 
 ## Installation
 
@@ -220,8 +256,16 @@ if let Some(group) = file.groups.get("Time Data") {
 ### Binary Tool
 ```bash
 cargo install tdms-rs
-tdms-to-json input.tdms output.json
+tdms-to-json input.tdms  # Validates file and shows structure
 ```
+
+The `tdms-to-json` tool validates TDMS files and displays their structure, including:
+- File-level properties
+- Group and channel counts
+- Data sample counts
+- Property summaries
+
+Note: Despite the name, this tool currently validates files but does not convert to JSON.
 
 ## Examples
 

@@ -110,15 +110,30 @@
 use std::path::{Path, PathBuf};
 use std::collections::{HashMap, BTreeMap};
 use std::fs::File;
-use std::io::{Write, BufWriter, Cursor};
+use std::io::{Write, BufWriter};
 use byteorder::{WriteBytesExt, LittleEndian};
 use crate::datatypes::{PropertyValue, TdmsData, DataType};
-use crate::error::{Result, TdmsError};
+use crate::error::Result;
 
 /// A TDMS file writer that can create TDMS files matching the corpus format.
 /// 
 /// The writer follows a builder pattern where you create groups, add channels with data,
-/// and then write the complete file structure.
+/// and then write the complete file structure. All channels must contain data - channels
+/// without data are not supported and will cause write operations to fail.
+/// 
+/// # Channel Data Requirements
+/// 
+/// - All channels must have associated data (empty channels are not allowed)
+/// - Data vectors can be empty (zero samples) but the TdmsData enum variant must be present
+/// - Channel names and group names must be valid UTF-8 strings
+/// - Property keys and string values must be valid UTF-8
+/// 
+/// # Output Guarantees
+/// 
+/// - Files are written in a single segment with deterministic channel ordering
+/// - Output is binary-compatible with National Instruments TDMS readers
+/// - Channel ordering within groups is deterministic (alphabetical by channel name)
+/// - Group ordering is deterministic (alphabetical by group name)
 /// 
 /// # Examples
 /// 
@@ -140,14 +155,12 @@ pub struct TdmsFileWriter {
 
 /// A group writer for organizing related channels.
 pub struct TdmsGroupWriter {
-    name: String,
     channels: BTreeMap<String, TdmsChannelWriter>,
     properties: HashMap<String, PropertyValue>,
 }
 
 /// A channel writer containing data and properties.
 pub struct TdmsChannelWriter {
-    name: String,
     data: TdmsData,
     properties: HashMap<String, PropertyValue>,
 }
@@ -165,7 +178,6 @@ impl TdmsFileWriter {
     /// Add a group to the file and return a mutable reference to it.
     pub fn add_group(&mut self, name: &str) -> &mut TdmsGroupWriter {
         let group = TdmsGroupWriter {
-            name: name.to_string(),
             channels: BTreeMap::new(),
             properties: HashMap::new(),
         };
@@ -317,101 +329,6 @@ impl TdmsFileWriter {
         Ok(())
     }
 
-    fn build_raw_data_info(&self, data: &TdmsData) -> Result<Vec<u8>> {
-        let mut raw_data_info = Vec::new();
-        
-        match data {
-            TdmsData::Double(values) => {
-                // Data type (4 bytes)
-                raw_data_info.write_u32::<LittleEndian>(DataType::DoubleFloat as u32)?;
-                // Dimension (4 bytes)
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                // Number of values (8 bytes)
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                // Property count (4 bytes) - this is part of the raw data info
-                raw_data_info.write_u32::<LittleEndian>(0)?;
-            },
-            TdmsData::Float(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::SingleFloat as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(0)?;
-            },
-            TdmsData::I8(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::I8 as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(0)?;
-            },
-            TdmsData::I16(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::I16 as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(0)?;
-            },
-            TdmsData::I32(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::I32 as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(0)?;
-            },
-            TdmsData::I64(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::I64 as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(0)?;
-            },
-            TdmsData::U8(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::U8 as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(0)?;
-            },
-            TdmsData::U16(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::U16 as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(0)?;
-            },
-            TdmsData::U32(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::U32 as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(0)?;
-            },
-            TdmsData::U64(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::U64 as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(0)?;
-            },
-            TdmsData::Boolean(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::Boolean as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(0)?;
-            },
-            TdmsData::String(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::String as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                
-                // Calculate total size for strings
-                let total_size = values.iter().map(|s| s.len()).sum::<usize>() + (values.len() * 4); // 4 bytes per offset
-                raw_data_info.write_u64::<LittleEndian>(total_size as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(0)?;
-            },
-            TdmsData::TimeStamp(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::TimeStamp as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(0)?;
-            },
-        }
-        
-        Ok(raw_data_info)
-    }
-
     fn build_raw_data_info_with_properties(&self, data: &TdmsData, properties: &HashMap<String, PropertyValue>) -> Result<Vec<u8>> {
         let mut raw_data_info = Vec::new();
         
@@ -559,6 +476,11 @@ impl TdmsFileWriter {
                 writer.write_u32::<LittleEndian>(DataType::Boolean as u32)?;
                 writer.write_u8(if *b { 1 } else { 0 })?;
             },
+            PropertyValue::TimeStamp((seconds, fraction)) => {
+                writer.write_u32::<LittleEndian>(DataType::TimeStamp as u32)?;
+                writer.write_u64::<LittleEndian>(*fraction)?;
+                writer.write_i64::<LittleEndian>(*seconds)?;
+            },
         }
         
         Ok(())
@@ -593,7 +515,6 @@ impl TdmsFileWriter {
                     writer.write_i64::<LittleEndian>(seconds)?;
                 }
             },
-            _ => panic!("Unsupported TdmsData type"),
         }
         Ok(())
     }
@@ -604,7 +525,6 @@ impl TdmsGroupWriter {
     /// Add a channel to this group with the specified data.
     pub fn add_channel(&mut self, name: &str, data: TdmsData) -> &mut TdmsChannelWriter {
         let channel = TdmsChannelWriter {
-            name: name.to_string(),
             data,
             properties: HashMap::new(),
         };

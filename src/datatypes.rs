@@ -70,7 +70,8 @@ pub enum PropertyValue {
     Double(f64),
     String(String),
     Boolean(bool),
-    // TimeStamp(timestamp_struct)
+    /// TDMS timestamp as (seconds since 1904-01-01 UTC, fraction in 2^-64 second units)
+    TimeStamp((i64, u64)),
 }
 
 /// Channel data stored in TDMS files.
@@ -240,19 +241,12 @@ pub fn read_property_value<R: Read + Seek>(reader: &mut R, type_code: u32) -> Re
             Ok(PropertyValue::String(s))
         },
         DataType::TimeStamp => {
-            // 8 bytes (i64 full seconds since 1904) + 8 bytes (u64 fraction 2^-64)
-            // Order: Fraction first (u64), then Seconds (i64)
+            // TDMS timestamps: 8 bytes fraction (u64) + 8 bytes seconds (i64)
+            // Fraction represents 2^-64 second precision
+            // Seconds are since 1904-01-01 00:00:00 UTC
             let fraction = reader.read_u64::<LittleEndian>()?;
             let seconds = reader.read_i64::<LittleEndian>()?; 
-            // We just consume bytes for now, maybe store as placeholder or struct?
-            // Let's implement full timestamp later, just consume for now?
-            // Test harness doesn't check property value yet fully?
-            // Wait, we need to return something.
-            // Let's return U64 (placeholder) or implement basic variant?
-            // Let's defer strict timestamp logic but ensure we read 16 bytes.
-            // Since we read u64+i64, we read 16 bytes.
-            // Return I64 as debug placeholder?
-            Ok(PropertyValue::I64(seconds)) // TODO: Proper timestamp type
+            Ok(PropertyValue::TimeStamp((seconds, fraction)))
         },
         _ => Err(TdmsError::NotImplemented(format!("Reading prop type {:?}", dtype))),
     }
@@ -404,7 +398,6 @@ pub fn read_raw_data<R: Read + Seek>(reader: &mut R, data_type: &DataType, count
             }
             Ok(TdmsData::TimeStamp(data))
         },
-        _ => Err(TdmsError::NotImplemented(format!("Raw reading for {:?}", data_type))),
     }
 }
 

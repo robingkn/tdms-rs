@@ -33,6 +33,11 @@ use std::collections::HashMap;
 /// // Load a TDMS file
 /// let file = TdmsFile::load(Path::new("data.tdms"))?;
 /// 
+/// // Access file-level properties
+/// for (prop_name, prop_value) in &file.properties {
+///     println!("File property {}: {:?}", prop_name, prop_value);
+/// }
+/// 
 /// // Iterate through groups and channels
 /// for (group_name, group) in &file.groups {
 ///     println!("Group: {}", group_name);
@@ -50,14 +55,20 @@ use std::collections::HashMap;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub struct TdmsFile {
+    /// Properties (metadata) associated with the file itself.
+    /// 
+    /// File-level properties contain metadata about the entire TDMS file, such as:
+    /// - Creation time and author information
+    /// - File format version
+    /// - Custom application-specific metadata
+    pub properties: HashMap<String, PropertyValue>,
+    
     /// Groups contained in this TDMS file, indexed by group name.
     /// 
     /// Group names are the path components from the TDMS file structure.
     /// For example, a path like `/'Sensors'/'Temperature'` creates a group named "Sensors"
     /// containing a channel named "Temperature".
     pub groups: HashMap<String, TdmsGroup>,
-    // Placeholder structure
-    path: String,
 }
 
 pub use crate::datatypes::{PropertyValue, TdmsData};
@@ -196,6 +207,7 @@ impl TdmsFile {
         let mut reader = TdmsReader::new(BufReader::new(file));
         
         let mut groups = HashMap::new();
+        let mut file_properties = HashMap::new();
         
         loop {
             let segment = match reader.read_segment() {
@@ -235,15 +247,16 @@ impl TdmsFile {
                         group.properties.extend(obj.properties);
                     }
                 } else if obj.path.is_root() {
-                    // File properties (store where?)
+                    // File-level properties
+                    file_properties.extend(obj.properties);
                 }
             }
         }
         
         // Return populated groups
         Ok(Self {
+            properties: file_properties,
             groups,
-            path: path.to_string_lossy().to_string(),
         })
     }
 }

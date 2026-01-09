@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn analyze_data(data: &TdmsData, channel_name: &str) {
+fn analyze_data(data: &TdmsData, _channel_name: &str) {
     match data {
         TdmsData::Double(values) => {
             println!("Data type: f64 (double precision)");
@@ -201,7 +201,7 @@ fn analyze_data(data: &TdmsData, channel_name: &str) {
     }
 }
 
-fn print_sample_values<T: std::fmt::Display>(values: &[T], type_name: &str) {
+fn print_sample_values<T: std::fmt::Display>(values: &[T], _type_name: &str) {
     const SAMPLE_SIZE: usize = 5;
     
     if values.len() <= SAMPLE_SIZE * 2 {
