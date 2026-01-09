@@ -6,7 +6,7 @@
 
 use std::env;
 use std::path::Path;
-use tdms::TdmsFile;
+use tdms_rs::TdmsFile;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Get file path from command line arguments
@@ -48,20 +48,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Helper function to get the number of data points in TdmsData
-fn get_data_len(data: &tdms::TdmsData) -> usize {
+fn get_data_len(data: &tdms_rs::TdmsData) -> usize {
     match data {
-        tdms::TdmsData::I8(v) => v.len(),
-        tdms::TdmsData::I16(v) => v.len(),
-        tdms::TdmsData::I32(v) => v.len(),
-        tdms::TdmsData::I64(v) => v.len(),
-        tdms::TdmsData::U8(v) => v.len(),
-        tdms::TdmsData::U16(v) => v.len(),
-        tdms::TdmsData::U32(v) => v.len(),
-        tdms::TdmsData::U64(v) => v.len(),
-        tdms::TdmsData::Float(v) => v.len(),
-        tdms::TdmsData::Double(v) => v.len(),
-        tdms::TdmsData::String(v) => v.len(),
-        tdms::TdmsData::Boolean(v) => v.len(),
-        tdms::TdmsData::TimeStamp(v) => v.len(),
+        tdms_rs::TdmsData::I8(v) => v.len(),
+        tdms_rs::TdmsData::I16(v) => v.len(),
+        tdms_rs::TdmsData::I32(v) => v.len(),
+        tdms_rs::TdmsData::I64(v) => v.len(),
+        tdms_rs::TdmsData::U8(v) => v.len(),
+        tdms_rs::TdmsData::U16(v) => v.len(),
+        tdms_rs::TdmsData::U32(v) => v.len(),
+        tdms_rs::TdmsData::U64(v) => v.len(),
+        tdms_rs::TdmsData::Float(v) => v.len(),
+        tdms_rs::TdmsData::Double(v) => v.len(),
+        tdms_rs::TdmsData::String(v) => v.len(),
+        tdms_rs::TdmsData::Boolean(v) => v.len(),
+        tdms_rs::TdmsData::TimeStamp(v) => v.len(),
     }
 }

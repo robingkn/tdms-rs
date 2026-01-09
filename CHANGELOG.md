@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2026-01-09
 
 ### Added
-- Initial release of TDMS parser
+- Initial release of tdms-rs TDMS parser
 - Support for all TDMS data types (integers, floats, strings, timestamps, booleans)
-- Command-line tool `tdms_to_json` for converting TDMS files to JSON
+- Command-line tool `tdms-to-json` for converting TDMS files to JSON
 - Comprehensive test suite with 24 test cases covering edge cases
 - Support for special float values (NaN, Infinity, -0.0)
 - Unicode support for group and channel names

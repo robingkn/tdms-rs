@@ -1,4 +1,4 @@
-# TDMS - Rust TDMS File Parser
+# tdms-rs - Rust TDMS File Parser
 
 A pure Rust library for reading National Instruments TDMS (Technical Data Management Streaming) files.
 
@@ -9,12 +9,21 @@ A pure Rust library for reading National Instruments TDMS (Technical Data Manage
 - No external dependencies beyond standard parsing libraries
 - Command-line tool for TDMS to JSON conversion
 
+## Installation
+
+Add this to your `Cargo.toml`:
+
+```toml
+[dependencies]
+tdms-rs = "0.1"
+```
+
 ## Usage
 
 ### Quick Start
 
 ```rust
-use tdms::TdmsFile;
+use tdms_rs::TdmsFile;
 use std::path::Path;
 
 // Load a TDMS file
@@ -34,7 +43,7 @@ for (group_name, group) in &file.groups {
 ### Reading Channel Data
 
 ```rust
-use tdms::{TdmsFile, TdmsData};
+use tdms_rs::{TdmsFile, TdmsData};
 use std::path::Path;
 
 let file = TdmsFile::load(Path::new("measurements.tdms"))?;
@@ -60,7 +69,7 @@ if let Some(group) = file.groups.get("Sensors") {
 ### Accessing Properties
 
 ```rust
-use tdms::{TdmsFile, PropertyValue};
+use tdms_rs::{TdmsFile, PropertyValue};
 use std::path::Path;
 
 let file = TdmsFile::load(Path::new("data.tdms"))?;
@@ -88,7 +97,7 @@ if let Some(group) = file.groups.get("DAQmx") {
 ### Working with Timestamps
 
 ```rust
-use tdms::{TdmsFile, TdmsData};
+use tdms_rs::{TdmsFile, TdmsData};
 use std::path::Path;
 
 let file = TdmsFile::load(Path::new("time_series.tdms"))?;
@@ -108,8 +117,8 @@ if let Some(group) = file.groups.get("Time Data") {
 
 ### Binary Tool
 ```bash
-cargo install tdms
-tdms_to_json input.tdms output.json
+cargo install tdms-rs
+tdms-to-json input.tdms output.json
 ```
 
 ## Examples

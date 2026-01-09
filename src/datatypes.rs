@@ -38,7 +38,7 @@ pub enum DataType {
 /// # Examples
 /// 
 /// ```no_run
-/// use tdms::{TdmsFile, PropertyValue};
+/// use tdms_rs::{TdmsFile, PropertyValue};
 /// use std::path::Path;
 /// 
 /// let file = TdmsFile::load(Path::new("data.tdms"))?;
@@ -100,7 +100,7 @@ pub enum PropertyValue {
 /// # Examples
 /// 
 /// ```no_run
-/// use tdms::{TdmsFile, TdmsData};
+/// use tdms_rs::{TdmsFile, TdmsData};
 /// use std::path::Path;
 /// 
 /// let file = TdmsFile::load(Path::new("data.tdms"))?;

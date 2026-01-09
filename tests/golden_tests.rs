@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 // Re-export the main types from the library for testing
 // We assume the library exposes a `TdmsFile` struct with a `load` method.
-use tdms::TdmsFile;
+use tdms_rs::TdmsFile;
 
 #[derive(Deserialize, Debug)]
 struct GoldenJson {
@@ -118,7 +118,7 @@ fn run_test_case(tdms_path: &Path) {
                     assert!(c_parsed.data.is_some(), "Missing data for channel '{}'", c_name);
                     
                     match c_parsed.data.as_ref().unwrap() {
-                        tdms::TdmsData::Double(vals) => {
+                        tdms_rs::TdmsData::Double(vals) => {
                               if let Some(expected) = c_golden.data.as_array() {
                                   assert_eq!(vals.len(), expected.len(), "Count mismatch for {}", c_name);
                                   for (i, v) in vals.iter().enumerate() {
@@ -146,7 +146,7 @@ fn run_test_case(tdms_path: &Path) {
                                   }
                               }
                         },
-                        tdms::TdmsData::String(vals) => {
+                        tdms_rs::TdmsData::String(vals) => {
                              if let Some(expected) = c_golden.data.as_array() {
                                  assert_eq!(vals.len(), expected.len(), "Count mismatch for {}", c_name);
                                  for (i, v) in vals.iter().enumerate() {
@@ -155,7 +155,7 @@ fn run_test_case(tdms_path: &Path) {
                                  }
                              }
                         },
-                        tdms::TdmsData::I32(vals) => {
+                        tdms_rs::TdmsData::I32(vals) => {
                              if let Some(expected) = c_golden.data.as_array() {
                                  assert_eq!(vals.len(), expected.len(), "Count mismatch for {}", c_name);
                                  for (i, v) in vals.iter().enumerate() {
@@ -164,7 +164,7 @@ fn run_test_case(tdms_path: &Path) {
                                  }
                              }
                         },
-                         tdms::TdmsData::I8(vals) => {
+                         tdms_rs::TdmsData::I8(vals) => {
                              if let Some(expected) = c_golden.data.as_array() {
                                  assert_eq!(vals.len(), expected.len(), "Count mismatch for {}", c_name);
                                  for (i, v) in vals.iter().enumerate() {
@@ -173,7 +173,7 @@ fn run_test_case(tdms_path: &Path) {
                                  }
                              }
                         },
-                        tdms::TdmsData::I16(vals) => {
+                        tdms_rs::TdmsData::I16(vals) => {
                              if let Some(expected) = c_golden.data.as_array() {
                                  assert_eq!(vals.len(), expected.len(), "Count mismatch for {}", c_name);
                                  for (i, v) in vals.iter().enumerate() {
@@ -182,7 +182,7 @@ fn run_test_case(tdms_path: &Path) {
                                  }
                              }
                         },
-                        tdms::TdmsData::I64(vals) => {
+                        tdms_rs::TdmsData::I64(vals) => {
                              if let Some(expected) = c_golden.data.as_array() {
                                  assert_eq!(vals.len(), expected.len(), "Count mismatch for {}", c_name);
                                  for (i, v) in vals.iter().enumerate() {
@@ -191,7 +191,7 @@ fn run_test_case(tdms_path: &Path) {
                                  }
                              }
                         },
-                        tdms::TdmsData::U8(vals) => {
+                        tdms_rs::TdmsData::U8(vals) => {
                              if let Some(expected) = c_golden.data.as_array() {
                                  assert_eq!(vals.len(), expected.len(), "Count mismatch for {}", c_name);
                                  for (i, v) in vals.iter().enumerate() {
@@ -200,7 +200,7 @@ fn run_test_case(tdms_path: &Path) {
                                  }
                              }
                         },
-                        tdms::TdmsData::U16(vals) => {
+                        tdms_rs::TdmsData::U16(vals) => {
                              if let Some(expected) = c_golden.data.as_array() {
                                  assert_eq!(vals.len(), expected.len(), "Count mismatch for {}", c_name);
                                  for (i, v) in vals.iter().enumerate() {
@@ -209,7 +209,7 @@ fn run_test_case(tdms_path: &Path) {
                                  }
                              }
                         },
-                        tdms::TdmsData::U32(vals) => {
+                        tdms_rs::TdmsData::U32(vals) => {
                              if let Some(expected) = c_golden.data.as_array() {
                                  assert_eq!(vals.len(), expected.len(), "Count mismatch for {}", c_name);
                                  for (i, v) in vals.iter().enumerate() {
@@ -218,7 +218,7 @@ fn run_test_case(tdms_path: &Path) {
                                  }
                              }
                         },
-                        tdms::TdmsData::U64(vals) => {
+                        tdms_rs::TdmsData::U64(vals) => {
                              if let Some(expected) = c_golden.data.as_array() {
                                  assert_eq!(vals.len(), expected.len(), "Count mismatch for {}", c_name);
                                  for (i, v) in vals.iter().enumerate() {
@@ -227,7 +227,7 @@ fn run_test_case(tdms_path: &Path) {
                                  }
                              }
                         },
-                        tdms::TdmsData::Float(vals) => {
+                        tdms_rs::TdmsData::Float(vals) => {
                              if let Some(expected) = c_golden.data.as_array() {
                                  assert_eq!(vals.len(), expected.len(), "Count mismatch for {}", c_name);
                                  for (i, v) in vals.iter().enumerate() {
@@ -236,7 +236,7 @@ fn run_test_case(tdms_path: &Path) {
                                  }
                              }
                         },
-                        tdms::TdmsData::Boolean(vals) => {
+                        tdms_rs::TdmsData::Boolean(vals) => {
                              if let Some(expected) = c_golden.data.as_array() {
                                  assert_eq!(vals.len(), expected.len(), "Count mismatch for {}", c_name);
                                  for (i, v) in vals.iter().enumerate() {
@@ -245,7 +245,7 @@ fn run_test_case(tdms_path: &Path) {
                                  }
                              }
                         },
-                        tdms::TdmsData::TimeStamp(vals) => {
+                        tdms_rs::TdmsData::TimeStamp(vals) => {
                              if let Some(expected) = c_golden.data.as_array() {
                                  assert_eq!(vals.len(), expected.len(), "Count mismatch for {}", c_name);
                                  for (i, v) in vals.iter().enumerate() {

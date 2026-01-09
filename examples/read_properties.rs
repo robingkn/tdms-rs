@@ -7,7 +7,7 @@
 
 use std::env;
 use std::path::Path;
-use tdms::{TdmsFile, PropertyValue};
+use tdms_rs::{TdmsFile, PropertyValue};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();

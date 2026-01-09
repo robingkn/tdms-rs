@@ -26,7 +26,7 @@ use std::collections::HashMap;
 /// # Examples
 /// 
 /// ```no_run
-/// use tdms::TdmsFile;
+/// use tdms_rs::TdmsFile;
 /// use std::path::Path;
 /// 
 /// // Load a TDMS file
@@ -37,7 +37,12 @@ use std::collections::HashMap;
 ///     println!("Group: {}", group_name);
 ///     for (channel_name, channel) in &group.channels {
 ///         if let Some(data) = &channel.data {
-///             println!("  Channel {}: {} samples", channel_name, data.len());
+///             let sample_count = match data {
+///                 tdms_rs::TdmsData::Double(v) => v.len(),
+///                 tdms_rs::TdmsData::I32(v) => v.len(),
+///                 _ => 0, // Handle other types as needed
+///             };
+///             println!("  Channel {}: {} samples", channel_name, sample_count);
 ///         }
 ///     }
 /// }
@@ -64,7 +69,7 @@ pub use crate::datatypes::{PropertyValue, TdmsData};
 /// # Examples
 /// 
 /// ```no_run
-/// use tdms::TdmsFile;
+/// use tdms_rs::TdmsFile;
 /// use std::path::Path;
 /// 
 /// let file = TdmsFile::load(Path::new("data.tdms"))?;
@@ -97,7 +102,7 @@ pub struct TdmsGroup {
 /// # Examples
 /// 
 /// ```no_run
-/// use tdms::{TdmsFile, TdmsData};
+/// use tdms_rs::{TdmsFile, TdmsData};
 /// use std::path::Path;
 /// 
 /// let file = TdmsFile::load(Path::new("data.tdms"))?;
@@ -170,7 +175,7 @@ impl TdmsFile {
     /// # Examples
     /// 
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     /// use std::path::Path;
     /// 
     /// // Load a TDMS file
