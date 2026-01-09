@@ -23,10 +23,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     println!("✅ File loaded successfully!");
     
-    // Note: File-level properties are not currently exposed in the public API
-    // This is a limitation of the current implementation
+    // Display file-level properties
     println!("\n📄 File Properties:");
-    println!("   (File-level properties not currently accessible via public API)");
+    if file.properties.is_empty() {
+        println!("   No file-level properties");
+    } else {
+        println!("   File Properties ({}):", file.properties.len());
+        for (prop_name, prop_value) in &file.properties {
+            match prop_value {
+                tdms_rs::PropertyValue::String(s) => println!("     {}: \"{}\"", prop_name, s),
+                tdms_rs::PropertyValue::Double(d) => println!("     {}: {}", prop_name, d),
+                tdms_rs::PropertyValue::I32(i) => println!("     {}: {}", prop_name, i),
+                tdms_rs::PropertyValue::Boolean(b) => println!("     {}: {}", prop_name, b),
+                tdms_rs::PropertyValue::TimeStamp((s, f)) => println!("     {}: {}.{:019}", prop_name, s, f),
+                _ => println!("     {}: {:?}", prop_name, prop_value),
+            }
+        }
+    }
     
     // Display group and channel properties
     for (group_name, group) in &file.groups {
@@ -116,7 +129,7 @@ fn format_property_detailed(value: &PropertyValue) -> String {
     }
 }
 
-fn show_common_properties(properties: &std::collections::HashMap<String, PropertyValue>) {
+fn show_common_properties(properties: &indexmap::IndexMap<String, PropertyValue>) {
     // Check for common TDMS channel properties and explain their meaning
     let common_props = [
         ("wf_increment", "Waveform time increment (sampling interval)"),
