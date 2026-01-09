@@ -6,6 +6,7 @@ pub mod datatypes;
 pub mod channel;
 pub mod error;
 pub mod utils;
+pub mod writer;
 
 use std::path::Path;
 use std::fs::File;
@@ -60,6 +61,7 @@ pub struct TdmsFile {
 }
 
 pub use crate::datatypes::{PropertyValue, TdmsData};
+pub use crate::writer::{TdmsFileWriter, TdmsGroupWriter, TdmsChannelWriter};
 
 /// A group within a TDMS file containing related channels and group-level properties.
 /// 

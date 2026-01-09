@@ -138,7 +138,7 @@ pub enum PropertyValue {
 /// 
 /// This provides very high precision timing information suitable for
 /// high-frequency data acquisition applications.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TdmsData {
     I8(Vec<i8>),
     I16(Vec<i16>),
