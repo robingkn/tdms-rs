@@ -190,7 +190,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Show file iteration helper (already exists)
     println!("\n   Using iter_groups():");
-    for (group_name, group) in file.iter_groups() {
+    for (group_name, _group) in file.iter_groups() {
         println!("     Group '{}' (via iterator)", group_name);
     }
     

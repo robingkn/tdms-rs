@@ -2,13 +2,26 @@
 name = "tdms-rs"
 version = "1.0.0"
 edition = "2021"
-description = "Pure Rust TDMS file parser for National Instruments TDMS files"
+authors = ["Robin George Koshy <robingkn@users.noreply.github.com>"]
+description = "Pure Rust library for reading and writing National Instruments TDMS files with full format support and ergonomic APIs"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/robingkn/tdms-rs"
 homepage = "https://github.com/robingkn/tdms-rs"
+documentation = "https://docs.rs/tdms-rs"
 keywords = ["tdms", "labview", "parser", "data", "national-instruments"]
-categories = ["parsing", "science"]
+categories = ["parsing", "science", "data-structures"]
 readme = "README.md"
+exclude = [
+    "tests/fixtures/",
+    "tests/output/",
+    "examples/output/",
+    "tools/",
+    "target/",
+    ".git/",
+    "*.md",
+    "!README.md",
+    "!CHANGELOG.md"
+]
 
 [[bin]]
 name = "tdms-to-json"

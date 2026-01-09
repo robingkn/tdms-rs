@@ -59,16 +59,16 @@
 //! let mut writer = TdmsFileWriter::new("output.tdms");
 //!
 //! // Add file-level properties
-//! writer.add_property("Author", PropertyValue::String("Rust App".into()));
+//! writer.add_property("Author", PropertyValue::String("Rust App".into()))?;
 //!
 //! // Create groups and channels
-//! let group = writer.add_group("Sensors");
-//! group.add_channel("Temperature", TdmsData::Double(vec![20.1, 21.5, 22.3]));
-//! group.add_channel("Pressure", TdmsData::I32(vec![1013, 1015, 1012]));
+//! let group = writer.add_group("Sensors")?;
+//! group.add_channel("Temperature", TdmsData::Double(vec![20.1, 21.5, 22.3]))?;
+//! group.add_channel("Pressure", TdmsData::I32(vec![1013, 1015, 1012]))?;
 //!
 //! // Add channel properties
-//! let voltage_channel = group.add_channel("Voltage", TdmsData::Double(vec![1.1, 2.2, 3.3]));
-//! voltage_channel.add_property("wf_unit_string", PropertyValue::String("V".into()));
+//! let voltage_channel = group.add_channel("Voltage", TdmsData::Double(vec![1.1, 2.2, 3.3]))?;
+//! voltage_channel.add_property("wf_unit_string", PropertyValue::String("V".into()))?;
 //!
 //! // Write the file
 //! writer.write()?;

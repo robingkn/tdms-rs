@@ -5,7 +5,7 @@
 //! and understanding the full range of TDMS capabilities.
 
 use tdms_rs::writer::TdmsFileWriter;
-use tdms_rs::{TdmsData, PropertyValue};
+use tdms_rs::TdmsData;
 use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -22,55 +22,55 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     writer.add_property("Test_Version", 1i32)?;
     
     // === SIGNED INTEGER TYPES ===
-    let integers = writer.add_group("Signed_Integers");
+    let integers = writer.add_group("Signed_Integers")?;
     integers.add_property("Description", "All signed integer types with edge cases")?;
     
     // 8-bit signed integers
     integers.add_channel("Int8", TdmsData::I8(vec![
         i8::MIN, -100, -1, 0, 1, 100, i8::MAX
-    ]));
+    ]))?;
     
     // 16-bit signed integers
     integers.add_channel("Int16", TdmsData::I16(vec![
         i16::MIN, -1000, -1, 0, 1, 1000, i16::MAX
-    ]));
+    ]))?;
     
     // 32-bit signed integers
     integers.add_channel("Int32", TdmsData::I32(vec![
         i32::MIN, -1000000, -1, 0, 1, 1000000, i32::MAX
-    ]));
+    ]))?;
     
     // 64-bit signed integers
     integers.add_channel("Int64", TdmsData::I64(vec![
         i64::MIN, -1000000000000, -1, 0, 1, 1000000000000, i64::MAX
-    ]));
+    ]))?;
     
     // === UNSIGNED INTEGER TYPES ===
-    let unsigned = writer.add_group("Unsigned_Integers");
+    let unsigned = writer.add_group("Unsigned_Integers")?;
     unsigned.add_property("Description", "All unsigned integer types with full range")?;
     
     // 8-bit unsigned integers
     unsigned.add_channel("UInt8", TdmsData::U8(vec![
         0, 1, 127, 128, 200, 254, u8::MAX
-    ]));
+    ]))?;
     
     // 16-bit unsigned integers
     unsigned.add_channel("UInt16", TdmsData::U16(vec![
         0, 1, 1000, 32767, 32768, 60000, u16::MAX
-    ]));
+    ]))?;
     
     // 32-bit unsigned integers
     unsigned.add_channel("UInt32", TdmsData::U32(vec![
         0, 1, 1000000, 2147483647, 2147483648, 4000000000, u32::MAX
-    ]));
+    ]))?;
     
     // 64-bit unsigned integers
     unsigned.add_channel("UInt64", TdmsData::U64(vec![
         0, 1, 1000000000000, u64::MAX / 2, u64::MAX - 1, u64::MAX
-    ]));
+    ]))?;
     
     // === FLOATING POINT TYPES ===
-    let floats = writer.add_group("Floating_Point");
+    let floats = writer.add_group("Floating_Point")?;
     floats.add_property("Description", "Floating point types with special values")?;
     
     // 32-bit floating point with special values
@@ -84,7 +84,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         1000.0,
         f32::INFINITY,
         f32::NAN,
-    ]));
+    ]))?;
     
     // 64-bit floating point with special values
     floats.add_channel("Float64", TdmsData::Double(vec![
@@ -97,7 +97,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         1000.0,
         f64::INFINITY,
         f64::NAN,
-    ]));
+    ]))?;
     
     // High precision values
     floats.add_channel("High_Precision", TdmsData::Double(vec![
@@ -106,30 +106,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::f64::consts::SQRT_2,
         1.23456789012345e-100,
         1.23456789012345e100,
-    ]));
+    ]))?;
     
     // === BOOLEAN TYPE ===
-    let booleans = writer.add_group("Booleans");
+    let booleans = writer.add_group("Booleans")?;
     booleans.add_property("Description", "Boolean values and patterns")?;
     
     booleans.add_channel("Simple", TdmsData::Boolean(vec![
         true, false, true, false, true
-    ]));
+    ]))?;
     
     booleans.add_channel("All_True", TdmsData::Boolean(vec![
         true, true, true, true, true
-    ]));
+    ]))?;
     
     booleans.add_channel("All_False", TdmsData::Boolean(vec![
         false, false, false, false, false
-    ]));
+    ]))?;
     
     booleans.add_channel("Pattern", TdmsData::Boolean(vec![
         true, true, false, false, true, true, false, false
-    ]));
+    ]))?;
     
     // === STRING TYPE ===
-    let strings = writer.add_group("Strings");
+    let strings = writer.add_group("Strings")?;
     strings.add_property("Description", "String data with various lengths and content")?;
     
     strings.add_channel("Basic", TdmsData::String(vec![
@@ -138,7 +138,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "TDMS".to_string(),
         "File".to_string(),
         "Format".to_string(),
-    ]));
+    ]))?;
     
     strings.add_channel("Mixed_Length", TdmsData::String(vec![
         "A".to_string(),
@@ -146,7 +146,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Medium length string".to_string(),
         "This is a much longer string with more content to test variable length handling".to_string(),
         "".to_string(), // Empty string
-    ]));
+    ]))?;
     
     strings.add_channel("Special_Characters", TdmsData::String(vec![
         "Numbers: 123456789".to_string(),
@@ -154,10 +154,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Unicode: αβγδε".to_string(),
         "Spaces and\ttabs\nand newlines".to_string(),
         "Quotes: \"single\" and 'double'".to_string(),
-    ]));
+    ]))?;
     
     // === TIMESTAMP TYPE ===
-    let timestamps = writer.add_group("Timestamps");
+    let timestamps = writer.add_group("Timestamps")?;
     timestamps.add_property("Description", "TDMS timestamp format (seconds since 1904-01-01)")?;
     timestamps.add_property("Epoch", "1904-01-01 00:00:00 UTC")?;
     
@@ -168,31 +168,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         (86400, 0),                // 1904-01-02 00:00:00.000
         (3155760000, 0),           // ~2004-01-01 00:00:00.000
         (3155760000, 9223372036854775808u64), // ~2004-01-01 00:00:00.500 (half second)
-    ]));
+    ]))?;
     
     timestamps.add_channel("High_Precision", TdmsData::TimeStamp(vec![
         (1000, 0),                           // Base time
         (1000, 1844674407370955161u64),      // +0.1 seconds
         (1000, 3689348814741910323u64),      // +0.2 seconds
         (1000, 18446744073709551615u64),     // +0.999999999999999999 seconds
-    ]));
+    ]))?;
     
     // === MIXED DATA GROUP ===
-    let mixed = writer.add_group("Mixed_Data");
+    let mixed = writer.add_group("Mixed_Data")?;
     mixed.add_property("Description", "Different data types in one group")?;
     mixed.add_property("Channel_Count", 6i32)?;
     
     // Add one channel of each major type
-    mixed.add_channel("Integers", TdmsData::I32(vec![1, 2, 3, 4, 5]));
-    mixed.add_channel("Floats", TdmsData::Double(vec![1.1, 2.2, 3.3, 4.4, 5.5]));
-    mixed.add_channel("Flags", TdmsData::Boolean(vec![true, false, true, false, true]));
+    mixed.add_channel("Integers", TdmsData::I32(vec![1, 2, 3, 4, 5]))?;
+    mixed.add_channel("Floats", TdmsData::Double(vec![1.1, 2.2, 3.3, 4.4, 5.5]))?;
+    mixed.add_channel("Flags", TdmsData::Boolean(vec![true, false, true, false, true]))?;
     mixed.add_channel("Labels", TdmsData::String(vec![
         "First".to_string(), "Second".to_string(), "Third".to_string(), "Fourth".to_string(), "Fifth".to_string()
-    ]));
-    mixed.add_channel("Bytes", TdmsData::U8(vec![0x01, 0x02, 0x04, 0x08, 0x10]));
+    ]))?;
+    mixed.add_channel("Bytes", TdmsData::U8(vec![0x01, 0x02, 0x04, 0x08, 0x10]))?;
     mixed.add_channel("Events", TdmsData::TimeStamp(vec![
         (1000, 0), (1001, 0), (1002, 0), (1003, 0), (1004, 0)
-    ]));
+    ]))?;
     
     // Write the file
     writer.write()?;

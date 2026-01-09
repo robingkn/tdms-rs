@@ -17,36 +17,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut writer = TdmsFileWriter::new("examples/output/multi_channel.tdms");
     
     // Add a sensors group
-    let sensors = writer.add_group("Sensors");
+    let sensors = writer.add_group("Sensors")?;
     
     // Temperature sensor data (double precision)
     sensors.add_channel("Temperature", TdmsData::Double(vec![
         20.1, 21.5, 22.3, 23.0, 22.8, 21.9, 20.5, 19.8
-    ]));
+    ]))?;
     
     // Pressure sensor data (32-bit integers, representing pascals)
     sensors.add_channel("Pressure", TdmsData::I32(vec![
         101325, 101330, 101320, 101315, 101310, 101305, 101300, 101295
-    ]));
+    ]))?;
     
     // Humidity sensor data (single precision floats)
     sensors.add_channel("Humidity", TdmsData::Float(vec![
         45.2, 46.1, 47.0, 48.5, 49.2, 48.8, 47.5, 46.3
-    ]));
+    ]))?;
     
     // Validity flags (booleans)
     sensors.add_channel("Valid", TdmsData::Boolean(vec![
         true, true, true, false, true, true, true, true
-    ]));
+    ]))?;
     
     // Add a digital I/O group
-    let digital = writer.add_group("Digital");
+    let digital = writer.add_group("Digital")?;
     
     // Digital input states (8-bit unsigned integers)
     digital.add_channel("InputStates", TdmsData::U8(vec![
         0b00000001, 0b00000011, 0b00000111, 0b00001111,
         0b00011111, 0b00111111, 0b01111111, 0b11111111
-    ]));
+    ]))?;
     
     // Event labels (strings)
     digital.add_channel("EventLabels", TdmsData::String(vec![
@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Calibration".to_string(),
         "Shutdown".to_string(),
         "Stop".to_string(),
-    ]));
+    ]))?;
     
     // Write the file
     writer.write()?;

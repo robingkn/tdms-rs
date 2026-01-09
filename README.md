@@ -6,6 +6,88 @@
 
 A pure Rust library for reading and writing National Instruments TDMS (Technical Data Management Streaming) files with full format support and excellent performance.
 
+## Getting Started
+
+### Installation
+
+Add tdms-rs to your `Cargo.toml`:
+
+```toml
+[dependencies]
+tdms-rs = "1.0"
+```
+
+### Quick Start - Reading TDMS Files
+
+```rust
+use tdms_rs::TdmsFile;
+use std::path::Path;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Load a TDMS file
+    let file = TdmsFile::load(Path::new("data.tdms"))?;
+    
+    // Access file-level properties
+    println!("File has {} groups", file.groups.len());
+    for (key, value) in &file.properties {
+        println!("File property {}: {:?}", key, value);
+    }
+    
+    // Ergonomic channel access (v1.0.0)
+    if let Some(channel) = file.get_channel("Sensors", "Temperature") {
+        println!("Found temperature channel with {} samples", channel.data_len());
+        
+        // Type-safe data access
+        if let Some(data) = channel.as_f64() {
+            let avg = data.iter().sum::<f64>() / data.len() as f64;
+            println!("Average temperature: {:.2}", avg);
+        }
+        
+        // Convenient property access
+        if let Some(unit) = channel.unit() {
+            println!("Unit: {}", unit);
+        }
+    }
+    
+    Ok(())
+}
+```
+
+### Quick Start - Writing TDMS Files
+
+```rust
+use tdms_rs::{TdmsFileWriter, TdmsData};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create a new TDMS file
+    let mut writer = TdmsFileWriter::new("output.tdms");
+    
+    // Add file-level properties (v1.0.0 ergonomic syntax)
+    writer.add_property("Author", "Rust Application")?;
+    writer.add_property("Version", 1i32)?;
+    writer.add_property("Sample_Rate", 1000.0)?;
+    
+    // Create groups and channels
+    let group = writer.add_group("Sensors")?;
+    group.add_property("Location", "Laboratory")?;
+    
+    // Add channels with data
+    let temp_channel = group.add_channel("Temperature", 
+        TdmsData::Double(vec![20.1, 21.5, 22.3, 23.0]))?;
+    
+    // Add channel properties with ergonomic syntax
+    temp_channel.add_property("wf_unit_string", "°C")?;
+    temp_channel.add_property("wf_increment", 0.001)?;
+    temp_channel.add_property("Description", "Ambient temperature")?;
+    
+    // Write the file
+    writer.write()?;
+    
+    println!("TDMS file created successfully!");
+    Ok(())
+}
+```
+
 ## Features
 
 - **Complete TDMS Support**: Read and write all TDMS data types and structures
@@ -14,6 +96,15 @@ A pure Rust library for reading and writing National Instruments TDMS (Technical
 - **Production Ready**: Comprehensive test coverage with 24+ test scenarios
 - **Binary Compatibility**: Output files work with National Instruments software
 - **Pure Rust**: Minimal external dependencies
+
+### New in v1.0.0 - Ergonomic Improvements
+
+- **🎯 From<T> Property Conversions**: `writer.add_property("key", "value")` instead of verbose `PropertyValue::String()`
+- **🔧 Complete Helper Methods**: Type-safe accessors for all data types (`as_i8()`, `as_u8()`, `as_bool()`, etc.)
+- **🚀 Ergonomic Channel Lookup**: `file.get_channel("group", "channel")` for direct access
+- **📋 Property Constants**: Well-known TDMS property names (`properties::UNIT_STRING`, etc.)
+- **⏰ Timestamp Conversion**: Easy conversion helpers (`timestamps_to_unix()`, `as_timestamps_f64()`)
+- **📖 Enhanced Documentation**: Comprehensive examples and API documentation
 
 ## Getting Started
 
