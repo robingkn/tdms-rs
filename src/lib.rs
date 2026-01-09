@@ -125,6 +125,61 @@ use crate::reader::TdmsReader;
 
 use indexmap::IndexMap;
 
+/// Common TDMS property names as constants to avoid string duplication.
+/// 
+/// These constants represent well-known property names used in TDMS files,
+/// particularly for waveform data and National Instruments-specific metadata.
+/// 
+/// # Examples
+/// 
+/// ```no_run
+/// use tdms_rs::{TdmsFile, properties};
+/// use std::path::Path;
+/// 
+/// let file = TdmsFile::load(Path::new("data.tdms"))?;
+/// if let Some(channel) = file.get_channel("Group", "Channel") {
+///     // Use constants instead of magic strings
+///     if let Some(unit) = channel.get_string_property(properties::UNIT_STRING) {
+///         println!("Unit: {}", unit);
+///     }
+///     if let Some(increment) = channel.get_double_property(properties::INCREMENT) {
+///         println!("Sample interval: {} seconds", increment);
+///     }
+/// }
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+pub mod properties {
+    /// Waveform unit string property ("wf_unit_string")
+    pub const UNIT_STRING: &str = "wf_unit_string";
+    
+    /// Waveform time increment property ("wf_increment")
+    pub const INCREMENT: &str = "wf_increment";
+    
+    /// Waveform start time property ("wf_start_time")
+    pub const START_TIME: &str = "wf_start_time";
+    
+    /// Waveform start offset property ("wf_start_offset")
+    pub const START_OFFSET: &str = "wf_start_offset";
+    
+    /// Waveform sample count property ("wf_samples")
+    pub const SAMPLES: &str = "wf_samples";
+    
+    /// National Instruments array column property ("NI_ArrayColumn")
+    pub const NI_ARRAY_COLUMN: &str = "NI_ArrayColumn";
+    
+    /// National Instruments channel length property ("NI_ChannelLength")
+    pub const NI_CHANNEL_LENGTH: &str = "NI_ChannelLength";
+    
+    /// Description property ("Description")
+    pub const DESCRIPTION: &str = "Description";
+    
+    /// Sensor type property ("Sensor_Type")
+    pub const SENSOR_TYPE: &str = "Sensor_Type";
+    
+    /// Calibration date property ("Calibration_Date")
+    pub const CALIBRATION_DATE: &str = "Calibration_Date";
+}
+
 /// A TDMS file containing groups and channels with their associated data and properties.
 /// 
 /// TDMS (Technical Data Management Streaming) is a file format developed by National Instruments
@@ -289,6 +344,26 @@ impl TdmsGroup {
     pub fn iter_channels(&self) -> impl Iterator<Item = (&str, &TdmsChannel)> {
         self.channels.iter().map(|(k, v)| (k.as_str(), v))
     }
+
+    /// Get a channel by name.
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use tdms_rs::TdmsFile;
+    /// use std::path::Path;
+    /// 
+    /// let file = TdmsFile::load(Path::new("data.tdms"))?;
+    /// if let Some(group) = file.group("Sensors") {
+    ///     if let Some(channel) = group.channel("Temperature") {
+    ///         println!("Found temperature channel");
+    ///     }
+    /// }
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn channel(&self, name: &str) -> Option<&TdmsChannel> {
+        self.channels.get(name)
+    }
 }
 
 impl Default for TdmsChannel {
@@ -333,6 +408,78 @@ impl TdmsChannel {
     pub fn as_string(&self) -> Option<&[String]> {
         match &self.data {
             Some(TdmsData::String(values)) => Some(values),
+            _ => None,
+        }
+    }
+
+    /// Get channel data as i8 slice if the data type is I8.
+    pub fn as_i8(&self) -> Option<&[i8]> {
+        match &self.data {
+            Some(TdmsData::I8(values)) => Some(values),
+            _ => None,
+        }
+    }
+
+    /// Get channel data as i16 slice if the data type is I16.
+    pub fn as_i16(&self) -> Option<&[i16]> {
+        match &self.data {
+            Some(TdmsData::I16(values)) => Some(values),
+            _ => None,
+        }
+    }
+
+    /// Get channel data as i64 slice if the data type is I64.
+    pub fn as_i64(&self) -> Option<&[i64]> {
+        match &self.data {
+            Some(TdmsData::I64(values)) => Some(values),
+            _ => None,
+        }
+    }
+
+    /// Get channel data as u8 slice if the data type is U8.
+    pub fn as_u8(&self) -> Option<&[u8]> {
+        match &self.data {
+            Some(TdmsData::U8(values)) => Some(values),
+            _ => None,
+        }
+    }
+
+    /// Get channel data as u16 slice if the data type is U16.
+    pub fn as_u16(&self) -> Option<&[u16]> {
+        match &self.data {
+            Some(TdmsData::U16(values)) => Some(values),
+            _ => None,
+        }
+    }
+
+    /// Get channel data as u32 slice if the data type is U32.
+    pub fn as_u32(&self) -> Option<&[u32]> {
+        match &self.data {
+            Some(TdmsData::U32(values)) => Some(values),
+            _ => None,
+        }
+    }
+
+    /// Get channel data as u64 slice if the data type is U64.
+    pub fn as_u64(&self) -> Option<&[u64]> {
+        match &self.data {
+            Some(TdmsData::U64(values)) => Some(values),
+            _ => None,
+        }
+    }
+
+    /// Get channel data as bool slice if the data type is Boolean.
+    pub fn as_bool(&self) -> Option<&[bool]> {
+        match &self.data {
+            Some(TdmsData::Boolean(values)) => Some(values),
+            _ => None,
+        }
+    }
+
+    /// Get channel data as timestamp slice if the data type is TimeStamp.
+    pub fn as_timestamps(&self) -> Option<&[(i64, u64)]> {
+        match &self.data {
+            Some(TdmsData::TimeStamp(values)) => Some(values),
             _ => None,
         }
     }
@@ -414,6 +561,119 @@ impl TdmsChannel {
             _ => None,
         }
     }
+
+    /// Get the sample count from wf_samples property.
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use tdms_rs::TdmsFile;
+    /// use std::path::Path;
+    /// 
+    /// let file = TdmsFile::load(Path::new("data.tdms"))?;
+    /// if let Some(channel) = file.get_channel("Group", "Channel") {
+    ///     if let Some(count) = channel.sample_count() {
+    ///         println!("Expected {} samples", count);
+    ///     }
+    /// }
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn sample_count(&self) -> Option<i64> {
+        self.get_i64_property(crate::properties::SAMPLES)
+    }
+
+    /// Get description property.
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use tdms_rs::TdmsFile;
+    /// use std::path::Path;
+    /// 
+    /// let file = TdmsFile::load(Path::new("data.tdms"))?;
+    /// if let Some(channel) = file.get_channel("Group", "Channel") {
+    ///     if let Some(desc) = channel.description() {
+    ///         println!("Channel description: {}", desc);
+    ///     }
+    /// }
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn description(&self) -> Option<&str> {
+        self.get_string_property(crate::properties::DESCRIPTION)
+    }
+
+    /// Get sensor type property.
+    pub fn sensor_type(&self) -> Option<&str> {
+        self.get_string_property(crate::properties::SENSOR_TYPE)
+    }
+
+    /// Get an i64 property value by name.
+    pub fn get_i64_property(&self, name: &str) -> Option<i64> {
+        match self.properties.get(name) {
+            Some(PropertyValue::I64(i)) => Some(*i),
+            Some(PropertyValue::I32(i)) => Some(*i as i64),
+            Some(PropertyValue::I16(i)) => Some(*i as i64),
+            Some(PropertyValue::I8(i)) => Some(*i as i64),
+            _ => None,
+        }
+    }
+
+    /// Convert TDMS timestamps to seconds since 1904 as f64.
+    /// 
+    /// TDMS timestamps are stored as (seconds, fraction) where the fraction
+    /// represents sub-second precision in units of 2^-64 seconds.
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use tdms_rs::TdmsFile;
+    /// use std::path::Path;
+    /// 
+    /// let file = TdmsFile::load(Path::new("data.tdms"))?;
+    /// if let Some(channel) = file.get_channel("Time", "Timestamps") {
+    ///     if let Some(times) = channel.as_timestamps_f64() {
+    ///         for time in times {
+    ///             println!("Time: {:.9} seconds since 1904", time);
+    ///         }
+    ///     }
+    /// }
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn as_timestamps_f64(&self) -> Option<Vec<f64>> {
+        self.as_timestamps().map(|timestamps| {
+            timestamps.iter().map(|(seconds, fraction)| {
+                *seconds as f64 + (*fraction as f64 / (1u64 << 63) as f64) / 2.0
+            }).collect()
+        })
+    }
+
+    /// Convert TDMS timestamps to Unix epoch (seconds since 1970-01-01).
+    /// 
+    /// This converts from TDMS epoch (1904-01-01) to Unix epoch (1970-01-01).
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use tdms_rs::TdmsFile;
+    /// use std::path::Path;
+    /// 
+    /// let file = TdmsFile::load(Path::new("data.tdms"))?;
+    /// if let Some(channel) = file.get_channel("Time", "Timestamps") {
+    ///     if let Some(unix_times) = channel.timestamps_to_unix() {
+    ///         for time in unix_times {
+    ///             println!("Unix time: {:.9}", time);
+    ///         }
+    ///     }
+    /// }
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn timestamps_to_unix(&self) -> Option<Vec<f64>> {
+        const TDMS_TO_UNIX_OFFSET: i64 = 2082844800; // Seconds from 1904 to 1970
+        
+        self.as_timestamps_f64().map(|timestamps| {
+            timestamps.iter().map(|&t| t - TDMS_TO_UNIX_OFFSET as f64).collect()
+        })
+    }
 }
 
 impl Default for TdmsFile {
@@ -434,6 +694,65 @@ impl TdmsFile {
     /// Get an iterator over groups in this file.
     pub fn iter_groups(&self) -> impl Iterator<Item = (&str, &TdmsGroup)> {
         self.groups.iter().map(|(k, v)| (k.as_str(), v))
+    }
+
+    /// Get a group by name.
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use tdms_rs::TdmsFile;
+    /// use std::path::Path;
+    /// 
+    /// let file = TdmsFile::load(Path::new("data.tdms"))?;
+    /// if let Some(group) = file.group("Sensors") {
+    ///     println!("Found group with {} channels", group.channels.len());
+    /// }
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn group(&self, name: &str) -> Option<&TdmsGroup> {
+        self.groups.get(name)
+    }
+
+    /// Get a channel directly by group and channel name.
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use tdms_rs::TdmsFile;
+    /// use std::path::Path;
+    /// 
+    /// let file = TdmsFile::load(Path::new("data.tdms"))?;
+    /// if let Some(channel) = file.get_channel("Sensors", "Temperature") {
+    ///     println!("Found temperature channel with {} samples", channel.data_len());
+    /// }
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn get_channel(&self, group: &str, channel: &str) -> Option<&TdmsChannel> {
+        self.groups.get(group)?.channels.get(channel)
+    }
+
+    /// Try to get a channel, returning a descriptive error if not found.
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use tdms_rs::TdmsFile;
+    /// use std::path::Path;
+    /// 
+    /// let file = TdmsFile::load(Path::new("data.tdms"))?;
+    /// match file.try_get_channel("Sensors", "Temperature") {
+    ///     Ok(channel) => println!("Found channel with {} samples", channel.data_len()),
+    ///     Err(e) => eprintln!("Channel not found: {}", e),
+    /// }
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn try_get_channel(&self, group: &str, channel: &str) -> Result<&TdmsChannel> {
+        let group_obj = self.groups.get(group)
+            .ok_or_else(|| crate::error::TdmsError::GroupNotFound(group.to_string()))?;
+        
+        group_obj.channels.get(channel)
+            .ok_or_else(|| crate::error::TdmsError::ChannelNotFound(channel.to_string(), group.to_string()))
     }
 
     /// Load a TDMS file from the specified path.

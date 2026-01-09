@@ -33,31 +33,45 @@ use std::path::Path;
 // Load a TDMS file
 let file = TdmsFile::load(Path::new("data.tdms"))?;
 
-// Iterate through groups and channels
+// Ergonomic channel access (v1.0.0)
+if let Some(channel) = file.get_channel("Sensors", "Temperature") {
+    println!("Found temperature channel with {} samples", channel.data_len());
+    
+    // Type-safe data access with complete helper method family
+    if let Some(data) = channel.as_f64() {
+        let avg = data.iter().sum::<f64>() / data.len() as f64;
+        println!("Average temperature: {:.2}°C", avg);
+    }
+    
+    // Convenient property access
+    if let Some(unit) = channel.unit() {
+        println!("Unit: {}", unit);
+    }
+    if let Some(desc) = channel.description() {
+        println!("Description: {}", desc);
+    }
+}
+
+// Error handling with descriptive messages
+match file.try_get_channel("Sensors", "Pressure") {
+    Ok(channel) => println!("Pressure channel found"),
+    Err(e) => eprintln!("Channel not found: {}", e),
+}
+
+// Traditional iteration still available
 for (group_name, group) in &file.groups {
     println!("Group: {}", group_name);
     for (channel_name, channel) in &group.channels {
         if let Some(data) = &channel.data {
-            println!("  Channel {}: {} samples", channel_name, data.len());
-            
-            // Access typed data
             match data {
                 tdms_rs::TdmsData::Double(values) => {
-                    let avg = values.iter().sum::<f64>() / values.len() as f64;
-                    println!("    Average: {:.2}", avg);
+                    println!("  Channel {}: {} double values", channel_name, values.len());
                 },
                 tdms_rs::TdmsData::I32(values) => {
-                    println!("    Range: {} to {}", 
-                        values.iter().min().unwrap(),
-                        values.iter().max().unwrap());
+                    println!("  Channel {}: {} integer values", channel_name, values.len());
                 },
-                _ => println!("    Other data type"),
+                _ => println!("  Channel {}: other data type", channel_name),
             }
-        }
-        
-        // Access properties
-        for (prop_name, prop_value) in &channel.properties {
-            println!("    Property {}: {}", prop_name, prop_value);
         }
     }
 }
@@ -66,28 +80,29 @@ for (group_name, group) in &file.groups {
 ### Writing TDMS Files
 
 ```rust
-use tdms_rs::{TdmsFileWriter, TdmsData, PropertyValue};
+use tdms_rs::{TdmsFileWriter, TdmsData};
 
 // Create a new TDMS file
 let mut writer = TdmsFileWriter::new("output.tdms");
 
-// Add file-level properties
-writer.add_property("Author", PropertyValue::String("Rust App".into()));
-writer.add_property("Version", PropertyValue::I32(1));
+// Add file-level properties (v1.0.0 ergonomic syntax)
+writer.add_property("Author", "Rust App")?;
+writer.add_property("Version", 1i32)?;
+writer.add_property("Sample_Rate", 1000.0)?;
 
 // Create a group with channels
-let group = writer.add_group("Sensors");
-group.add_property("Location", PropertyValue::String("Lab A".into()));
+let group = writer.add_group("Sensors")?;
+group.add_property("Location", "Lab A")?;
 
 // Add channels with different data types
-group.add_channel("Temperature", TdmsData::Double(vec![20.1, 21.5, 22.3]));
-group.add_channel("Pressure", TdmsData::I32(vec![1013, 1015, 1012]));
-group.add_channel("Valid", TdmsData::Boolean(vec![true, true, false]));
+group.add_channel("Temperature", TdmsData::Double(vec![20.1, 21.5, 22.3]))?;
+group.add_channel("Pressure", TdmsData::I32(vec![1013, 1015, 1012]))?;
+group.add_channel("Valid", TdmsData::Boolean(vec![true, true, false]))?;
 
-// Add channel properties
-let voltage_channel = group.add_channel("Voltage", TdmsData::Double(vec![1.1, 2.2, 3.3]));
-voltage_channel.add_property("wf_unit_string", PropertyValue::String("V".into()));
-voltage_channel.add_property("wf_increment", PropertyValue::Double(0.001));
+// Add channel properties with ergonomic syntax
+let voltage_channel = group.add_channel("Voltage", TdmsData::Double(vec![1.1, 2.2, 3.3]))?;
+voltage_channel.add_property("wf_unit_string", "V")?;
+voltage_channel.add_property("wf_increment", 0.001)?;
 
 // Write the file
 writer.write()?;
@@ -106,66 +121,83 @@ writer.write()?;
 ### Reading API
 
 ```rust
-use tdms_rs::{TdmsFile, TdmsData, PropertyValue};
+use tdms_rs::{TdmsFile, TdmsData, PropertyValue, properties};
 use std::path::Path;
 
 let file = TdmsFile::load(Path::new("data.tdms"))?;
 
-// Access file properties
-for (name, value) in &file.properties {
-    match value {
-        PropertyValue::String(s) => println!("File property {}: {}", name, s),
-        PropertyValue::Double(d) => println!("File property {}: {}", name, d),
-        PropertyValue::I32(i) => println!("File property {}: {}", name, i),
-        _ => println!("File property {}: {:?}", name, value),
-    }
+// Ergonomic channel access
+let channel = file.get_channel("Sensors", "Temperature")?;
+
+// Complete family of type-safe data accessors
+match channel.data_type_name() {
+    Some("Double") => {
+        if let Some(data) = channel.as_f64() {
+            println!("Temperature data: {} samples", data.len());
+        }
+    },
+    Some("I32") => {
+        if let Some(data) = channel.as_i32() {
+            println!("Integer data: {} samples", data.len());
+        }
+    },
+    Some("String") => {
+        if let Some(data) = channel.as_string() {
+            println!("String data: {} samples", data.len());
+        }
+    },
+    Some("TimeStamp") => {
+        if let Some(data) = channel.as_timestamps() {
+            println!("Timestamp data: {} samples", data.len());
+            
+            // Convert timestamps to different formats
+            if let Some(unix_times) = channel.timestamps_to_unix() {
+                println!("First Unix timestamp: {:.3}", unix_times[0]);
+            }
+        }
+    },
+    _ => println!("Other data type"),
 }
 
-// Access groups and channels
-if let Some(group) = file.groups.get("Sensors") {
-    if let Some(channel) = group.channels.get("Temperature") {
-        match &channel.data {
-            Some(TdmsData::Double(values)) => {
-                println!("Temperature data: {:?}", values);
-            },
-            Some(TdmsData::I32(values)) => {
-                println!("Integer data: {:?}", values);
-            },
-            Some(TdmsData::String(values)) => {
-                println!("String data: {:?}", values);
-            },
-            Some(TdmsData::TimeStamp(values)) => {
-                for (seconds, fraction) in values {
-                    println!("Timestamp: {} seconds + {} fraction", seconds, fraction);
-                }
-            },
-            _ => println!("Other or no data"),
-        }
-    }
+// Property access with constants and helpers
+if let Some(unit) = channel.unit() {
+    println!("Unit: {}", unit);
+}
+if let Some(desc) = channel.description() {
+    println!("Description: {}", desc);
+}
+
+// Using property constants to avoid magic strings
+if let Some(increment) = channel.get_double_property(properties::INCREMENT) {
+    println!("Sample rate: {:.0} Hz", 1.0 / increment);
 }
 ```
 
 ### Writing API
 
 ```rust
-use tdms_rs::{TdmsFileWriter, TdmsData, PropertyValue};
+use tdms_rs::{TdmsFileWriter, TdmsData};
 
 let mut writer = TdmsFileWriter::new("output.tdms");
 
-// File properties
-writer.add_property("Title", PropertyValue::String("Test Data".into()));
+// File properties with ergonomic From<T> conversions
+writer.add_property("Title", "Test Data")?;
+writer.add_property("Version", 1.0)?;
+writer.add_property("Sample_Count", 1000i32)?;
+writer.add_property("Is_Calibrated", true)?;
 
 // Create groups and channels
-let group = writer.add_group("Data");
-group.add_property("Description", PropertyValue::String("Sensor readings".into()));
+let group = writer.add_group("Data")?;
+group.add_property("Description", "Sensor readings")?;
 
 // Add channels with data
-group.add_channel("Channel1", TdmsData::Double(vec![1.0, 2.0, 3.0]));
-group.add_channel("Channel2", TdmsData::I32(vec![10, 20, 30]));
+group.add_channel("Channel1", TdmsData::Double(vec![1.0, 2.0, 3.0]))?;
+group.add_channel("Channel2", TdmsData::I32(vec![10, 20, 30]))?;
 
 // Add channel properties
-let channel = group.add_channel("Channel3", TdmsData::String(vec!["A".into(), "B".into()]));
-channel.add_property("Description", PropertyValue::String("Labels".into()));
+let channel = group.add_channel("Channel3", TdmsData::String(vec!["A".into(), "B".into()]))?;
+channel.add_property("Description", "Labels")?;
+channel.add_property("Format_Version", 2i32)?;
 
 writer.write()?;
 ```
@@ -194,12 +226,13 @@ All data types support special values (NaN, Infinity) and edge cases.
 
 The repository includes comprehensive examples:
 
-### Reading Examples
+### Reading Examples  
 ```bash
 cargo run --example read_file -- data.tdms
 cargo run --example list_channels -- data.tdms  
 cargo run --example read_channel_data -- data.tdms Group Channel
 cargo run --example read_properties -- data.tdms
+cargo run --example ergonomic_reading -- data.tdms
 ```
 
 ### Writing Examples  
@@ -208,6 +241,11 @@ cargo run --example write_minimal
 cargo run --example write_multi_channel
 cargo run --example write_properties
 cargo run --example write_all_types
+```
+
+### Timestamp Examples
+```bash
+cargo run --example timestamp_conversion -- data.tdms
 ```
 
 ## Performance & Guarantees

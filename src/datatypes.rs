@@ -498,6 +498,91 @@ impl Display for TdmsData {
     }
 }
 
+// From implementations for PropertyValue to reduce boilerplate
+impl From<&str> for PropertyValue {
+    fn from(s: &str) -> Self {
+        PropertyValue::String(s.to_string())
+    }
+}
+
+impl From<String> for PropertyValue {
+    fn from(s: String) -> Self {
+        PropertyValue::String(s)
+    }
+}
+
+impl From<i8> for PropertyValue {
+    fn from(i: i8) -> Self {
+        PropertyValue::I8(i)
+    }
+}
+
+impl From<i16> for PropertyValue {
+    fn from(i: i16) -> Self {
+        PropertyValue::I16(i)
+    }
+}
+
+impl From<i32> for PropertyValue {
+    fn from(i: i32) -> Self {
+        PropertyValue::I32(i)
+    }
+}
+
+impl From<i64> for PropertyValue {
+    fn from(i: i64) -> Self {
+        PropertyValue::I64(i)
+    }
+}
+
+impl From<u8> for PropertyValue {
+    fn from(u: u8) -> Self {
+        PropertyValue::U8(u)
+    }
+}
+
+impl From<u16> for PropertyValue {
+    fn from(u: u16) -> Self {
+        PropertyValue::U16(u)
+    }
+}
+
+impl From<u32> for PropertyValue {
+    fn from(u: u32) -> Self {
+        PropertyValue::U32(u)
+    }
+}
+
+impl From<u64> for PropertyValue {
+    fn from(u: u64) -> Self {
+        PropertyValue::U64(u)
+    }
+}
+
+impl From<f32> for PropertyValue {
+    fn from(f: f32) -> Self {
+        PropertyValue::Float(f)
+    }
+}
+
+impl From<f64> for PropertyValue {
+    fn from(f: f64) -> Self {
+        PropertyValue::Double(f)
+    }
+}
+
+impl From<bool> for PropertyValue {
+    fn from(b: bool) -> Self {
+        PropertyValue::Boolean(b)
+    }
+}
+
+impl From<(i64, u64)> for PropertyValue {
+    fn from((seconds, fraction): (i64, u64)) -> Self {
+        PropertyValue::TimeStamp((seconds, fraction))
+    }
+}
+
 pub fn create_empty_data(dtype: &DataType) -> Result<TdmsData> {
     match dtype {
         DataType::I8 => Ok(TdmsData::I8(Vec::new())),

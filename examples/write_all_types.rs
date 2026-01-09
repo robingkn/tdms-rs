@@ -17,13 +17,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a new TDMS file writer
     let mut writer = TdmsFileWriter::new("examples/output/all_types.tdms");
     
-    // Add file-level properties
-    writer.add_property("Title", PropertyValue::String("Comprehensive Data Type Example".to_string()));
-    writer.add_property("Test_Version", PropertyValue::I32(1));
+    // Add file-level properties (using new From<T> conversions)
+    writer.add_property("Title", "Comprehensive Data Type Example")?;
+    writer.add_property("Test_Version", 1i32)?;
     
     // === SIGNED INTEGER TYPES ===
     let integers = writer.add_group("Signed_Integers");
-    integers.add_property("Description", PropertyValue::String("All signed integer types with edge cases".to_string()));
+    integers.add_property("Description", "All signed integer types with edge cases")?;
     
     // 8-bit signed integers
     integers.add_channel("Int8", TdmsData::I8(vec![
@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // === UNSIGNED INTEGER TYPES ===
     let unsigned = writer.add_group("Unsigned_Integers");
-    unsigned.add_property("Description", PropertyValue::String("All unsigned integer types with full range".to_string()));
+    unsigned.add_property("Description", "All unsigned integer types with full range")?;
     
     // 8-bit unsigned integers
     unsigned.add_channel("UInt8", TdmsData::U8(vec![
@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // === FLOATING POINT TYPES ===
     let floats = writer.add_group("Floating_Point");
-    floats.add_property("Description", PropertyValue::String("Floating point types with special values".to_string()));
+    floats.add_property("Description", "Floating point types with special values")?;
     
     // 32-bit floating point with special values
     floats.add_channel("Float32", TdmsData::Float(vec![
@@ -110,7 +110,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // === BOOLEAN TYPE ===
     let booleans = writer.add_group("Booleans");
-    booleans.add_property("Description", PropertyValue::String("Boolean values and patterns".to_string()));
+    booleans.add_property("Description", "Boolean values and patterns")?;
     
     booleans.add_channel("Simple", TdmsData::Boolean(vec![
         true, false, true, false, true
@@ -130,7 +130,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // === STRING TYPE ===
     let strings = writer.add_group("Strings");
-    strings.add_property("Description", PropertyValue::String("String data with various lengths and content".to_string()));
+    strings.add_property("Description", "String data with various lengths and content")?;
     
     strings.add_channel("Basic", TdmsData::String(vec![
         "Hello".to_string(),
@@ -158,8 +158,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // === TIMESTAMP TYPE ===
     let timestamps = writer.add_group("Timestamps");
-    timestamps.add_property("Description", PropertyValue::String("TDMS timestamp format (seconds since 1904-01-01)".to_string()));
-    timestamps.add_property("Epoch", PropertyValue::String("1904-01-01 00:00:00 UTC".to_string()));
+    timestamps.add_property("Description", "TDMS timestamp format (seconds since 1904-01-01)")?;
+    timestamps.add_property("Epoch", "1904-01-01 00:00:00 UTC")?;
     
     // TDMS timestamps: (seconds_since_1904, fraction_2_64)
     timestamps.add_channel("Basic_Times", TdmsData::TimeStamp(vec![
@@ -179,8 +179,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // === MIXED DATA GROUP ===
     let mixed = writer.add_group("Mixed_Data");
-    mixed.add_property("Description", PropertyValue::String("Different data types in one group".to_string()));
-    mixed.add_property("Channel_Count", PropertyValue::I32(6));
+    mixed.add_property("Description", "Different data types in one group")?;
+    mixed.add_property("Channel_Count", 6i32)?;
     
     // Add one channel of each major type
     mixed.add_channel("Integers", TdmsData::I32(vec![1, 2, 3, 4, 5]));

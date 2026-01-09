@@ -21,13 +21,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **File-Level Property Support**: Complete implementation of file-level property reading and writing
 - **Timestamp Property Handling**: Full support for TDMS timestamp properties with (i64, u64) format
 - **Command-Line Tool**: `tdms-to-json` binary for file validation and structure inspection
-- **Comprehensive Examples**: Four detailed examples demonstrating different use cases
+- **Comprehensive Examples**: Detailed examples demonstrating different use cases
   - `write_minimal.rs` - Basic TDMS file creation
   - `write_multi_channel.rs` - Multiple data types and channels
   - `write_properties.rs` - Properties at all levels
   - `write_all_types.rs` - Complete data type showcase
+  - `ergonomic_reading.rs` - Demonstrates new ergonomic features
+  - `timestamp_conversion.rs` - Timestamp handling and conversion
 - **Enhanced Error Handling**: Robust error handling with descriptive error messages using `thiserror`
 - **Test Coverage**: Comprehensive test suite with 24+ test scenarios covering edge cases
+
+### Ergonomic Improvements (v1.0.0)
+- **From<T> Conversions for PropertyValue**: Eliminate boilerplate when creating properties
+  - `writer.add_property("key", "value")` instead of `PropertyValue::String("value".into())`
+  - Support for all basic types: `&str`, `String`, `i8`-`i64`, `u8`-`u64`, `f32`, `f64`, `bool`, `(i64, u64)`
+- **Complete Helper Method Family**: Type-safe data access for all TDMS types
+  - `as_i8()`, `as_i16()`, `as_i64()`, `as_u8()`, `as_u16()`, `as_u32()`, `as_u64()` 
+  - `as_bool()`, `as_timestamps()` in addition to existing `as_f64()`, `as_f32()`, `as_i32()`, `as_string()`
+- **Ergonomic Channel Lookup**: Convenient methods for accessing channels
+  - `file.get_channel("group", "channel")` for direct access
+  - `file.try_get_channel("group", "channel")` with descriptive error messages
+  - `group.channel("name")` for group-level access
+- **Property Constants**: Well-known TDMS property names to avoid magic strings
+  - `properties::UNIT_STRING`, `properties::INCREMENT`, `properties::START_TIME`, etc.
+- **Enhanced Property Helpers**: Additional convenience methods for common properties
+  - `channel.description()`, `channel.sensor_type()`, `channel.sample_count()`
+- **Timestamp Conversion Helpers**: Easy timestamp format conversion
+  - `channel.as_timestamps_f64()` - Convert to f64 seconds since 1904
+  - `channel.timestamps_to_unix()` - Convert to Unix epoch timestamps
 
 ### Features
 - **Zero-Copy Parsing**: Efficient memory usage where possible

@@ -48,40 +48,39 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     
-    // === IMPROVED API PATTERNS (Future) ===
-    println!("\n🚀 Improved API Patterns (Proposed):");
+    // === IMPROVED API PATTERNS (Now Available!) ===
+    println!("\n🚀 Improved API Patterns (Now Available!):");
     
-    // TODO: These methods don't exist yet - this shows the proposed API
-    /*
     // Improved: Direct channel access
     if let Some(channel) = file.get_channel("Group", "Channel") {
-        println!("✅ Found channel using improved API");
+        println!("✅ Found channel using improved get_channel() method");
         
-        // Improved: Generic property access (proposed)
-        let unit: Option<String> = channel.get_property("units");
-        let max_val: Option<f64> = channel.get_property("max_val");
+        // Show new helper methods
+        if let Some(desc) = channel.description() {
+            println!("   Description: {}", desc);
+        }
         
-        println!("   Unit: {}", unit.unwrap_or_else(|| "unknown".to_string()));
-        println!("   Max value: {:.3}", max_val.unwrap_or(0.0));
+        if let Some(sensor) = channel.sensor_type() {
+            println!("   Sensor type: {}", sensor);
+        }
     }
     
     // Improved: Error handling with descriptive messages
     match file.try_get_channel("Group", "Channel") {
-        Ok(channel) => println!("✅ Channel found with error handling"),
+        Ok(channel) => {
+            println!("✅ Channel found with error handling");
+            println!("   Data length: {}", channel.data_len());
+        },
         Err(e) => println!("❌ Channel access failed: {}", e),
     }
     
-    // Improved: Well-known properties with constants
+    // Improved: Using property constants
     if let Some(channel) = file.get_channel("Group", "Channel") {
-        if let Some(unit) = channel.unit() {
-            println!("   Unit (well-known property): {}", unit);
-        }
-        
-        if let Some(description) = channel.description() {
-            println!("   Description: {}", description);
+        // Use constants instead of magic strings
+        if let Some(unit) = channel.get_string_property(tdms_rs::properties::UNIT_STRING) {
+            println!("   Unit (using constant): {}", unit);
         }
     }
-    */
     
     // === DEMONSTRATE EXISTING HELPER METHODS ===
     println!("\n🛠️  Existing Helper Methods:");
@@ -92,21 +91,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("   Data type: {}", channel.data_type_name().unwrap_or("None"));
             println!("   Data length: {}", channel.data_len());
             
-            // Show existing helper methods
+            // Show all new helper methods
             if let Some(data) = channel.as_f64() {
                 println!("   ✅ as_f64() works: {} values", data.len());
             }
-            
-            if channel.as_f32().is_some() {
-                println!("   ✅ as_f32() available");
+            if let Some(data) = channel.as_f32() {
+                println!("   ✅ as_f32() works: {} values", data.len());
             }
-            
-            if channel.as_i32().is_some() {
-                println!("   ✅ as_i32() available");
+            if let Some(data) = channel.as_i8() {
+                println!("   ✅ as_i8() works: {} values", data.len());
             }
-            
-            if channel.as_string().is_some() {
-                println!("   ✅ as_string() available");
+            if let Some(data) = channel.as_i16() {
+                println!("   ✅ as_i16() works: {} values", data.len());
+            }
+            if let Some(data) = channel.as_i32() {
+                println!("   ✅ as_i32() works: {} values", data.len());
+            }
+            if let Some(data) = channel.as_i64() {
+                println!("   ✅ as_i64() works: {} values", data.len());
+            }
+            if let Some(data) = channel.as_u8() {
+                println!("   ✅ as_u8() works: {} values", data.len());
+            }
+            if let Some(data) = channel.as_u16() {
+                println!("   ✅ as_u16() works: {} values", data.len());
+            }
+            if let Some(data) = channel.as_u32() {
+                println!("   ✅ as_u32() works: {} values", data.len());
+            }
+            if let Some(data) = channel.as_u64() {
+                println!("   ✅ as_u64() works: {} values", data.len());
+            }
+            if let Some(data) = channel.as_bool() {
+                println!("   ✅ as_bool() works: {} values", data.len());
+            }
+            if let Some(data) = channel.as_timestamps() {
+                println!("   ✅ as_timestamps() works: {} values", data.len());
             }
             
             // Show numeric conversion
@@ -115,7 +135,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("   Average (as_numeric): {:.6}", avg);
             }
             
-            // Show existing property helpers
+            // Show existing and new property helpers
             if let Some(unit) = channel.unit() {
                 println!("   ✅ unit() helper works: {}", unit);
             }
@@ -126,6 +146,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             
             if let Some(start_time) = channel.start_time() {
                 println!("   ✅ start_time() helper works: {:.6}", start_time);
+            }
+            
+            if let Some(desc) = channel.description() {
+                println!("   ✅ description() helper works: {}", desc);
+            }
+            
+            if let Some(sensor) = channel.sensor_type() {
+                println!("   ✅ sensor_type() helper works: {}", sensor);
+            }
+            
+            if let Some(count) = channel.sample_count() {
+                println!("   ✅ sample_count() helper works: {}", count);
             }
         }
     }
@@ -163,7 +195,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     
     println!("\n✨ Ergonomic reading demonstration complete!");
-    println!("💡 Note: Some improved patterns shown are proposed for future versions.");
+    println!("💡 All improved patterns shown are now available in v1.0.0!");
     
     Ok(())
 }

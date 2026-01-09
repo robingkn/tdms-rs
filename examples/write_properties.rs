@@ -5,7 +5,7 @@
 //! for units, descriptions, calibration information, and more.
 
 use tdms_rs::writer::TdmsFileWriter;
-use tdms_rs::{TdmsData, PropertyValue};
+use tdms_rs::TdmsData;
 use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -17,58 +17,58 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a new TDMS file writer
     let mut writer = TdmsFileWriter::new("examples/output/with_properties.tdms");
     
-    // Add file-level properties
-    writer.add_property("Author", PropertyValue::String("TDMS Writer Example".to_string()))?;
-    writer.add_property("Version", PropertyValue::I32(1))?;
-    writer.add_property("Creation_Date", PropertyValue::String("2026-01-09".to_string()))?;
-    writer.add_property("Description", PropertyValue::String("Example file with comprehensive properties".to_string()))?;
+    // Add file-level properties (using new From<T> conversions)
+    writer.add_property("Author", "TDMS Writer Example")?;
+    writer.add_property("Version", 1i32)?;
+    writer.add_property("Creation_Date", "2026-01-09")?;
+    writer.add_property("Description", "Example file with comprehensive properties")?;
     
     // Add a measurements group
     let measurements = writer.add_group("Measurements")?;
     
-    // Add group-level properties
-    measurements.add_property("Unit_System", PropertyValue::String("SI".to_string()))?;
-    measurements.add_property("Sample_Rate", PropertyValue::Double(1000.0))?;
-    measurements.add_property("Duration", PropertyValue::Double(0.01))?; // 10ms
-    measurements.add_property("Channels", PropertyValue::I32(3))?;
+    // Add group-level properties (using new From<T> conversions)
+    measurements.add_property("Unit_System", "SI")?;
+    measurements.add_property("Sample_Rate", 1000.0)?;
+    measurements.add_property("Duration", 0.01)?; // 10ms
+    measurements.add_property("Channels", 3i32)?;
     
     // Voltage channel with properties
     let voltage_channel = measurements.add_channel("Voltage", TdmsData::Double(vec![
         1.1, 2.2, 3.3, 4.4, 5.5, 4.4, 3.3, 2.2, 1.1, 0.0
     ]))?;
-    voltage_channel.add_property("wf_unit_string", PropertyValue::String("V".to_string()))?;
-    voltage_channel.add_property("wf_increment", PropertyValue::Double(0.001))?; // 1ms increment
-    voltage_channel.add_property("wf_start_time", PropertyValue::Double(0.0))?;
-    voltage_channel.add_property("Description", PropertyValue::String("AC voltage measurement".to_string()))?;
-    voltage_channel.add_property("Range", PropertyValue::String("±10V".to_string()))?;
-    voltage_channel.add_property("Calibrated", PropertyValue::Boolean(true))?;
+    voltage_channel.add_property("wf_unit_string", "V")?;
+    voltage_channel.add_property("wf_increment", 0.001)?; // 1ms increment
+    voltage_channel.add_property("wf_start_time", 0.0)?;
+    voltage_channel.add_property("Description", "AC voltage measurement")?;
+    voltage_channel.add_property("Range", "±10V")?;
+    voltage_channel.add_property("Calibrated", true)?;
     
     // Current channel with properties
     let current_channel = measurements.add_channel("Current", TdmsData::Float(vec![
         0.1, 0.2, 0.3, 0.4, 0.5, 0.4, 0.3, 0.2, 0.1, 0.0
     ]))?;
-    current_channel.add_property("wf_unit_string", PropertyValue::String("A".to_string()))?;
-    current_channel.add_property("wf_increment", PropertyValue::Double(0.001))?;
-    current_channel.add_property("wf_start_time", PropertyValue::Double(0.0))?;
-    current_channel.add_property("Description", PropertyValue::String("AC current measurement".to_string()))?;
-    current_channel.add_property("Range", PropertyValue::String("±1A".to_string()))?;
-    current_channel.add_property("Shunt_Resistance", PropertyValue::Double(0.1))?; // 0.1 ohm shunt
+    current_channel.add_property("wf_unit_string", "A")?;
+    current_channel.add_property("wf_increment", 0.001)?;
+    current_channel.add_property("wf_start_time", 0.0)?;
+    current_channel.add_property("Description", "AC current measurement")?;
+    current_channel.add_property("Range", "±1A")?;
+    current_channel.add_property("Shunt_Resistance", 0.1)?; // 0.1 ohm shunt
     
     // Temperature channel with properties
     let temp_channel = measurements.add_channel("Temperature", TdmsData::I32(vec![
         2010, 2015, 2020, 2025, 2030, 2025, 2020, 2015, 2010, 2005
     ]))?; // Temperature in 0.01°C units
-    temp_channel.add_property("wf_unit_string", PropertyValue::String("°C".to_string()))?;
-    temp_channel.add_property("wf_increment", PropertyValue::Double(0.001))?;
-    temp_channel.add_property("wf_start_time", PropertyValue::Double(0.0))?;
-    temp_channel.add_property("Description", PropertyValue::String("Thermocouple temperature".to_string()))?;
-    temp_channel.add_property("Sensor_Type", PropertyValue::String("K-Type Thermocouple".to_string()))?;
-    temp_channel.add_property("Scale_Factor", PropertyValue::Double(0.01))?; // Convert to actual °C
-    temp_channel.add_property("Offset", PropertyValue::Double(0.0))?;
+    temp_channel.add_property("wf_unit_string", "°C")?;
+    temp_channel.add_property("wf_increment", 0.001)?;
+    temp_channel.add_property("wf_start_time", 0.0)?;
+    temp_channel.add_property("Description", "Thermocouple temperature")?;
+    temp_channel.add_property("Sensor_Type", "K-Type Thermocouple")?;
+    temp_channel.add_property("Scale_Factor", 0.01)?; // Convert to actual °C
+    temp_channel.add_property("Offset", 0.0)?;
     
     // Add a status group
     let status = writer.add_group("Status")?;
-    status.add_property("Purpose", PropertyValue::String("System status and diagnostics".to_string()))?;
+    status.add_property("Purpose", "System status and diagnostics")?;
     
     // System status channel
     let status_channel = status.add_channel("System_Status", TdmsData::String(vec![
@@ -83,15 +83,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Stopping".to_string(),
         "Stopped".to_string(),
     ]))?;
-    status_channel.add_property("Description", PropertyValue::String("System operational status".to_string()))?;
-    status_channel.add_property("Valid_States", PropertyValue::String("Initializing,Calibrating,Running,Warning,Stopping,Stopped".to_string()))?;
+    status_channel.add_property("Description", "System operational status")?;
+    status_channel.add_property("Valid_States", "Initializing,Calibrating,Running,Warning,Stopping,Stopped")?;
     
     // Error flags channel
     let error_channel = status.add_channel("Error_Flags", TdmsData::Boolean(vec![
         false, false, false, false, false, true, false, false, false, false
     ]))?;
-    error_channel.add_property("Description", PropertyValue::String("Error condition flags".to_string()))?;
-    error_channel.add_property("Error_Code", PropertyValue::I32(0x0020))?; // Bit 5 set for warning
+    error_channel.add_property("Description", "Error condition flags")?;
+    error_channel.add_property("Error_Code", 0x0020i32)?; // Bit 5 set for warning
     
     // Write the file
     writer.write()?;

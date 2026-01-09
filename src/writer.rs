@@ -216,19 +216,34 @@ impl TdmsFileWriter {
     /// # Arguments
     /// 
     /// * `key` - The property name
-    /// * `value` - The property value
+    /// * `value` - The property value (can be any type that converts to PropertyValue)
     /// 
     /// # Errors
     /// 
     /// Returns `TdmsError::InvalidName` if the property key is empty.
-    pub fn add_property(&mut self, key: impl Into<String>, value: PropertyValue) -> crate::error::Result<()> {
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use tdms_rs::writer::TdmsFileWriter;
+    /// 
+    /// let mut writer = TdmsFileWriter::new("output.tdms");
+    /// 
+    /// // Using the ergonomic From<T> conversions
+    /// writer.add_property("Author", "John Doe")?;
+    /// writer.add_property("Version", 1i32)?;
+    /// writer.add_property("Sample_Rate", 1000.0)?;
+    /// writer.add_property("Is_Valid", true)?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn add_property(&mut self, key: impl Into<String>, value: impl Into<PropertyValue>) -> crate::error::Result<()> {
         let key = key.into();
         
         if key.is_empty() {
             return Err(crate::error::TdmsError::InvalidName("Property key cannot be empty".into()));
         }
         
-        self.properties.insert(key, value);
+        self.properties.insert(key, value.into());
         Ok(())
     }
 
@@ -605,19 +620,34 @@ impl TdmsGroupWriter {
     /// # Arguments
     /// 
     /// * `key` - The property name
-    /// * `value` - The property value
+    /// * `value` - The property value (can be any type that converts to PropertyValue)
     /// 
     /// # Errors
     /// 
     /// Returns `TdmsError::InvalidName` if the property key is empty.
-    pub fn add_property(&mut self, key: impl Into<String>, value: PropertyValue) -> crate::error::Result<()> {
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use tdms_rs::writer::TdmsFileWriter;
+    /// 
+    /// let mut writer = TdmsFileWriter::new("output.tdms");
+    /// let group = writer.add_group("Sensors")?;
+    /// 
+    /// // Using the ergonomic From<T> conversions
+    /// group.add_property("Location", "Lab A")?;
+    /// group.add_property("Sample_Rate", 1000.0)?;
+    /// group.add_property("Channel_Count", 4i32)?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn add_property(&mut self, key: impl Into<String>, value: impl Into<PropertyValue>) -> crate::error::Result<()> {
         let key = key.into();
         
         if key.is_empty() {
             return Err(crate::error::TdmsError::InvalidName("Property key cannot be empty".into()));
         }
         
-        self.properties.insert(key, value);
+        self.properties.insert(key, value.into());
         Ok(())
     }
 }
@@ -628,19 +658,36 @@ impl TdmsChannelWriter {
     /// # Arguments
     /// 
     /// * `key` - The property name
-    /// * `value` - The property value
+    /// * `value` - The property value (can be any type that converts to PropertyValue)
     /// 
     /// # Errors
     /// 
     /// Returns `TdmsError::InvalidName` if the property key is empty.
-    pub fn add_property(&mut self, key: impl Into<String>, value: PropertyValue) -> crate::error::Result<()> {
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// use tdms_rs::writer::TdmsFileWriter;
+    /// use tdms_rs::TdmsData;
+    /// 
+    /// let mut writer = TdmsFileWriter::new("output.tdms");
+    /// let group = writer.add_group("Sensors")?;
+    /// let channel = group.add_channel("Temperature", TdmsData::Double(vec![20.0, 21.0]))?;
+    /// 
+    /// // Using the ergonomic From<T> conversions
+    /// channel.add_property("wf_unit_string", "°C")?;
+    /// channel.add_property("wf_increment", 0.001)?;
+    /// channel.add_property("calibrated", true)?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn add_property(&mut self, key: impl Into<String>, value: impl Into<PropertyValue>) -> crate::error::Result<()> {
         let key = key.into();
         
         if key.is_empty() {
             return Err(crate::error::TdmsError::InvalidName("Property key cannot be empty".into()));
         }
         
-        self.properties.insert(key, value);
+        self.properties.insert(key, value.into());
         Ok(())
     }
 }
