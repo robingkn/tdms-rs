@@ -29,7 +29,7 @@ struct GoldenChannel {
 
 #[test]
 fn test_corpus() {
-    let corpus_dir = Path::new("tdms_corpus");
+    let corpus_dir = Path::new("tests/fixtures/tdms_corpus");
     if !corpus_dir.exists() {
         eprintln!("Corpus directory not found at {:?}. Skipping tests.", corpus_dir);
         return;

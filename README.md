@@ -1,46 +1,56 @@
-# TDMS Test Corpus
+# TDMS - Rust TDMS File Parser
 
-This directory contains a comprehensive set of TDMS files generated to test TDMS parsers, covering structural variations, datatypes, edge cases, and limits. The files are generated using the `nptdms` library.
+A pure Rust library for reading National Instruments TDMS (Technical Data Management Streaming) files.
 
-## Directory Structure & Coverage
+## Features
+- Zero-copy parsing where possible
+- Support for all TDMS data types (integers, floats, strings, timestamps, booleans)
+- Comprehensive test coverage with 24 test cases covering edge cases
+- No external dependencies beyond standard parsing libraries
+- Command-line tool for TDMS to JSON conversion
 
-| Folder | Description | Key Files |
-|--------|-------------|-----------|
-| `01_minimal` | Basic sanity checks | `minimal.tdms` (Simple Group/Channel/Data) |
-| `02_structure_variants` | File structure tests | `multiple_segments.tdms` (Fragmentation), `empty_segment.tdms` (Metadata updates), `metadata_only.tdms` (Structure w/o data) |
-| `03_datatypes` | All supported simple datatypes | `integers.tdms`, `floats.tdms`, `booleans.tdms`, `strings.tdms` |
-| `04_numeric_limits` | Boundary values | `special_floats.tdms` (NaN, Inf), `int_bounds.tdms` |
-| `05_string_edge_cases` | Complex string scenarios | `edge_cases.tdms` (Long strings, null bytes, unicode) |
-| `06_properties` | Property metadata at all levels | `all_levels.tdms` (Root/Group/Channel props), `property_keys.tdms` (Unicode/Space keys) |
-| `07_timestamps` | Time and date handling | `high_precision.tdms` (Sub-second), `extreme_range.tdms` (Past/Future) |
-| `08_raw_vs_interleaved` | Data layout variations | `standard_layout.tdms` |
-| `09_scaling_and_units` | Data interpretation attributes | `linear_scaling.tdms` (wf_increment, wf_start_offset) |
-| `10_large_and_sparse` | Performance stressors | `sparse.tdms` (Large zero arrays) |
-| `11_incremental_writes` | Append workflows | `append_mode.tdms` (File opened in 'a' mode) |
-| `12_metadata_only` | Structure without samples | `no_data.tdms` |
-| `13_unicode_and_encoding` | Path encoding | `unicode_paths.tdms` (Non-ASCII Group/Channel names) |
-| `14_alignment_and_padding` | Byte alignment checks | `odd_sizes.tdms` (Odd byte counts) |
+## Usage
 
-## Golden Reference JSON (Rust Spec)
-Each `.tdms` file has a corresponding `.json` file in the same directory. These JSON files serve as the canonical ground truth for testing parsers (specifically for Rust implementation).
+### Library
+```rust
+use tdms::TdmsFile;
 
-### Encoding Rules
-- **Numerics**: Strict encoding for `NaN`, `Infinity`, `-Infinity`, `-0.0` (as strings).
-- **Timestamps**: Objects with `{seconds: <int>, fraction: <2^64 int>}` (TDMS 1904 epoch).
-- **Determinism**: Keys sorted lexicographically, UTF-8 encoded.
-
-### Validation
-Run `python validate_json.py` to verify that all JSON files strictly match their TDMS counterparts (100% fidelity).
-
-## Comparison with TDMS Spec
-This corpus relies on `nptdms` implementation of the TDMS specification.
-- **Timestamps**: Uses standard TDMS epoch (1904).
-- **Strings**: UTF-8 encoded in newer formats.
-- **Properties**: Supported on all object types.
-
-## Generation
-Run the generation script to recreate this corpus:
-```bash
-python generate_corpus.py
+let file = TdmsFile::load("data.tdms")?;
+for (group_name, group) in &file.groups {
+    for (channel_name, channel) in &group.channels {
+        if let Some(data) = &channel.data {
+            println!("Channel {}/{}: {} samples", group_name, channel_name, data.len());
+        }
+    }
+}
 ```
-This will clean and repopulate the `tdms_corpus` directory.
+
+### Binary Tool
+```bash
+cargo install tdms
+tdms_to_json input.tdms output.json
+```
+
+## Supported Data Types
+- Integers: I8, I16, I32, I64, U8, U16, U32, U64
+- Floating point: Float (f32), Double (f64)
+- Strings with UTF-8 encoding
+- Timestamps with high precision
+- Booleans
+- Special float values (NaN, Infinity, -0.0)
+
+## Testing
+The library includes a comprehensive test corpus with 24 different TDMS files covering:
+- Basic file structures
+- All data types
+- Edge cases and numeric limits
+- Unicode support
+- Large and sparse data
+- Multiple segments and incremental writes
+
+```bash
+cargo test
+```
+
+## Development
+Python development tools are available in the `tools/` directory for corpus generation and debugging. See `tools/README.md` for details.

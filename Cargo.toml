@@ -2,6 +2,16 @@
 name = "tdms"
 version = "0.1.0"
 edition = "2021"
+description = "Pure Rust TDMS file parser for National Instruments TDMS files"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/username/rust_tdms"
+keywords = ["tdms", "labview", "parser", "data", "national-instruments"]
+categories = ["parsing", "science"]
+readme = "README.md"
+
+[[bin]]
+name = "tdms_to_json"
+path = "src/bin/tdms_to_json.rs"
 
 [dependencies]
 byteorder = "1.4"
