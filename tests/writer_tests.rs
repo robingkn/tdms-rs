@@ -52,8 +52,8 @@ fn round_trip_minimal_file() -> Result<(), Box<dyn std::error::Error>> {
 /// Generic helper to verify round-trip equivalence
 fn assert_round_trip(path: &str) -> Result<(), Box<dyn std::error::Error>> {
     let file = TdmsFile::load(Path::new(path))?;
-    let out_path = "tests/output/temp_written.tdms";
-    let mut writer = TdmsFileWriter::new(out_path);
+    let out_path = format!("tests/output/temp_written_{}.tdms", path.replace("/", "_").replace("\\", "_").replace(".", "_"));
+    let mut writer = TdmsFileWriter::new(&out_path);
     
     // Copy structure & data
     for (group_name, group) in &file.groups {
@@ -69,7 +69,7 @@ fn assert_round_trip(path: &str) -> Result<(), Box<dyn std::error::Error>> {
     }
     writer.write()?;
     
-    let round_trip = TdmsFile::load(Path::new(out_path))?;
+    let round_trip = TdmsFile::load(Path::new(&out_path))?;
     
     // Compare groups
     assert_eq!(file.groups.len(), round_trip.groups.len());

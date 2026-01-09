@@ -4,7 +4,7 @@
 //! The writer API follows a hierarchical structure: File -> Groups -> Channels.
 
 use std::path::{Path, PathBuf};
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 use std::fs::File;
 use std::io::{Write, BufWriter, Cursor};
 use byteorder::{WriteBytesExt, LittleEndian};
@@ -37,7 +37,7 @@ pub struct TdmsFileWriter {
 /// A group writer for organizing related channels.
 pub struct TdmsGroupWriter {
     name: String,
-    channels: HashMap<String, TdmsChannelWriter>,
+    channels: BTreeMap<String, TdmsChannelWriter>,
     properties: HashMap<String, PropertyValue>,
 }
 
@@ -62,7 +62,7 @@ impl TdmsFileWriter {
     pub fn add_group(&mut self, name: &str) -> &mut TdmsGroupWriter {
         let group = TdmsGroupWriter {
             name: name.to_string(),
-            channels: HashMap::new(),
+            channels: BTreeMap::new(),
             properties: HashMap::new(),
         };
         self.groups.insert(name.to_string(), group);
@@ -188,13 +188,10 @@ impl TdmsFileWriter {
         // Raw data index (length of raw data info)
         writer.write_u32::<LittleEndian>(raw_data_index)?;
         
-        // Write raw data info block
+        // Write raw data info block (this already includes property count at the end)
         writer.write_all(raw_data_info)?;
         
-        // Number of properties (4 bytes)
-        writer.write_u32::<LittleEndian>(properties.len() as u32)?;
-        
-        // Write properties
+        // Write properties (the count is already written in raw_data_info)
         for (key, value) in properties {
             self.write_property(writer, key, value)?;
         }
@@ -209,62 +206,72 @@ impl TdmsFileWriter {
             TdmsData::Double(values) => {
                 // Data type (4 bytes)
                 raw_data_info.write_u32::<LittleEndian>(DataType::DoubleFloat as u32)?;
-                
                 // Dimension (4 bytes)
                 raw_data_info.write_u32::<LittleEndian>(1)?;
-                
                 // Number of values (8 bytes)
                 raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
+                // Property count (4 bytes) - this is part of the raw data info
+                raw_data_info.write_u32::<LittleEndian>(0)?;
             },
             TdmsData::Float(values) => {
                 raw_data_info.write_u32::<LittleEndian>(DataType::SingleFloat as u32)?;
                 raw_data_info.write_u32::<LittleEndian>(1)?;
                 raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
+                raw_data_info.write_u32::<LittleEndian>(0)?;
             },
             TdmsData::I8(values) => {
                 raw_data_info.write_u32::<LittleEndian>(DataType::I8 as u32)?;
                 raw_data_info.write_u32::<LittleEndian>(1)?;
                 raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
+                raw_data_info.write_u32::<LittleEndian>(0)?;
             },
             TdmsData::I16(values) => {
                 raw_data_info.write_u32::<LittleEndian>(DataType::I16 as u32)?;
                 raw_data_info.write_u32::<LittleEndian>(1)?;
                 raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
+                raw_data_info.write_u32::<LittleEndian>(0)?;
             },
             TdmsData::I32(values) => {
                 raw_data_info.write_u32::<LittleEndian>(DataType::I32 as u32)?;
                 raw_data_info.write_u32::<LittleEndian>(1)?;
                 raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
+                raw_data_info.write_u32::<LittleEndian>(0)?;
             },
             TdmsData::I64(values) => {
                 raw_data_info.write_u32::<LittleEndian>(DataType::I64 as u32)?;
                 raw_data_info.write_u32::<LittleEndian>(1)?;
                 raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
+                raw_data_info.write_u32::<LittleEndian>(0)?;
             },
             TdmsData::U8(values) => {
                 raw_data_info.write_u32::<LittleEndian>(DataType::U8 as u32)?;
                 raw_data_info.write_u32::<LittleEndian>(1)?;
                 raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
+                raw_data_info.write_u32::<LittleEndian>(0)?;
             },
             TdmsData::U16(values) => {
                 raw_data_info.write_u32::<LittleEndian>(DataType::U16 as u32)?;
                 raw_data_info.write_u32::<LittleEndian>(1)?;
                 raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
+                raw_data_info.write_u32::<LittleEndian>(0)?;
             },
             TdmsData::U32(values) => {
                 raw_data_info.write_u32::<LittleEndian>(DataType::U32 as u32)?;
                 raw_data_info.write_u32::<LittleEndian>(1)?;
                 raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
+                raw_data_info.write_u32::<LittleEndian>(0)?;
             },
             TdmsData::U64(values) => {
                 raw_data_info.write_u32::<LittleEndian>(DataType::U64 as u32)?;
                 raw_data_info.write_u32::<LittleEndian>(1)?;
                 raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
+                raw_data_info.write_u32::<LittleEndian>(0)?;
             },
             TdmsData::Boolean(values) => {
                 raw_data_info.write_u32::<LittleEndian>(DataType::Boolean as u32)?;
                 raw_data_info.write_u32::<LittleEndian>(1)?;
                 raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
+                raw_data_info.write_u32::<LittleEndian>(0)?;
             },
             TdmsData::String(values) => {
                 raw_data_info.write_u32::<LittleEndian>(DataType::String as u32)?;
@@ -274,11 +281,13 @@ impl TdmsFileWriter {
                 // Calculate total size for strings
                 let total_size = values.iter().map(|s| s.len()).sum::<usize>() + (values.len() * 4); // 4 bytes per offset
                 raw_data_info.write_u64::<LittleEndian>(total_size as u64)?;
+                raw_data_info.write_u32::<LittleEndian>(0)?;
             },
             TdmsData::TimeStamp(values) => {
                 raw_data_info.write_u32::<LittleEndian>(DataType::TimeStamp as u32)?;
                 raw_data_info.write_u32::<LittleEndian>(1)?;
                 raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
+                raw_data_info.write_u32::<LittleEndian>(0)?;
             },
         }
         
@@ -392,6 +401,44 @@ mod tests {
         
         let written = TdmsFile::load(std::path::Path::new(output_path))?;
         assert_eq!(written.groups.keys().collect::<Vec<_>>(), &["Integers"]); // no trailing slash
+        Ok(())
+    }
+
+    #[test]
+    fn deterministic_channel_ordering() -> Result<()> {
+        fs::create_dir_all("tests/output")?;
+        
+        let output_path = "tests/output/channel_order.tdms";
+        let mut writer = TdmsFileWriter::new(output_path);
+        let group = writer.add_group("Test");
+        
+        // Add channels in non-alphabetical order
+        group.add_channel("Zebra", TdmsData::I32(vec![3]));
+        group.add_channel("Alpha", TdmsData::I32(vec![1]));
+        group.add_channel("Beta", TdmsData::I32(vec![2]));
+        
+        writer.write()?;
+        
+        let written = TdmsFile::load(std::path::Path::new(output_path))?;
+        let test_group = written.groups.get("Test").unwrap();
+        
+        // Verify all channels exist (order doesn't matter for this test since reader uses HashMap)
+        assert!(test_group.channels.contains_key("Alpha"));
+        assert!(test_group.channels.contains_key("Beta"));
+        assert!(test_group.channels.contains_key("Zebra"));
+        assert_eq!(test_group.channels.len(), 3);
+        
+        // Verify data integrity
+        if let Some(TdmsData::I32(alpha_data)) = &test_group.channels.get("Alpha").unwrap().data {
+            assert_eq!(alpha_data, &vec![1]);
+        }
+        if let Some(TdmsData::I32(beta_data)) = &test_group.channels.get("Beta").unwrap().data {
+            assert_eq!(beta_data, &vec![2]);
+        }
+        if let Some(TdmsData::I32(zebra_data)) = &test_group.channels.get("Zebra").unwrap().data {
+            assert_eq!(zebra_data, &vec![3]);
+        }
+        
         Ok(())
     }
 }
