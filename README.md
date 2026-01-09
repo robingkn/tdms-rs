@@ -1,13 +1,25 @@
-# tdms-rs - Rust TDMS File Parser
+# tdms-rs - Rust TDMS File Library
 
-A pure Rust library for reading National Instruments TDMS (Technical Data Management Streaming) files.
+A pure Rust library for reading and writing National Instruments TDMS (Technical Data Management Streaming) files.
 
 ## Features
+
+### Reading TDMS Files
 - Zero-copy parsing where possible
 - Support for all TDMS data types (integers, floats, strings, timestamps, booleans)
 - Comprehensive test coverage with 24 test cases covering edge cases
 - No external dependencies beyond standard parsing libraries
-- Command-line tool for TDMS to JSON conversion
+
+### Writing TDMS Files ✨ NEW
+- Create TDMS files that match the existing corpus exactly
+- Support for all data types: Double, Float, I8-I64, U8-U64, Boolean, String, TimeStamp
+- Multi-group, multi-channel file support
+- File, group, and channel properties
+- Deterministic channel ordering for consistent output
+- Corpus-compatible output verified by round-trip testing
+
+### Command-line Tool
+- TDMS to JSON conversion utility
 
 ## Installation
 
@@ -20,7 +32,97 @@ tdms-rs = "0.1"
 
 ## Usage
 
-### Quick Start
+### Writing TDMS Files
+
+#### Minimal Example
+```rust
+use tdms_rs::writer::TdmsFileWriter;
+use tdms_rs::TdmsData;
+
+let mut writer = TdmsFileWriter::new("minimal.tdms");
+let group = writer.add_group("Group");
+group.add_channel("Channel", TdmsData::Double(vec![1.0, 2.0, 3.0]));
+writer.write().unwrap();
+```
+
+#### Multiple Channels & Data Types
+```rust
+use tdms_rs::writer::TdmsFileWriter;
+use tdms_rs::TdmsData;
+
+let mut writer = TdmsFileWriter::new("multi_channel.tdms");
+let group = writer.add_group("Sensors");
+
+group.add_channel("Temperature", TdmsData::Double(vec![22.5, 23.0, 24.1]));
+group.add_channel("Pressure", TdmsData::I32(vec![101325, 101330, 101320]));
+group.add_channel("Valid", TdmsData::Boolean(vec![true, true, false]));
+group.add_channel("Labels", TdmsData::String(vec!["A".into(), "B".into(), "C".into()]));
+
+writer.write().unwrap();
+```
+
+#### Properties Example
+```rust
+use tdms_rs::writer::TdmsFileWriter;
+use tdms_rs::{TdmsData, PropertyValue};
+
+let mut writer = TdmsFileWriter::new("with_properties.tdms");
+
+// File-level properties
+writer.add_property("Author", PropertyValue::String("TDMS Writer".into()));
+writer.add_property("Version", PropertyValue::I32(1));
+
+let group = writer.add_group("Measurements");
+// Group-level properties
+group.add_property("Unit_System", PropertyValue::String("SI".into()));
+group.add_property("Sample_Rate", PropertyValue::Double(1000.0));
+
+let channel = group.add_channel("Voltage", TdmsData::Double(vec![1.1, 2.2, 3.3]));
+// Channel-level properties
+channel.add_property("wf_unit_string", PropertyValue::String("V".into()));
+channel.add_property("wf_increment", PropertyValue::Double(0.001));
+
+writer.write().unwrap();
+```
+
+#### All Supported Data Types
+```rust
+use tdms_rs::writer::TdmsFileWriter;
+use tdms_rs::TdmsData;
+
+let mut writer = TdmsFileWriter::new("all_types.tdms");
+
+// Integer types
+let integers = writer.add_group("Integers");
+integers.add_channel("Int8", TdmsData::I8(vec![-128, 0, 127]));
+integers.add_channel("Int16", TdmsData::I16(vec![-32768, 0, 32767]));
+integers.add_channel("Int32", TdmsData::I32(vec![-2147483648, 0, 2147483647]));
+integers.add_channel("Int64", TdmsData::I64(vec![i64::MIN, 0, i64::MAX]));
+
+// Unsigned integer types
+let unsigned = writer.add_group("Unsigned");
+unsigned.add_channel("UInt8", TdmsData::U8(vec![0, 128, 255]));
+unsigned.add_channel("UInt16", TdmsData::U16(vec![0, 32768, 65535]));
+unsigned.add_channel("UInt32", TdmsData::U32(vec![0, 2147483648, 4294967295]));
+unsigned.add_channel("UInt64", TdmsData::U64(vec![0, u64::MAX/2, u64::MAX]));
+
+// Floating point types
+let floats = writer.add_group("Floats");
+floats.add_channel("Float32", TdmsData::Float(vec![1.1, 2.2, 3.3]));
+floats.add_channel("Float64", TdmsData::Double(vec![1.1, 2.2, 3.3]));
+
+// Other types
+let misc = writer.add_group("Misc");
+misc.add_channel("Booleans", TdmsData::Boolean(vec![true, false, true]));
+misc.add_channel("Strings", TdmsData::String(vec!["Hello".into(), "World".into()]));
+misc.add_channel("Timestamps", TdmsData::TimeStamp(vec![(1000, 0), (2000, 500000000)]));
+
+writer.write().unwrap();
+```
+
+### Reading TDMS Files
+
+#### Quick Start
 
 ```rust
 use tdms_rs::TdmsFile;
@@ -40,7 +142,7 @@ for (group_name, group) in &file.groups {
 }
 ```
 
-### Reading Channel Data
+#### Reading Channel Data
 
 ```rust
 use tdms_rs::{TdmsFile, TdmsData};
@@ -66,7 +168,7 @@ if let Some(group) = file.groups.get("Sensors") {
 }
 ```
 
-### Accessing Properties
+#### Accessing Properties
 
 ```rust
 use tdms_rs::{TdmsFile, PropertyValue};
@@ -94,7 +196,7 @@ if let Some(group) = file.groups.get("DAQmx") {
 }
 ```
 
-### Working with Timestamps
+#### Working with Timestamps
 
 ```rust
 use tdms_rs::{TdmsFile, TdmsData};
@@ -125,6 +227,7 @@ tdms-to-json input.tdms output.json
 
 The crate includes several runnable examples demonstrating different use cases:
 
+### Reading Examples
 ```bash
 # Basic file structure inspection
 cargo run --example read_file -- path/to/file.tdms
@@ -139,15 +242,42 @@ cargo run --example read_channel_data -- path/to/file.tdms [group] [channel]
 cargo run --example read_properties -- path/to/file.tdms
 ```
 
+### Writing Examples
+```bash
+# Create a minimal TDMS file
+cargo run --example write_minimal
+
+# Create a file with multiple data types
+cargo run --example write_multi_channel
+
+# Create a file with properties
+cargo run --example write_properties
+
+# Create a comprehensive example with all data types
+cargo run --example write_all_types
+```
+
 All examples work with the included test corpus if no file path is provided.
 
 ## Supported Data Types
-- Integers: I8, I16, I32, I64, U8, U16, U32, U64
-- Floating point: Float (f32), Double (f64)
-- Strings with UTF-8 encoding
-- Timestamps with high precision
-- Booleans
-- Special float values (NaN, Infinity, -0.0)
+
+| TDMS Type | Rust Type | Description |
+|-----------|-----------|-------------|
+| I8        | `i8`      | 8-bit signed integer |
+| I16       | `i16`     | 16-bit signed integer |
+| I32       | `i32`     | 32-bit signed integer |
+| I64       | `i64`     | 64-bit signed integer |
+| U8        | `u8`      | 8-bit unsigned integer |
+| U16       | `u16`     | 16-bit unsigned integer |
+| U32       | `u32`     | 32-bit unsigned integer |
+| U64       | `u64`     | 64-bit unsigned integer |
+| Float     | `f32`     | 32-bit floating point |
+| Double    | `f64`     | 64-bit floating point |
+| String    | `String`  | UTF-8 encoded text |
+| Boolean   | `bool`    | True/false values |
+| TimeStamp | `(i64, u64)` | TDMS timestamp (seconds since 1904, fraction) |
+
+Special float values (NaN, Infinity, -0.0) are fully supported.
 
 ## Testing
 The library includes a comprehensive test corpus with 24 different TDMS files covering:

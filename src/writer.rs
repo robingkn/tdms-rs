@@ -1,7 +1,111 @@
 //! TDMS file writer implementation.
 //! 
 //! This module provides functionality to create TDMS files that match the existing corpus exactly.
-//! The writer API follows a hierarchical structure: File -> Groups -> Channels.
+//! The writer API follows a hierarchical structure: File -> Groups -> Channels with full support
+//! for all TDMS data types and properties.
+//!
+//! # Features
+//!
+//! - **All Data Types**: Support for Double, Float, I8-I64, U8-U64, Boolean, String, TimeStamp
+//! - **Properties**: File, group, and channel-level properties
+//! - **Multi-group/channel**: Complex file structures with deterministic ordering
+//! - **Corpus Compatible**: Output matches existing TDMS files exactly
+//! - **Round-trip Verified**: Write → read → compare testing ensures correctness
+//!
+//! # Quick Start
+//!
+//! ```no_run
+//! use tdms_rs::writer::TdmsFileWriter;
+//! use tdms_rs::TdmsData;
+//!
+//! // Create a simple TDMS file
+//! let mut writer = TdmsFileWriter::new("measurements.tdms");
+//! let group = writer.add_group("Sensors");
+//! group.add_channel("Temperature", TdmsData::Double(vec![20.1, 21.5, 22.3]));
+//! writer.write()?;
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! # Multiple Data Types
+//!
+//! ```no_run
+//! use tdms_rs::writer::TdmsFileWriter;
+//! use tdms_rs::TdmsData;
+//!
+//! let mut writer = TdmsFileWriter::new("multi_type.tdms");
+//! let group = writer.add_group("Mixed");
+//!
+//! // Different data types in one group
+//! group.add_channel("Voltage", TdmsData::Double(vec![1.1, 2.2, 3.3]));
+//! group.add_channel("Count", TdmsData::I32(vec![100, 200, 300]));
+//! group.add_channel("Valid", TdmsData::Boolean(vec![true, false, true]));
+//! group.add_channel("Labels", TdmsData::String(vec!["A".into(), "B".into(), "C".into()]));
+//!
+//! writer.write()?;
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! # Properties Example
+//!
+//! ```no_run
+//! use tdms_rs::writer::TdmsFileWriter;
+//! use tdms_rs::{TdmsData, PropertyValue};
+//!
+//! let mut writer = TdmsFileWriter::new("with_props.tdms");
+//!
+//! // File-level properties
+//! writer.add_property("Author", PropertyValue::String("TDMS Writer".into()));
+//! writer.add_property("Version", PropertyValue::I32(1));
+//!
+//! let group = writer.add_group("DAQ");
+//! // Group-level properties
+//! group.add_property("Sample_Rate", PropertyValue::Double(1000.0));
+//!
+//! let channel = group.add_channel("AI0", TdmsData::Double(vec![1.1, 2.2]));
+//! // Channel-level properties
+//! channel.add_property("wf_unit_string", PropertyValue::String("V".into()));
+//! channel.add_property("wf_increment", PropertyValue::Double(0.001));
+//!
+//! writer.write()?;
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! # All Supported Data Types
+//!
+//! ```no_run
+//! use tdms_rs::writer::TdmsFileWriter;
+//! use tdms_rs::TdmsData;
+//!
+//! let mut writer = TdmsFileWriter::new("all_types.tdms");
+//!
+//! // Integer types
+//! let integers = writer.add_group("Integers");
+//! integers.add_channel("I8", TdmsData::I8(vec![-128, 0, 127]));
+//! integers.add_channel("I16", TdmsData::I16(vec![-32768, 0, 32767]));
+//! integers.add_channel("I32", TdmsData::I32(vec![-2147483648, 0, 2147483647]));
+//! integers.add_channel("I64", TdmsData::I64(vec![i64::MIN, 0, i64::MAX]));
+//!
+//! // Unsigned integers
+//! let unsigned = writer.add_group("Unsigned");
+//! unsigned.add_channel("U8", TdmsData::U8(vec![0, 128, 255]));
+//! unsigned.add_channel("U16", TdmsData::U16(vec![0, 32768, 65535]));
+//! unsigned.add_channel("U32", TdmsData::U32(vec![0, 2147483648, 4294967295]));
+//! unsigned.add_channel("U64", TdmsData::U64(vec![0, u64::MAX/2, u64::MAX]));
+//!
+//! // Floating point
+//! let floats = writer.add_group("Floats");
+//! floats.add_channel("Float", TdmsData::Float(vec![1.1, 2.2, 3.3]));
+//! floats.add_channel("Double", TdmsData::Double(vec![1.1, 2.2, 3.3]));
+//!
+//! // Other types
+//! let misc = writer.add_group("Misc");
+//! misc.add_channel("Flags", TdmsData::Boolean(vec![true, false, true]));
+//! misc.add_channel("Text", TdmsData::String(vec!["Hello".into(), "World".into()]));
+//! misc.add_channel("Times", TdmsData::TimeStamp(vec![(1000, 0), (2000, 500000000)]));
+//!
+//! writer.write()?;
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
 
 use std::path::{Path, PathBuf};
 use std::collections::{HashMap, BTreeMap};
