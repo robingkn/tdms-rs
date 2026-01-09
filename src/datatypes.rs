@@ -1,4 +1,10 @@
 
+//! TDMS data types and property values.
+//! 
+//! This module defines the core data types used in TDMS files:
+//! - [`TdmsData`] - Enum representing channel data of various types
+//! - [`PropertyValue`] - Enum representing property metadata values
+//! - [`DataType`] - Internal enum for TDMS type codes
 
 use std::io::{Read, Seek};
 use byteorder::{ReadBytesExt, LittleEndian};
@@ -23,6 +29,32 @@ pub enum DataType {
     // extended types later
 }
 
+/// Property values stored as metadata in TDMS files.
+/// 
+/// Properties provide metadata about files, groups, and channels. They are stored
+/// as key-value pairs where the key is a string and the value is one of the
+/// supported TDMS data types.
+/// 
+/// # Examples
+/// 
+/// ```no_run
+/// use tdms::{TdmsFile, PropertyValue};
+/// use std::path::Path;
+/// 
+/// let file = TdmsFile::load(Path::new("data.tdms"))?;
+/// 
+/// if let Some(group) = file.groups.get("Sensors") {
+///     for (prop_name, prop_value) in &group.properties {
+///         match prop_value {
+///             PropertyValue::String(s) => println!("String property {}: {}", prop_name, s),
+///             PropertyValue::Double(d) => println!("Numeric property {}: {}", prop_name, d),
+///             PropertyValue::Boolean(b) => println!("Boolean property {}: {}", prop_name, b),
+///             _ => println!("Other property {}: {:?}", prop_name, prop_value),
+///         }
+///     }
+/// }
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 
 pub enum PropertyValue {
@@ -41,6 +73,71 @@ pub enum PropertyValue {
     // TimeStamp(timestamp_struct)
 }
 
+/// Channel data stored in TDMS files.
+/// 
+/// This enum represents the actual measurement data contained in TDMS channels.
+/// Each variant corresponds to a specific TDMS data type and contains a vector
+/// of values of that type.
+/// 
+/// # Data Type Mapping
+/// 
+/// | TDMS Type | Rust Type | Description |
+/// |-----------|-----------|-------------|
+/// | I8        | `i8`      | 8-bit signed integer |
+/// | I16       | `i16`     | 16-bit signed integer |
+/// | I32       | `i32`     | 32-bit signed integer |
+/// | I64       | `i64`     | 64-bit signed integer |
+/// | U8        | `u8`      | 8-bit unsigned integer |
+/// | U16       | `u16`     | 16-bit unsigned integer |
+/// | U32       | `u32`     | 32-bit unsigned integer |
+/// | U64       | `u64`     | 64-bit unsigned integer |
+/// | Float     | `f32`     | 32-bit floating point |
+/// | Double    | `f64`     | 64-bit floating point |
+/// | String    | `String`  | UTF-8 encoded text |
+/// | Boolean   | `bool`    | True/false values |
+/// | TimeStamp | `(i64, u64)` | TDMS timestamp (seconds since 1904, fraction) |
+/// 
+/// # Examples
+/// 
+/// ```no_run
+/// use tdms::{TdmsFile, TdmsData};
+/// use std::path::Path;
+/// 
+/// let file = TdmsFile::load(Path::new("data.tdms"))?;
+/// 
+/// if let Some(group) = file.groups.get("Measurements") {
+///     if let Some(channel) = group.channels.get("Voltage") {
+///         match &channel.data {
+///             Some(TdmsData::Double(values)) => {
+///                 println!("Voltage readings: {} samples", values.len());
+///                 let avg = values.iter().sum::<f64>() / values.len() as f64;
+///                 println!("Average voltage: {:.3} V", avg);
+///             },
+///             Some(TdmsData::Float(values)) => {
+///                 println!("Float voltage readings: {} samples", values.len());
+///             },
+///             Some(TdmsData::TimeStamp(timestamps)) => {
+///                 println!("Timestamp data: {} entries", timestamps.len());
+///                 for (seconds, fraction) in timestamps.iter().take(3) {
+///                     println!("  Time: {} seconds + {} fraction", seconds, fraction);
+///                 }
+///             },
+///             Some(other) => println!("Unexpected data type: {:?}", other),
+///             None => println!("No data in channel"),
+///         }
+///     }
+/// }
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+/// 
+/// # Timestamp Format
+/// 
+/// TDMS timestamps are represented as `(i64, u64)` tuples where:
+/// - The `i64` value is seconds since January 1, 1904, 00:00:00 UTC
+/// - The `u64` value is the fractional part in units of 2^-64 seconds
+/// 
+/// This provides very high precision timing information suitable for
+/// high-frequency data acquisition applications.
 #[derive(Debug, PartialEq)]
 pub enum TdmsData {
     I8(Vec<i8>),
@@ -59,6 +156,24 @@ pub enum TdmsData {
 }
 
 impl TdmsData {
+    /// Extend this data with additional data of the same type.
+    /// 
+    /// This method is used internally when reading multi-segment TDMS files
+    /// where channel data may be split across multiple segments.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `other` - Additional data to append to this data
+    /// 
+    /// # Returns
+    /// 
+    /// Returns `Ok(())` if the data was successfully extended, or an error
+    /// if the data types don't match.
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the two `TdmsData` variants don't match
+    /// (e.g., trying to extend `Double` data with `I32` data).
     pub fn extend(&mut self, other: TdmsData) -> Result<()> {
         match (self, other) {
             (TdmsData::Double(v1), TdmsData::Double(v2)) => v1.extend(v2),
