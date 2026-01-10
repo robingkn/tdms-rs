@@ -27,10 +27,11 @@ def create_small_files(output_dir: Path):
     file_path = output_dir / "small_single_channel.tdms"
     with TdmsWriter(str(file_path)) as tdms_writer:
         data = np.random.random(10000).astype(np.float64)
-        channel = ChannelObject('Group1', 'Channel1', data)
-        channel.properties['wf_unit_string'] = 'V'
-        channel.properties['wf_increment'] = 0.001
-        tdms_writer.write_data([channel])
+        channel = ChannelObject('Group1', 'Channel1', data, properties={
+            'wf_unit_string': 'V',
+            'wf_increment': 0.001
+        })
+        tdms_writer.write_segment([channel])
     
     # Small multi-channel
     file_path = output_dir / "small_multi_channel.tdms"
@@ -38,32 +39,24 @@ def create_small_files(output_dir: Path):
         channels = []
         for i in range(5):
             data = np.random.random(5000).astype(np.float64)
-            channel = ChannelObject('Sensors', f'Channel_{i}', data)
-            channel.properties['Description'] = f'Test channel {i}'
+            channel = ChannelObject('Sensors', f'Channel_{i}', data, properties={
+                'Description': f'Test channel {i}'
+            })
             channels.append(channel)
-        tdms_writer.write_data(channels)
+        tdms_writer.write_segment(channels)
     
     # Small with properties
     file_path = output_dir / "small_with_properties.tdms"
     with TdmsWriter(str(file_path)) as tdms_writer:
-        # File properties
-        tdms_writer.file_properties = {
-            'Title': 'Benchmark Test File',
-            'Author': 'nptdms Benchmark Suite',
-            'Version': 1.0,
-            'Sample_Rate': 1000.0
-        }
-        
         data = np.random.random(8000).astype(np.float64)
-        channel = ChannelObject('Data', 'Temperature', data)
-        channel.properties.update({
+        channel = ChannelObject('Data', 'Temperature', data, properties={
             'wf_unit_string': '°C',
             'wf_increment': 0.001,
             'Description': 'Temperature sensor data',
             'Calibration_Date': '2024-01-01',
             'Sensor_Type': 'Thermocouple'
         })
-        tdms_writer.write_data([channel])
+        tdms_writer.write_segment([channel])
     
     # Small mixed data types
     file_path = output_dir / "small_mixed_types.tdms"
@@ -75,7 +68,7 @@ def create_small_files(output_dir: Path):
             ChannelObject('Data', 'Shorts', np.random.randint(0, 100, 2000).astype(np.int16)),
             ChannelObject('Data', 'Bytes', np.random.randint(0, 255, 2000).astype(np.uint8)),
         ]
-        tdms_writer.write_data(channels)
+        tdms_writer.write_segment(channels)
 
 
 def create_medium_files(output_dir: Path):
@@ -87,9 +80,10 @@ def create_medium_files(output_dir: Path):
     with TdmsWriter(str(file_path)) as tdms_writer:
         # ~100MB of float64 data
         data = np.random.random(12500000).astype(np.float64)
-        channel = ChannelObject('Data', 'LargeChannel', data)
-        channel.properties['Description'] = 'Large single channel for throughput testing'
-        tdms_writer.write_data([channel])
+        channel = ChannelObject('Data', 'LargeChannel', data, properties={
+            'Description': 'Large single channel for throughput testing'
+        })
+        tdms_writer.write_segment([channel])
     
     # Medium many channels
     file_path = output_dir / "medium_many_channels.tdms"
@@ -97,11 +91,12 @@ def create_medium_files(output_dir: Path):
         channels = []
         for i in range(50):
             data = np.random.random(250000).astype(np.float64)
-            channel = ChannelObject('Sensors', f'Sensor_{i:03d}', data)
-            channel.properties['Unit'] = 'V' if i % 2 == 0 else 'A'
-            channel.properties['Range'] = f'{i * 10}-{(i + 1) * 10}'
+            channel = ChannelObject('Sensors', f'Sensor_{i:03d}', data, properties={
+                'Unit': 'V' if i % 2 == 0 else 'A',
+                'Range': f'{i * 10}-{(i + 1) * 10}'
+            })
             channels.append(channel)
-        tdms_writer.write_data(channels)
+        tdms_writer.write_segment(channels)
     
     # Medium with multiple groups
     file_path = output_dir / "medium_multi_group.tdms"
@@ -112,12 +107,13 @@ def create_medium_files(output_dir: Path):
         for group in groups:
             for i in range(10):
                 data = np.random.random(312500).astype(np.float64)  # ~25MB per group
-                channel = ChannelObject(group, f'Channel_{i}', data)
-                channel.properties['Group_Type'] = group
-                channel.properties['Channel_Index'] = i
+                channel = ChannelObject(group, f'Channel_{i}', data, properties={
+                    'Group_Type': group,
+                    'Channel_Index': i
+                })
                 channels.append(channel)
         
-        tdms_writer.write_data(channels)
+        tdms_writer.write_segment(channels)
 
 
 def create_large_files(output_dir: Path):
@@ -208,49 +204,57 @@ def create_structure_variants(output_dir: Path):
     file_path = output_dir / "structure_single_group.tdms"
     with TdmsWriter(str(file_path)) as tdms_writer:
         channels = []
-        for i in range(100):
+        for i in range(20):  # Reduced for smoke tests
             data = np.random.random(1000).astype(np.float64)
             channel = ChannelObject('SingleGroup', f'Channel_{i:03d}', data)
             channels.append(channel)
-        tdms_writer.write_data(channels)
+        tdms_writer.write_segment(channels)
     
     # Many groups, few channels each
     file_path = output_dir / "structure_many_groups.tdms"
     with TdmsWriter(str(file_path)) as tdms_writer:
         channels = []
-        for group_i in range(50):
+        for group_i in range(10):  # Reduced for smoke tests
             for chan_i in range(2):
                 data = np.random.random(1000).astype(np.float64)
                 channel = ChannelObject(f'Group_{group_i:03d}', f'Channel_{chan_i}', data)
                 channels.append(channel)
-        tdms_writer.write_data(channels)
+        tdms_writer.write_segment(channels)
     
-    # Metadata-only file
+    # Metadata-only file (empty channels)
     file_path = output_dir / "structure_metadata_only.tdms"
     with TdmsWriter(str(file_path)) as tdms_writer:
-        # File with properties but no data
-        tdms_writer.file_properties = {
-            'Title': 'Metadata Only File',
-            'Description': 'File with extensive metadata but no channel data',
-            'Created': '2024-01-01T00:00:00Z',
-            'Version': '1.0.0'
-        }
-        
-        # Create empty channels (metadata only)
         channels = []
-        for i in range(10):
-            # Empty data array
-            data = np.array([], dtype=np.float64)
-            channel = ChannelObject('Metadata', f'EmptyChannel_{i}', data)
-            channel.properties.update({
-                'Description': f'Empty channel {i}',
+        for i in range(5):
+            # Very small data array to simulate metadata-heavy file
+            data = np.array([1.0], dtype=np.float64)
+            channel = ChannelObject('Metadata', f'Channel_{i}', data, properties={
+                'Description': f'Metadata channel {i}',
                 'Unit': 'V',
                 'Range': '0-10',
                 'Calibrated': True
             })
             channels.append(channel)
         
-        tdms_writer.write_data(channels)
+        tdms_writer.write_segment(channels)
+
+
+def cleanup_large_files(output_dir: Path, size_threshold_mb: float = 100.0):
+    """Clean up files larger than threshold after benchmarks."""
+    large_files = []
+    for file_path in output_dir.glob("*.tdms"):
+        size_mb = file_path.stat().st_size / 1024 / 1024
+        if size_mb > size_threshold_mb:
+            large_files.append((file_path, size_mb))
+    
+    if large_files:
+        print(f"\nCleaning up {len(large_files)} large files (>{size_threshold_mb} MB):")
+        for file_path, size_mb in large_files:
+            print(f"  Removing {file_path.name}: {size_mb:.1f} MB")
+            try:
+                file_path.unlink()
+            except Exception as e:
+                print(f"    Warning: Could not remove {file_path.name}: {e}")
 
 
 def main(mode: str = 'full'):
@@ -273,12 +277,18 @@ def main(mode: str = 'full'):
     # List generated files with sizes
     print("\nGenerated files:")
     total_size = 0
+    large_files = []
     for file_path in sorted(output_dir.glob("*.tdms")):
         size_mb = file_path.stat().st_size / 1024 / 1024
         total_size += size_mb
         print(f"  {file_path.name}: {size_mb:.1f} MB")
+        if size_mb > 50:  # Track files > 50MB
+            large_files.append(file_path.name)
     
     print(f"\nTotal size: {total_size:.1f} MB")
+    if large_files:
+        print(f"Large files (>50MB): {', '.join(large_files)}")
+        print("Note: Large files will be cleaned up after benchmarks complete")
     print("Test file generation complete!")
 
 

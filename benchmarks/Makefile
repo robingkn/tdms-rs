@@ -109,9 +109,33 @@ clean:
 	rm -rf results/
 	rm -rf __pycache__/
 	rm -rf *.pyc
-	find . -name "*.pyc" -delete
-	find . -name "__pycache__" -type d -exec rm -rf {} +
+	find . -name "*.pyc" -delete 2>/dev/null || true
+	find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 	@echo "Clean complete."
+
+# Clean only large test files (keep small ones for quick testing)
+clean-large:
+	@echo "Cleaning large test files (>50MB)..."
+	@python -c "
+from pathlib import Path
+test_files_dir = Path('test_files')
+if test_files_dir.exists():
+    large_files = []
+    for f in test_files_dir.glob('*.tdms'):
+        size_mb = f.stat().st_size / 1024 / 1024
+        if size_mb > 50:
+            large_files.append((f, size_mb))
+    
+    if large_files:
+        for f, size in large_files:
+            print(f'Removing {f.name}: {size:.1f} MB')
+            f.unlink()
+        print(f'Cleaned up {len(large_files)} large files')
+    else:
+        print('No large files found')
+else:
+    print('No test_files directory found')
+"
 
 # Validate benchmark setup
 validate:

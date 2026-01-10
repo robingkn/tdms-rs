@@ -92,20 +92,27 @@ def run_full_benchmarks():
     # Clear any previous results
     clear_benchmark_results()
     
-    # Run all benchmark categories
-    print("\n1. Read Benchmarks...")
-    read_benchmarks.main()
+    try:
+        # Run all benchmark categories
+        print("\n1. Read Benchmarks...")
+        read_benchmarks.main()
+        
+        print("\n2. Write Benchmarks...")
+        write_benchmarks.main()
+        
+        print("\n3. Channel Access Benchmarks...")
+        channel_access_benchmarks.main()
+        
+        print("\n4. Stress Benchmarks...")
+        stress_benchmarks.main()
+        
+        return get_benchmark_results()
     
-    print("\n2. Write Benchmarks...")
-    write_benchmarks.main()
-    
-    print("\n3. Channel Access Benchmarks...")
-    channel_access_benchmarks.main()
-    
-    print("\n4. Stress Benchmarks...")
-    stress_benchmarks.main()
-    
-    return get_benchmark_results()
+    finally:
+        # Clean up large files after benchmarks
+        print("\nCleaning up large test files...")
+        test_files_dir = Path(__file__).parent / "test_files"
+        generate_test_files.cleanup_large_files(test_files_dir, size_threshold_mb=50.0)
 
 
 def save_results(results: List, mode: str, output_format: str = 'csv'):

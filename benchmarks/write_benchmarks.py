@@ -78,10 +78,11 @@ def benchmark_single_channel_writes():
                     f"Single channel write: {samples} {type_name} samples"
                 ):
                     with TdmsWriter(tmp_path) as tdms_writer:
-                        channel = ChannelObject('Data', 'TestChannel', data)
-                        channel.properties['DataType'] = type_name
-                        channel.properties['SampleCount'] = samples
-                        tdms_writer.write_data([channel])
+                        channel = ChannelObject('Data', 'TestChannel', data, properties={
+                            'DataType': type_name,
+                            'SampleCount': samples
+                        })
+                        tdms_writer.write_segment([channel])
                 
                 # Update file size in result
                 file_size_mb = get_file_size_mb(Path(tmp_path))
@@ -130,11 +131,12 @@ def benchmark_multi_channel_writes():
                     channels = []
                     for i in range(num_channels):
                         data = np.random.random(samples_per_channel)
-                        channel = ChannelObject('Data', f'Channel_{i:03d}', data)
-                        channel.properties['ChannelIndex'] = i
+                        channel = ChannelObject('Data', f'Channel_{i:03d}', data, properties={
+                            'ChannelIndex': i
+                        })
                         channels.append(channel)
                     
-                    tdms_writer.write_data(channels)
+                    tdms_writer.write_segment(channels)
             
             # Update file size in result
             file_size_mb = get_file_size_mb(Path(tmp_path))
