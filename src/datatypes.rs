@@ -1,15 +1,14 @@
-
 //! TDMS data types and property values.
-//! 
+//!
 //! This module defines the core data types used in TDMS files:
 //! - [`TdmsData`] - Enum representing channel data of various types
 //! - [`PropertyValue`] - Enum representing property metadata values
 //! - [`DataType`] - Internal enum for TDMS type codes
 
-use std::io::{Read, Seek};
-use std::fmt::{Display, Formatter};
-use byteorder::{ReadBytesExt, LittleEndian};
 use crate::error::{Result, TdmsError};
+use byteorder::{LittleEndian, ReadBytesExt};
+use std::fmt::{Display, Formatter};
+use std::io::{Read, Seek};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DataType {
@@ -31,19 +30,19 @@ pub enum DataType {
 }
 
 /// Property values stored as metadata in TDMS files.
-/// 
+///
 /// Properties provide metadata about files, groups, and channels. They are stored
 /// as key-value pairs where the key is a string and the value is one of the
 /// supported TDMS data types.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```no_run
 /// use tdms_rs::{TdmsFile, PropertyValue};
 /// use std::path::Path;
-/// 
+///
 /// let file = TdmsFile::load(Path::new("data.tdms"))?;
-/// 
+///
 /// if let Some(group) = file.groups.get("Sensors") {
 ///     for (prop_name, prop_value) in &group.properties {
 ///         match prop_value {
@@ -76,13 +75,13 @@ pub enum PropertyValue {
 }
 
 /// Channel data stored in TDMS files.
-/// 
+///
 /// This enum represents the actual measurement data contained in TDMS channels.
 /// Each variant corresponds to a specific TDMS data type and contains a vector
 /// of values of that type.
-/// 
+///
 /// # Data Type Mapping
-/// 
+///
 /// | TDMS Type | Rust Type | Description |
 /// |-----------|-----------|-------------|
 /// | I8        | `i8`      | 8-bit signed integer |
@@ -98,15 +97,15 @@ pub enum PropertyValue {
 /// | String    | `String`  | UTF-8 encoded text |
 /// | Boolean   | `bool`    | True/false values |
 /// | TimeStamp | `(i64, u64)` | TDMS timestamp (seconds since 1904, fraction) |
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```no_run
 /// use tdms_rs::{TdmsFile, TdmsData};
 /// use std::path::Path;
-/// 
+///
 /// let file = TdmsFile::load(Path::new("data.tdms"))?;
-/// 
+///
 /// if let Some(group) = file.groups.get("Measurements") {
 ///     if let Some(channel) = group.channels.get("Voltage") {
 ///         match &channel.data {
@@ -131,13 +130,13 @@ pub enum PropertyValue {
 /// }
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-/// 
+///
 /// # Timestamp Format
-/// 
+///
 /// TDMS timestamps are represented as `(i64, u64)` tuples where:
 /// - The `i64` value is seconds since January 1, 1904, 00:00:00 UTC
 /// - The `u64` value is the fractional part in units of 2^-64 seconds
-/// 
+///
 /// This provides very high precision timing information suitable for
 /// high-frequency data acquisition applications.
 #[derive(Debug, PartialEq, Clone)]
@@ -203,29 +202,37 @@ impl TdmsData {
 
     /// Check if this data type is numeric.
     pub fn is_numeric(&self) -> bool {
-        matches!(self, 
-            TdmsData::I8(_) | TdmsData::I16(_) | TdmsData::I32(_) | TdmsData::I64(_) |
-            TdmsData::U8(_) | TdmsData::U16(_) | TdmsData::U32(_) | TdmsData::U64(_) |
-            TdmsData::Float(_) | TdmsData::Double(_)
+        matches!(
+            self,
+            TdmsData::I8(_)
+                | TdmsData::I16(_)
+                | TdmsData::I32(_)
+                | TdmsData::I64(_)
+                | TdmsData::U8(_)
+                | TdmsData::U16(_)
+                | TdmsData::U32(_)
+                | TdmsData::U64(_)
+                | TdmsData::Float(_)
+                | TdmsData::Double(_)
         )
     }
 
     /// Extend this data with additional data of the same type.
-    /// 
+    ///
     /// This method is used internally when reading multi-segment TDMS files
     /// where channel data may be split across multiple segments.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `other` - Additional data to append to this data
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Returns `Ok(())` if the data was successfully extended, or an error
     /// if the data types don't match.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if the two `TdmsData` variants don't match
     /// (e.g., trying to extend `Double` data with `I32` data).
     pub fn extend(&mut self, other: TdmsData) -> Result<()> {
@@ -243,7 +250,11 @@ impl TdmsData {
             (TdmsData::U64(v1), TdmsData::U64(v2)) => v1.extend(v2),
             (TdmsData::Float(v1), TdmsData::Float(v2)) => v1.extend(v2),
             (TdmsData::TimeStamp(v1), TdmsData::TimeStamp(v2)) => v1.extend(v2),
-            _ => return Err(TdmsError::NotImplemented("Data type mismatch during extension".to_string())),
+            _ => {
+                return Err(TdmsError::NotImplemented(
+                    "Data type mismatch during extension".to_string(),
+                ))
+            }
         }
         Ok(())
     }
@@ -271,9 +282,12 @@ impl DataType {
     }
 }
 
-pub fn read_property_value<R: Read + Seek>(reader: &mut R, type_code: u32) -> Result<PropertyValue> {
+pub fn read_property_value<R: Read + Seek>(
+    reader: &mut R,
+    type_code: u32,
+) -> Result<PropertyValue> {
     let dtype = DataType::from_u32(type_code)?;
-    
+
     match dtype {
         DataType::I8 => Ok(PropertyValue::I8(reader.read_i8()?)),
         DataType::I16 => Ok(PropertyValue::I16(reader.read_i16::<LittleEndian>()?)),
@@ -292,156 +306,159 @@ pub fn read_property_value<R: Read + Seek>(reader: &mut R, type_code: u32) -> Re
             reader.read_exact(&mut buf)?;
             let s = String::from_utf8(buf).map_err(|_| TdmsError::StringEncoding)?;
             Ok(PropertyValue::String(s))
-        },
+        }
         DataType::TimeStamp => {
             // TDMS timestamps: 8 bytes fraction (u64) + 8 bytes seconds (i64)
             // Fraction represents 2^-64 second precision
             // Seconds are since 1904-01-01 00:00:00 UTC
             let fraction = reader.read_u64::<LittleEndian>()?;
-            let seconds = reader.read_i64::<LittleEndian>()?; 
+            let seconds = reader.read_i64::<LittleEndian>()?;
             Ok(PropertyValue::TimeStamp((seconds, fraction)))
-        },
-        _ => Err(TdmsError::NotImplemented(format!("Reading prop type {:?}", dtype))),
+        }
+        _ => Err(TdmsError::NotImplemented(format!(
+            "Reading prop type {:?}",
+            dtype
+        ))),
     }
 }
 
-pub fn read_raw_data<R: Read + Seek>(reader: &mut R, data_type: &DataType, count: u64, total_size_bytes: Option<u64>) -> Result<TdmsData> {
+pub fn read_raw_data<R: Read + Seek>(
+    reader: &mut R,
+    data_type: &DataType,
+    count: u64,
+    total_size_bytes: Option<u64>,
+) -> Result<TdmsData> {
     let count = count as usize;
     match data_type {
         DataType::Void => Err(TdmsError::NotImplemented("Raw data for Void".to_string())),
         DataType::String => {
-             // String Data Parsing
-             let total_size = total_size_bytes.ok_or(TdmsError::NotImplemented("String size missing".to_string()))?;
-             let offsets_size = (count * 4) as u64;
+            // String Data Parsing
+            let total_size = total_size_bytes
+                .ok_or(TdmsError::NotImplemented("String size missing".to_string()))?;
+            let offsets_size = (count * 4) as u64;
 
-             let mut offsets = Vec::with_capacity(count as usize);
-             for _ in 0..count {
-                 let offset = reader.read_u32::<LittleEndian>()?;
-                 offsets.push(offset);
-             }
-             
-             // println!("DEBUG: Read Offsets: {:?}", offsets);
+            let mut offsets = Vec::with_capacity(count);
+            for _ in 0..count {
+                let offset = reader.read_u32::<LittleEndian>()?;
+                offsets.push(offset);
+            }
 
-             // Calculate Char Size
-             // Offsets are relative to the start of the character data.
-             // TotalSize in meta (45) INCLUDES offsets (20).
-             // Char data size = 25.
-             // Offsets: 5, 10, 10, 14, 25.
-             // These are End Offsets.
-             // Final offset (25) matches Char Size.
-             
-             let char_size = if total_size >= offsets_size {
-                 total_size - offsets_size
-             } else {
-                 0 
-             };
+            // println!("DEBUG: Read Offsets: {:?}", offsets);
 
-             let mut data_bytes = vec![0u8; char_size as usize];
-             reader.read_exact(&mut data_bytes)?;
-             
-             let mut strings = Vec::with_capacity(count as usize);
-             let mut start = 0;
-             for i in 0..count as usize {
-                 let end = offsets[i] as usize;
-                 
-                 // Bounds check
-                 if end > data_bytes.len() {
-                      // Truncated string
-                      if start < data_bytes.len() {
-                          let slice = &data_bytes[start..];
-                          strings.push(String::from_utf8_lossy(slice).into_owned());
-                      } else {
-                          strings.push(String::new());
-                      }
-                 } else {
-                     if start <= end {
-                         let slice = &data_bytes[start..end];
-                         strings.push(String::from_utf8_lossy(slice).into_owned());
-                     } else {
-                         strings.push(String::new());
-                     }
-                 }
-                 start = end;
-             }
-             Ok(TdmsData::String(strings))
-        },
+            // Calculate Char Size
+            // Offsets are relative to the start of the character data.
+            // TotalSize in meta (45) INCLUDES offsets (20).
+            // Char data size = 25.
+            // Offsets: 5, 10, 10, 14, 25.
+            // These are End Offsets.
+            // Final offset (25) matches Char Size.
+
+            let char_size = total_size.saturating_sub(offsets_size);
+
+            let mut data_bytes = vec![0u8; char_size as usize];
+            reader.read_exact(&mut data_bytes)?;
+
+            let mut strings = Vec::with_capacity(count);
+            let mut start = 0;
+            for (_i, &offset) in offsets.iter().enumerate().take(count) {
+                let end = offset as usize;
+
+                // Bounds check
+                if end > data_bytes.len() {
+                    // Truncated string
+                    if start < data_bytes.len() {
+                        let slice = &data_bytes[start..];
+                        strings.push(String::from_utf8_lossy(slice).into_owned());
+                    } else {
+                        strings.push(String::new());
+                    }
+                } else if start <= end {
+                    let slice = &data_bytes[start..end];
+                    strings.push(String::from_utf8_lossy(slice).into_owned());
+                } else {
+                    strings.push(String::new());
+                }
+                start = end;
+            }
+            Ok(TdmsData::String(strings))
+        }
         DataType::I8 => {
             let mut data = Vec::with_capacity(count);
             for _ in 0..count {
                 data.push(reader.read_i8()?);
             }
             Ok(TdmsData::I8(data))
-        },
+        }
         DataType::I16 => {
             let mut data = Vec::with_capacity(count);
             for _ in 0..count {
                 data.push(reader.read_i16::<LittleEndian>()?);
             }
             Ok(TdmsData::I16(data))
-        },
+        }
         DataType::I32 => {
             let mut data = Vec::with_capacity(count);
             for _ in 0..count {
                 data.push(reader.read_i32::<LittleEndian>()?);
             }
             Ok(TdmsData::I32(data))
-        },
+        }
         DataType::I64 => {
             let mut data = Vec::with_capacity(count);
             for _ in 0..count {
                 data.push(reader.read_i64::<LittleEndian>()?);
             }
             Ok(TdmsData::I64(data))
-        },
+        }
         DataType::U8 => {
             let mut data = Vec::with_capacity(count);
             for _ in 0..count {
                 data.push(reader.read_u8()?);
             }
             Ok(TdmsData::U8(data))
-        },
+        }
         DataType::U16 => {
             let mut data = Vec::with_capacity(count);
             for _ in 0..count {
                 data.push(reader.read_u16::<LittleEndian>()?);
             }
             Ok(TdmsData::U16(data))
-        },
+        }
         DataType::U32 => {
             let mut data = Vec::with_capacity(count);
             for _ in 0..count {
                 data.push(reader.read_u32::<LittleEndian>()?);
             }
             Ok(TdmsData::U32(data))
-        },
+        }
         DataType::U64 => {
             let mut data = Vec::with_capacity(count);
             for _ in 0..count {
                 data.push(reader.read_u64::<LittleEndian>()?);
             }
             Ok(TdmsData::U64(data))
-        },
+        }
         DataType::SingleFloat => {
             let mut data = Vec::with_capacity(count);
             for _ in 0..count {
                 data.push(reader.read_f32::<LittleEndian>()?);
             }
             Ok(TdmsData::Float(data))
-        },
+        }
         DataType::DoubleFloat => {
             let mut data = Vec::with_capacity(count);
             for _ in 0..count {
                 data.push(reader.read_f64::<LittleEndian>()?);
             }
             Ok(TdmsData::Double(data))
-        },
+        }
         DataType::Boolean => {
             let mut data = Vec::with_capacity(count);
             for _ in 0..count {
                 data.push(reader.read_u8()? != 0);
             }
             Ok(TdmsData::Boolean(data))
-        },
+        }
         DataType::TimeStamp => {
             let mut data = Vec::with_capacity(count);
             for _ in 0..count {
@@ -450,7 +467,7 @@ pub fn read_raw_data<R: Read + Seek>(reader: &mut R, data_type: &DataType, count
                 data.push((seconds, fraction));
             }
             Ok(TdmsData::TimeStamp(data))
-        },
+        }
     }
 }
 
@@ -466,7 +483,7 @@ impl Display for PropertyValue {
                 } else {
                     write!(f, "{:.6}", d)
                 }
-            },
+            }
             PropertyValue::Float(fl) => {
                 if fl.is_nan() {
                     write!(f, "NaN")
@@ -475,7 +492,7 @@ impl Display for PropertyValue {
                 } else {
                     write!(f, "{:.6}", fl)
                 }
-            },
+            }
             PropertyValue::I8(i) => write!(f, "{}", i),
             PropertyValue::I16(i) => write!(f, "{}", i),
             PropertyValue::I32(i) => write!(f, "{}", i),
@@ -487,7 +504,7 @@ impl Display for PropertyValue {
             PropertyValue::Boolean(b) => write!(f, "{}", b),
             PropertyValue::TimeStamp((s, frac)) => {
                 write!(f, "{}.{:019}", s, frac)
-            },
+            }
         }
     }
 }
@@ -598,6 +615,9 @@ pub fn create_empty_data(dtype: &DataType) -> Result<TdmsData> {
         DataType::Boolean => Ok(TdmsData::Boolean(Vec::new())),
         DataType::String => Ok(TdmsData::String(Vec::new())),
         DataType::TimeStamp => Ok(TdmsData::TimeStamp(Vec::new())),
-        _ => Err(TdmsError::NotImplemented(format!("Empty data for {:?}", dtype))),
+        _ => Err(TdmsError::NotImplemented(format!(
+            "Empty data for {:?}",
+            dtype
+        ))),
     }
 }

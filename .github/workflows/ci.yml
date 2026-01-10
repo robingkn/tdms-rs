@@ -1,0 +1,51 @@
+name: CI
+
+# Trigger on push to main and all pull requests
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Checkout the repository code
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    # Install stable Rust toolchain with rustfmt and clippy
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+    
+    # Cache Cargo registry and build artifacts for faster builds
+    - name: Cache Cargo registry and build artifacts
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+    
+    # Check code formatting (fail fast)
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+    
+    # Run Clippy lints (fail fast on warnings)
+    - name: Run Clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+    
+    # Run all tests including doc tests
+    - name: Run tests
+      run: cargo test --all-features

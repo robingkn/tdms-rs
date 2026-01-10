@@ -1,4 +1,3 @@
-
 use crate::metadata::ParsingMetadata;
 
 #[derive(Debug)]
@@ -18,11 +17,11 @@ impl Mask {
     pub fn new(val: u32) -> Self {
         Self { props: val }
     }
-    
+
     pub fn has_new_obj_list(&self) -> bool {
         (self.props & (1 << 2)) != 0
     }
-    
+
     pub fn convert(&self) -> u32 {
         self.props
     }

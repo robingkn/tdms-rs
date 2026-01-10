@@ -1,13 +1,13 @@
 //! List all channels with detailed metadata
-//! 
+//!
 //! This example shows how to iterate through groups and channels,
 //! displaying their properties and data type information.
-//! 
+//!
 //! Usage: cargo run --example list_channels -- path/to/file.tdms
 
 use std::env;
 use std::path::Path;
-use tdms_rs::{TdmsFile, TdmsData, PropertyValue};
+use tdms_rs::{PropertyValue, TdmsData, TdmsFile};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -18,55 +18,63 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     println!("📋 Listing channels in: {}", file_path);
-    
+
     let file = TdmsFile::load(Path::new(file_path))?;
-    
+
     if file.groups.is_empty() {
         println!("No groups found in the file.");
         return Ok(());
     }
-    
+
     for (group_name, group) in &file.groups {
         println!("\n🗂️  Group: '{}'", group_name);
-        
+
         // Display group properties
         if !group.properties.is_empty() {
             println!("   Group Properties:");
             for (prop_name, prop_value) in &group.properties {
-                println!("     • {}: {}", prop_name, format_property_value(prop_value));
+                println!(
+                    "     • {}: {}",
+                    prop_name,
+                    format_property_value(prop_value)
+                );
             }
         }
-        
+
         // Display channels
         if group.channels.is_empty() {
             println!("   (No channels)");
         } else {
             for (channel_name, channel) in &group.channels {
                 println!("\n   📊 Channel: '{}'", channel_name);
-                
+
                 // Show data type and count
                 match &channel.data {
                     Some(data) => {
                         let (data_type, count) = get_data_info(data);
                         println!("      Data: {} ({} samples)", data_type, count);
-                        
+
                         // Show first few values as preview
                         print_data_preview(data);
-                    },
+                    }
                     None => println!("      Data: None"),
                 }
-                
+
                 // Show channel properties
                 if !channel.properties.is_empty() {
                     println!("      Properties:");
                     for (prop_name, prop_value) in &channel.properties {
-                        println!("        • {}: {}", prop_name, format_property_value(prop_value));
+                        println!(
+                            "        • {}: {}",
+                            prop_name,
+                            format_property_value(prop_value)
+                        );
                     }
                 }
             }
         }
     }
-    
+
     println!("\n✅ Channel listing complete!");
     Ok(())
 }
@@ -87,7 +95,7 @@ fn format_property_value(value: &PropertyValue) -> String {
         PropertyValue::Boolean(v) => v.to_string(),
         PropertyValue::TimeStamp((seconds, fraction)) => {
             format!("timestamp({}, {})", seconds, fraction)
-        },
+        }
     }
 }
 
@@ -111,7 +119,7 @@ fn get_data_info(data: &TdmsData) -> (&'static str, usize) {
 
 fn print_data_preview(data: &TdmsData) {
     const PREVIEW_COUNT: usize = 3;
-    
+
     match data {
         TdmsData::I8(v) => print_vec_preview(v, PREVIEW_COUNT),
         TdmsData::I16(v) => print_vec_preview(v, PREVIEW_COUNT),
@@ -123,34 +131,49 @@ fn print_data_preview(data: &TdmsData) {
         TdmsData::U64(v) => print_vec_preview(v, PREVIEW_COUNT),
         TdmsData::Float(v) => {
             if !v.is_empty() {
-                let preview: Vec<String> = v.iter().take(PREVIEW_COUNT).map(|x| format!("{:.3}", x)).collect();
+                let preview: Vec<String> = v
+                    .iter()
+                    .take(PREVIEW_COUNT)
+                    .map(|x| format!("{:.3}", x))
+                    .collect();
                 let suffix = if v.len() > PREVIEW_COUNT { ", ..." } else { "" };
                 println!("      Preview: [{}{}]", preview.join(", "), suffix);
             }
-        },
+        }
         TdmsData::Double(v) => {
             if !v.is_empty() {
-                let preview: Vec<String> = v.iter().take(PREVIEW_COUNT).map(|x| format!("{:.6}", x)).collect();
+                let preview: Vec<String> = v
+                    .iter()
+                    .take(PREVIEW_COUNT)
+                    .map(|x| format!("{:.6}", x))
+                    .collect();
                 let suffix = if v.len() > PREVIEW_COUNT { ", ..." } else { "" };
                 println!("      Preview: [{}{}]", preview.join(", "), suffix);
             }
-        },
+        }
         TdmsData::String(v) => {
             if !v.is_empty() {
-                let preview: Vec<String> = v.iter().take(PREVIEW_COUNT).map(|s| format!("\"{}\"", s)).collect();
+                let preview: Vec<String> = v
+                    .iter()
+                    .take(PREVIEW_COUNT)
+                    .map(|s| format!("\"{}\"", s))
+                    .collect();
                 let suffix = if v.len() > PREVIEW_COUNT { ", ..." } else { "" };
                 println!("      Preview: [{}{}]", preview.join(", "), suffix);
             }
-        },
+        }
         TdmsData::Boolean(v) => print_vec_preview(v, PREVIEW_COUNT),
         TdmsData::TimeStamp(v) => {
             if !v.is_empty() {
-                let preview: Vec<String> = v.iter().take(PREVIEW_COUNT)
-                    .map(|(sec, frac)| format!("({}, {})", sec, frac)).collect();
+                let preview: Vec<String> = v
+                    .iter()
+                    .take(PREVIEW_COUNT)
+                    .map(|(sec, frac)| format!("({}, {})", sec, frac))
+                    .collect();
                 let suffix = if v.len() > PREVIEW_COUNT { ", ..." } else { "" };
                 println!("      Preview: [{}{}]", preview.join(", "), suffix);
             }
-        },
+        }
     }
 }
 
