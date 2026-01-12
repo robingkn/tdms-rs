@@ -259,14 +259,6 @@ impl TdmsFileWriter {
         // Build metadata (raw data will be written separately)
         let metadata_bytes = self.build_metadata()?;
 
-        // Calculate raw data size (needed even if we don't build the vector)
-        let mut raw_data_size = 0u64;
-        for group in self.groups.values() {
-            for channel in group.channels.values() {
-                raw_data_size += self.calculate_channel_data_size(&channel.data);
-            }
-        }
-
         // Calculate offsets
         let raw_data_offset = metadata_bytes.len() as u64;
         let next_segment_offset = 0xFFFFFFFFFFFFFFFF; // No next segment
@@ -367,23 +359,6 @@ impl TdmsFileWriter {
         Ok(metadata)
     }
 
-    fn calculate_channel_data_size(&self, data: &TdmsData) -> u64 {
-        match data {
-            TdmsData::Double(v) => v.len() as u64 * 8,
-            TdmsData::Float(v) => v.len() as u64 * 4,
-            TdmsData::I8(v) => v.len() as u64,
-            TdmsData::I16(v) => v.len() as u64 * 2,
-            TdmsData::I32(v) => v.len() as u64 * 4,
-            TdmsData::I64(v) => v.len() as u64 * 8,
-            TdmsData::U8(v) => v.len() as u64,
-            TdmsData::U16(v) => v.len() as u64 * 2,
-            TdmsData::U32(v) => v.len() as u64 * 4,
-            TdmsData::U64(v) => v.len() as u64 * 8,
-            TdmsData::Boolean(v) => v.len() as u64,
-            TdmsData::String(v) => v.iter().map(|s| s.len() as u64).sum::<u64>() + (v.len() as u64 * 4),
-            TdmsData::TimeStamp(v) => v.len() as u64 * 16,
-        }
-    }
 
     fn write_object_metadata<W: Write>(
         &self,

@@ -37,7 +37,6 @@ impl<R: Read + Seek> TdmsReader<R> {
         let next_segment_offset = self.reader.read_u64::<LittleEndian>()?;
         let raw_data_offset = self.reader.read_u64::<LittleEndian>()?;
 
-
         let mask = crate::segment::Mask::new(mask);
 
         let mut objects = Vec::new();

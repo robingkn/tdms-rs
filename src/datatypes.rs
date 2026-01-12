@@ -343,7 +343,6 @@ pub fn read_raw_data<R: Read + Seek>(
                 offsets.push(offset);
             }
 
-
             // Calculate Char Size
             // Offsets are relative to the start of the character data.
             // TotalSize in meta (45) INCLUDES offsets (20).
@@ -383,31 +382,29 @@ pub fn read_raw_data<R: Read + Seek>(
         }
         DataType::I8 => {
             let mut data = vec![0i8; count];
-            let buf = unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count) };
+            let buf =
+                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count) };
             reader.read_exact(buf)?;
             Ok(TdmsData::I8(data))
         }
         DataType::I16 => {
             let mut data = vec![0i16; count];
-            let buf = unsafe {
-                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 2)
-            };
+            let buf =
+                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 2) };
             reader.read_exact(buf)?;
             Ok(TdmsData::I16(data))
         }
         DataType::I32 => {
             let mut data = vec![0i32; count];
-            let buf = unsafe {
-                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 4)
-            };
+            let buf =
+                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 4) };
             reader.read_exact(buf)?;
             Ok(TdmsData::I32(data))
         }
         DataType::I64 => {
             let mut data = vec![0i64; count];
-            let buf = unsafe {
-                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 8)
-            };
+            let buf =
+                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 8) };
             reader.read_exact(buf)?;
             Ok(TdmsData::I64(data))
         }
@@ -418,41 +415,36 @@ pub fn read_raw_data<R: Read + Seek>(
         }
         DataType::U16 => {
             let mut data = vec![0u16; count];
-            let buf = unsafe {
-                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 2)
-            };
+            let buf =
+                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 2) };
             reader.read_exact(buf)?;
             Ok(TdmsData::U16(data))
         }
         DataType::U32 => {
             let mut data = vec![0u32; count];
-            let buf = unsafe {
-                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 4)
-            };
+            let buf =
+                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 4) };
             reader.read_exact(buf)?;
             Ok(TdmsData::U32(data))
         }
         DataType::U64 => {
             let mut data = vec![0u64; count];
-            let buf = unsafe {
-                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 8)
-            };
+            let buf =
+                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 8) };
             reader.read_exact(buf)?;
             Ok(TdmsData::U64(data))
         }
         DataType::SingleFloat => {
             let mut data = vec![0.0f32; count];
-            let buf = unsafe {
-                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 4)
-            };
+            let buf =
+                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 4) };
             reader.read_exact(buf)?;
             Ok(TdmsData::Float(data))
         }
         DataType::DoubleFloat => {
             let mut data = vec![0.0f64; count];
-            let buf = unsafe {
-                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 8)
-            };
+            let buf =
+                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 8) };
             reader.read_exact(buf)?;
             Ok(TdmsData::Double(data))
         }
