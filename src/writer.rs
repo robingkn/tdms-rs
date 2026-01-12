@@ -104,7 +104,7 @@ use byteorder::{LittleEndian, WriteBytesExt};
 use indexmap::IndexMap;
 use std::collections::BTreeMap;
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, Cursor, Write};
 use std::path::{Path, PathBuf};
 
 /// A TDMS file writer that can create TDMS files matching the corpus format.
@@ -254,7 +254,8 @@ impl TdmsFileWriter {
     pub fn write(&self) -> Result<()> {
         let file = File::create(&self.path)?;
         // Use a larger buffer for high-throughput sequential I/O
-        let mut writer = BufWriter::with_capacity(1024 * 1024, file);
+        // 8MB buffer allows better batching for large sequential writes
+        let mut writer = BufWriter::with_capacity(8 * 1024 * 1024, file);
 
         // Build metadata (raw data will be written separately)
         let metadata_bytes = self.build_metadata()?;
@@ -268,16 +269,21 @@ impl TdmsFileWriter {
 
         // Write metadata
         writer.write_all(&metadata_bytes)?;
+        
+        // Flush metadata to ensure it's written before raw data
+        writer.flush()?;
 
-        // Write raw data directly to the file stream
+        // For very large data writes, bypass BufWriter and write directly to file
+        // BufWriter bypasses its buffer for writes larger than the buffer anyway,
+        // so writing directly avoids unnecessary buffering overhead
+        let file = writer.get_mut();
         for group in self.groups.values() {
             for channel in group.channels.values() {
-                self.write_channel_data(&mut writer, &channel.data)?;
+                self.write_channel_data_direct(file, &channel.data)?;
             }
         }
 
-        writer.flush()?;
-        writer.get_ref().sync_all()?;
+        file.sync_all()?;
         Ok(())
     }
 
@@ -287,26 +293,36 @@ impl TdmsFileWriter {
         next_segment_offset: u64,
         raw_data_offset: u64,
     ) -> Result<()> {
+        // Batch header writes into a single buffer to reduce syscall overhead
+        let mut header_buf = [0u8; 28];
+        let mut cursor = std::io::Cursor::new(&mut header_buf[..]);
+        
         // TDMS signature: "TDSm"
-        writer.write_all(b"TDSm")?;
+        cursor.write_all(b"TDSm")?;
 
         // ToC mask (4 bytes) - from minimal.tdms: 0x0000000E
-        writer.write_u32::<LittleEndian>(0x0000000E)?;
+        cursor.write_u32::<LittleEndian>(0x0000000E)?;
 
         // Version (4 bytes) - from minimal.tdms: 4712
-        writer.write_u32::<LittleEndian>(4712)?;
+        cursor.write_u32::<LittleEndian>(4712)?;
 
         // Next segment offset (8 bytes)
-        writer.write_u64::<LittleEndian>(next_segment_offset)?;
+        cursor.write_u64::<LittleEndian>(next_segment_offset)?;
 
         // Raw data offset (8 bytes) - relative to start of segment payload
-        writer.write_u64::<LittleEndian>(raw_data_offset)?;
+        cursor.write_u64::<LittleEndian>(raw_data_offset)?;
 
+        // Write entire header in one syscall
+        writer.write_all(&header_buf)?;
         Ok(())
     }
 
     fn build_metadata(&self) -> Result<Vec<u8>> {
-        let mut metadata = Vec::new();
+        // Pre-allocate metadata Vec with estimated capacity to reduce reallocations
+        // Estimate: ~200 bytes per object (path + properties + raw data info)
+        let estimated_capacity = 200 * (1 + self.groups.len() + 
+            self.groups.values().map(|g| g.channels.len()).sum::<usize>());
+        let mut metadata = Vec::with_capacity(estimated_capacity);
 
         // Count objects: file + groups + channels
         let mut object_count = 1u32; // file object
@@ -584,6 +600,104 @@ impl TdmsFileWriter {
             }
         }
 
+        Ok(())
+    }
+
+    fn write_channel_data_direct(&self, file: &mut File, data: &TdmsData) -> Result<()> {
+        match data {
+            TdmsData::Double(values) => {
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 8)
+                };
+                use std::io::Write;
+                file.write_all(buf)?;
+            }
+            TdmsData::Float(values) => {
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 4)
+                };
+                use std::io::Write;
+                file.write_all(buf)?;
+            }
+            TdmsData::I8(values) => {
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len())
+                };
+                use std::io::Write;
+                file.write_all(buf)?;
+            }
+            TdmsData::I16(values) => {
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 2)
+                };
+                use std::io::Write;
+                file.write_all(buf)?;
+            }
+            TdmsData::I32(values) => {
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 4)
+                };
+                use std::io::Write;
+                file.write_all(buf)?;
+            }
+            TdmsData::I64(values) => {
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 8)
+                };
+                use std::io::Write;
+                file.write_all(buf)?;
+            }
+            TdmsData::U8(values) => {
+                use std::io::Write;
+                file.write_all(values)?;
+            }
+            TdmsData::U16(values) => {
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 2)
+                };
+                use std::io::Write;
+                file.write_all(buf)?;
+            }
+            TdmsData::U32(values) => {
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 4)
+                };
+                use std::io::Write;
+                file.write_all(buf)?;
+            }
+            TdmsData::U64(values) => {
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 8)
+                };
+                use std::io::Write;
+                file.write_all(buf)?;
+            }
+            TdmsData::Boolean(values) => {
+                let buf: Vec<u8> = values.iter().map(|&v| if v { 1 } else { 0 }).collect();
+                use std::io::Write;
+                file.write_all(&buf)?;
+            }
+            TdmsData::String(values) => {
+                use std::io::Write;
+                // Write offsets first
+                let mut offset = 0u32;
+                for s in values {
+                    offset += s.len() as u32;
+                    file.write_u32::<LittleEndian>(offset)?;
+                }
+                // Write string bytes
+                for s in values {
+                    file.write_all(s.as_bytes())?;
+                }
+            }
+            TdmsData::TimeStamp(values) => {
+                use std::io::Write;
+                for &(seconds, fraction) in values {
+                    file.write_u64::<LittleEndian>(fraction)?;
+                    file.write_i64::<LittleEndian>(seconds)?;
+                }
+            }
+        }
         Ok(())
     }
 
