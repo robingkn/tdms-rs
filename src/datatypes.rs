@@ -382,81 +382,85 @@ pub fn read_raw_data<R: Read + Seek>(
             Ok(TdmsData::String(strings))
         }
         DataType::I8 => {
-            let mut data = Vec::with_capacity(count);
-            for _ in 0..count {
-                data.push(reader.read_i8()?);
-            }
+            let mut data = vec![0i8; count];
+            let buf = unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count) };
+            reader.read_exact(buf)?;
             Ok(TdmsData::I8(data))
         }
         DataType::I16 => {
-            let mut data = Vec::with_capacity(count);
-            for _ in 0..count {
-                data.push(reader.read_i16::<LittleEndian>()?);
-            }
+            let mut data = vec![0i16; count];
+            let buf = unsafe {
+                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 2)
+            };
+            reader.read_exact(buf)?;
             Ok(TdmsData::I16(data))
         }
         DataType::I32 => {
-            let mut data = Vec::with_capacity(count);
-            for _ in 0..count {
-                data.push(reader.read_i32::<LittleEndian>()?);
-            }
+            let mut data = vec![0i32; count];
+            let buf = unsafe {
+                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 4)
+            };
+            reader.read_exact(buf)?;
             Ok(TdmsData::I32(data))
         }
         DataType::I64 => {
-            let mut data = Vec::with_capacity(count);
-            for _ in 0..count {
-                data.push(reader.read_i64::<LittleEndian>()?);
-            }
+            let mut data = vec![0i64; count];
+            let buf = unsafe {
+                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 8)
+            };
+            reader.read_exact(buf)?;
             Ok(TdmsData::I64(data))
         }
         DataType::U8 => {
-            let mut data = Vec::with_capacity(count);
-            for _ in 0..count {
-                data.push(reader.read_u8()?);
-            }
+            let mut data = vec![0u8; count];
+            reader.read_exact(&mut data)?;
             Ok(TdmsData::U8(data))
         }
         DataType::U16 => {
-            let mut data = Vec::with_capacity(count);
-            for _ in 0..count {
-                data.push(reader.read_u16::<LittleEndian>()?);
-            }
+            let mut data = vec![0u16; count];
+            let buf = unsafe {
+                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 2)
+            };
+            reader.read_exact(buf)?;
             Ok(TdmsData::U16(data))
         }
         DataType::U32 => {
-            let mut data = Vec::with_capacity(count);
-            for _ in 0..count {
-                data.push(reader.read_u32::<LittleEndian>()?);
-            }
+            let mut data = vec![0u32; count];
+            let buf = unsafe {
+                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 4)
+            };
+            reader.read_exact(buf)?;
             Ok(TdmsData::U32(data))
         }
         DataType::U64 => {
-            let mut data = Vec::with_capacity(count);
-            for _ in 0..count {
-                data.push(reader.read_u64::<LittleEndian>()?);
-            }
+            let mut data = vec![0u64; count];
+            let buf = unsafe {
+                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 8)
+            };
+            reader.read_exact(buf)?;
             Ok(TdmsData::U64(data))
         }
         DataType::SingleFloat => {
-            let mut data = Vec::with_capacity(count);
-            for _ in 0..count {
-                data.push(reader.read_f32::<LittleEndian>()?);
-            }
+            let mut data = vec![0.0f32; count];
+            let buf = unsafe {
+                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 4)
+            };
+            reader.read_exact(buf)?;
             Ok(TdmsData::Float(data))
         }
         DataType::DoubleFloat => {
-            let mut data = Vec::with_capacity(count);
-            for _ in 0..count {
-                data.push(reader.read_f64::<LittleEndian>()?);
-            }
+            let mut data = vec![0.0f64; count];
+            let buf = unsafe {
+                std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 8)
+            };
+            reader.read_exact(buf)?;
             Ok(TdmsData::Double(data))
         }
         DataType::Boolean => {
-            let mut data = Vec::with_capacity(count);
-            for _ in 0..count {
-                data.push(reader.read_u8()? != 0);
-            }
-            Ok(TdmsData::Boolean(data))
+            let mut data = vec![0u8; count];
+            reader.read_exact(&mut data)?;
+            let bool_data: Vec<bool> = data.into_iter().map(|v| v != 0).collect();
+            Ok(TdmsData::Boolean(bool_data))
         }
         DataType::TimeStamp => {
             let mut data = Vec::with_capacity(count);

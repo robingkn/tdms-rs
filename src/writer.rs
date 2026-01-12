@@ -253,10 +253,19 @@ impl TdmsFileWriter {
     /// Write the TDMS file to disk.
     pub fn write(&self) -> Result<()> {
         let file = File::create(&self.path)?;
-        let mut writer = BufWriter::new(file);
+        // Use a larger buffer for high-throughput sequential I/O
+        let mut writer = BufWriter::with_capacity(1024 * 1024, file);
 
-        // Build metadata and raw data sections
-        let (metadata_bytes, raw_data_bytes) = self.build_segment_data()?;
+        // Build metadata (raw data will be written separately)
+        let metadata_bytes = self.build_metadata()?;
+
+        // Calculate raw data size (needed even if we don't build the vector)
+        let mut raw_data_size = 0u64;
+        for group in self.groups.values() {
+            for channel in group.channels.values() {
+                raw_data_size += self.calculate_channel_data_size(&channel.data);
+            }
+        }
 
         // Calculate offsets
         let raw_data_offset = metadata_bytes.len() as u64;
@@ -268,8 +277,12 @@ impl TdmsFileWriter {
         // Write metadata
         writer.write_all(&metadata_bytes)?;
 
-        // Write raw data
-        writer.write_all(&raw_data_bytes)?;
+        // Write raw data directly to the file stream
+        for group in self.groups.values() {
+            for channel in group.channels.values() {
+                self.write_channel_data(&mut writer, &channel.data)?;
+            }
+        }
 
         writer.flush()?;
         writer.get_ref().sync_all()?;
@@ -300,9 +313,8 @@ impl TdmsFileWriter {
         Ok(())
     }
 
-    fn build_segment_data(&self) -> Result<(Vec<u8>, Vec<u8>)> {
+    fn build_metadata(&self) -> Result<Vec<u8>> {
         let mut metadata = Vec::new();
-        let mut raw_data = Vec::new();
 
         // Count objects: file + groups + channels
         let mut object_count = 1u32; // file object
@@ -327,7 +339,7 @@ impl TdmsFileWriter {
             self.write_object_metadata(&mut metadata, &path, None, &group.properties)?;
         }
 
-        // Write channel objects with data
+        // Write channel objects with reference to data
         for (group_name, group) in &self.groups {
             for (channel_name, channel) in &group.channels {
                 let path = format!("/'{}'/'{}'", group_name, channel_name);
@@ -349,13 +361,28 @@ impl TdmsFileWriter {
                     &channel.properties,
                     is_string,
                 )?;
-
-                // Write actual data to raw data section
-                self.write_channel_data(&mut raw_data, &channel.data)?;
             }
         }
 
-        Ok((metadata, raw_data))
+        Ok(metadata)
+    }
+
+    fn calculate_channel_data_size(&self, data: &TdmsData) -> u64 {
+        match data {
+            TdmsData::Double(v) => v.len() as u64 * 8,
+            TdmsData::Float(v) => v.len() as u64 * 4,
+            TdmsData::I8(v) => v.len() as u64,
+            TdmsData::I16(v) => v.len() as u64 * 2,
+            TdmsData::I32(v) => v.len() as u64 * 4,
+            TdmsData::I64(v) => v.len() as u64 * 8,
+            TdmsData::U8(v) => v.len() as u64,
+            TdmsData::U16(v) => v.len() as u64 * 2,
+            TdmsData::U32(v) => v.len() as u64 * 4,
+            TdmsData::U64(v) => v.len() as u64 * 8,
+            TdmsData::Boolean(v) => v.len() as u64,
+            TdmsData::String(v) => v.iter().map(|s| s.len() as u64).sum::<u64>() + (v.len() as u64 * 4),
+            TdmsData::TimeStamp(v) => v.len() as u64 * 16,
+        }
     }
 
     fn write_object_metadata<W: Write>(
@@ -589,59 +616,65 @@ impl TdmsFileWriter {
     fn write_channel_data<W: Write>(&self, writer: &mut W, data: &TdmsData) -> Result<()> {
         match data {
             TdmsData::Double(values) => {
-                for &v in values {
-                    writer.write_f64::<LittleEndian>(v)?;
-                }
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 8)
+                };
+                writer.write_all(buf)?;
             }
             TdmsData::Float(values) => {
-                for &v in values {
-                    writer.write_f32::<LittleEndian>(v)?;
-                }
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 4)
+                };
+                writer.write_all(buf)?;
             }
             TdmsData::I8(values) => {
-                for &v in values {
-                    writer.write_i8(v)?;
-                }
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len())
+                };
+                writer.write_all(buf)?;
             }
             TdmsData::I16(values) => {
-                for &v in values {
-                    writer.write_i16::<LittleEndian>(v)?;
-                }
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 2)
+                };
+                writer.write_all(buf)?;
             }
             TdmsData::I32(values) => {
-                for &v in values {
-                    writer.write_i32::<LittleEndian>(v)?;
-                }
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 4)
+                };
+                writer.write_all(buf)?;
             }
             TdmsData::I64(values) => {
-                for &v in values {
-                    writer.write_i64::<LittleEndian>(v)?;
-                }
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 8)
+                };
+                writer.write_all(buf)?;
             }
             TdmsData::U8(values) => {
-                for &v in values {
-                    writer.write_u8(v)?;
-                }
+                writer.write_all(values)?;
             }
             TdmsData::U16(values) => {
-                for &v in values {
-                    writer.write_u16::<LittleEndian>(v)?;
-                }
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 2)
+                };
+                writer.write_all(buf)?;
             }
             TdmsData::U32(values) => {
-                for &v in values {
-                    writer.write_u32::<LittleEndian>(v)?;
-                }
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 4)
+                };
+                writer.write_all(buf)?;
             }
             TdmsData::U64(values) => {
-                for &v in values {
-                    writer.write_u64::<LittleEndian>(v)?;
-                }
+                let buf = unsafe {
+                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 8)
+                };
+                writer.write_all(buf)?;
             }
             TdmsData::Boolean(values) => {
-                for &v in values {
-                    writer.write_u8(if v { 1 } else { 0 })?;
-                }
+                let buf: Vec<u8> = values.iter().map(|&v| if v { 1 } else { 0 }).collect();
+                writer.write_all(&buf)?;
             }
             TdmsData::String(values) => {
                 // Write offsets first
