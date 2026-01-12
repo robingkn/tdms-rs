@@ -36,13 +36,13 @@ jobs:
       # Run the benchmark
       - name: Run TDMS Benchmark
         run: |
-          python run.py
+          python benchmark/run.py
 
       # Render summary in GHA UI
       - name: Render Summary in GitHub Actions UI
         shell: bash
         run: |
-          cat summary.md >> $GITHUB_STEP_SUMMARY
+          cat benchmark/results/summary.md >> $GITHUB_STEP_SUMMARY
 
       # Upload reports as artifact
       - name: Upload Benchmark Reports
@@ -50,5 +50,5 @@ jobs:
         with:
           name: tdms-benchmark-reports
           path: |
-            results.json
-            summary.md
+            benchmark/results/results.json
+            benchmark/results/summary.md

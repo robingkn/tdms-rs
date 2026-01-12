@@ -1,0 +1,4 @@
+numpy
+nptdms
+psutil
+PyYAML
