@@ -648,3 +648,199 @@ pub fn create_empty_data(dtype: &DataType) -> Result<TdmsData> {
         ))),
     }
 }
+
+/// Read raw data directly into caller-provided buffer.
+/// Returns the number of elements read (may be less than buffer length for partial reads).
+///
+/// This function performs zero-copy reading: it reads directly from the file
+/// into the provided buffer without intermediate allocations.
+///
+/// # Arguments
+///
+/// * `reader` - The source to read from
+/// * `data_type` - The TDMS data type to read
+/// * `buffer` - Caller-owned buffer to fill
+/// * `total_size_bytes` - Total size in bytes (required for String type)
+///
+/// # Returns
+///
+/// Number of elements successfully read into the buffer
+pub fn read_raw_data_into<R: Read + Seek>(
+    reader: &mut R,
+    data_type: &DataType,
+    buffer: &mut [u8],
+    _total_size_bytes: Option<u64>,
+) -> Result<usize> {
+    match data_type {
+        DataType::Void => Err(TdmsError::NotImplemented("Raw data for Void".to_string())),
+        
+        // Simple fixed-size types: direct read
+        DataType::I8 | DataType::U8 | DataType::Boolean => {
+            let count = buffer.len();
+            reader.read_exact(buffer)?;
+            Ok(count)
+        }
+        
+        DataType::I16 | DataType::U16 => {
+            let element_size = 2;
+            let count = buffer.len() / element_size;
+            let bytes_to_read = count * element_size;
+            if bytes_to_read > buffer.len() {
+                return Err(TdmsError::InvalidFormat(
+                    "Buffer too small for data type".to_string()
+                ));
+            }
+            reader.read_exact(&mut buffer[..bytes_to_read])?;
+            Ok(count)
+        }
+        
+        DataType::I32 | DataType::U32 | DataType::SingleFloat => {
+            let element_size = 4;
+            let count = buffer.len() / element_size;
+            let bytes_to_read = count * element_size;
+            if bytes_to_read > buffer.len() {
+                return Err(TdmsError::InvalidFormat(
+                    "Buffer too small for data type".to_string()
+                ));
+            }
+            reader.read_exact(&mut buffer[..bytes_to_read])?;
+            Ok(count)
+        }
+        
+        DataType::I64 | DataType::U64 | DataType::DoubleFloat => {
+            let element_size = 8;
+            let count = buffer.len() / element_size;
+            let bytes_to_read = count * element_size;
+            if bytes_to_read > buffer.len() {
+                return Err(TdmsError::InvalidFormat(
+                    "Buffer too small for data type".to_string()
+                ));
+            }
+            reader.read_exact(&mut buffer[..bytes_to_read])?;
+            Ok(count)
+        }
+        
+        DataType::TimeStamp => {
+            // Timestamp is 16 bytes: 8 bytes fraction (u64) + 8 bytes seconds (i64)
+            let element_size = 16;
+            let count = buffer.len() / element_size;
+            let bytes_to_read = count * element_size;
+            if bytes_to_read > buffer.len() {
+                return Err(TdmsError::InvalidFormat(
+                    "Buffer too small for timestamp".to_string()
+                ));
+            }
+            reader.read_exact(&mut buffer[..bytes_to_read])?;
+            Ok(count)
+        }
+        
+        DataType::String => {
+            // String is more complex - requires parsing offsets
+            // For now, return error indicating strings need special handling
+            Err(TdmsError::NotImplemented(
+                "String reading requires special handling - use read_raw_data".to_string()
+            ))
+        }
+    }
+}
+
+/// Type-specific slice-based reading functions for numeric types.
+/// These functions read directly into typed slices, avoiding allocations.
+
+pub fn read_i8_into<R: Read + Seek>(reader: &mut R, buffer: &mut [i8]) -> Result<usize> {
+    let buf = unsafe {
+        std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len())
+    };
+    reader.read_exact(buf)?;
+    Ok(buffer.len())
+}
+
+pub fn read_i16_into<R: Read + Seek>(reader: &mut R, buffer: &mut [i16]) -> Result<usize> {
+    let buf = unsafe {
+        std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len() * 2)
+    };
+    reader.read_exact(buf)?;
+    Ok(buffer.len())
+}
+
+pub fn read_i32_into<R: Read + Seek>(reader: &mut R, buffer: &mut [i32]) -> Result<usize> {
+    let buf = unsafe {
+        std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len() * 4)
+    };
+    reader.read_exact(buf)?;
+    Ok(buffer.len())
+}
+
+pub fn read_i64_into<R: Read + Seek>(reader: &mut R, buffer: &mut [i64]) -> Result<usize> {
+    let buf = unsafe {
+        std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len() * 8)
+    };
+    reader.read_exact(buf)?;
+    Ok(buffer.len())
+}
+
+pub fn read_u8_into<R: Read + Seek>(reader: &mut R, buffer: &mut [u8]) -> Result<usize> {
+    reader.read_exact(buffer)?;
+    Ok(buffer.len())
+}
+
+pub fn read_u16_into<R: Read + Seek>(reader: &mut R, buffer: &mut [u16]) -> Result<usize> {
+    let buf = unsafe {
+        std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len() * 2)
+    };
+    reader.read_exact(buf)?;
+    Ok(buffer.len())
+}
+
+pub fn read_u32_into<R: Read + Seek>(reader: &mut R, buffer: &mut [u32]) -> Result<usize> {
+    let buf = unsafe {
+        std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len() * 4)
+    };
+    reader.read_exact(buf)?;
+    Ok(buffer.len())
+}
+
+pub fn read_u64_into<R: Read + Seek>(reader: &mut R, buffer: &mut [u64]) -> Result<usize> {
+    let buf = unsafe {
+        std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len() * 8)
+    };
+    reader.read_exact(buf)?;
+    Ok(buffer.len())
+}
+
+pub fn read_f32_into<R: Read + Seek>(reader: &mut R, buffer: &mut [f32]) -> Result<usize> {
+    let buf = unsafe {
+        std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len() * 4)
+    };
+    reader.read_exact(buf)?;
+    Ok(buffer.len())
+}
+
+pub fn read_f64_into<R: Read + Seek>(reader: &mut R, buffer: &mut [f64]) -> Result<usize> {
+    let buf = unsafe {
+        std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len() * 8)
+    };
+    reader.read_exact(buf)?;
+    Ok(buffer.len())
+}
+
+pub fn read_bool_into<R: Read + Seek>(reader: &mut R, buffer: &mut [bool]) -> Result<usize> {
+    let mut bytes = vec![0u8; buffer.len()];
+    reader.read_exact(&mut bytes)?;
+    for (i, &byte) in bytes.iter().enumerate() {
+        buffer[i] = byte != 0;
+    }
+    Ok(buffer.len())
+}
+
+pub fn read_timestamp_into<R: Read + Seek>(
+    reader: &mut R,
+    buffer: &mut [(i64, u64)],
+) -> Result<usize> {
+    for item in buffer.iter_mut() {
+        let fraction = reader.read_u64::<LittleEndian>()?;
+        let seconds = reader.read_i64::<LittleEndian>()?;
+        *item = (seconds, fraction);
+    }
+    Ok(buffer.len())
+}

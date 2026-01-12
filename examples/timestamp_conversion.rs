@@ -26,46 +26,63 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for (group_name, group) in &file.groups {
         for (channel_name, channel) in &group.channels {
-            if let Some(timestamps) = channel.as_timestamps() {
+            if channel.data_type_name() == Some("TimeStamp") {
                 found_timestamps = true;
 
                 println!(
                     "\n📊 Found timestamp channel: {}/{}",
                     group_name, channel_name
                 );
-                println!("   Raw timestamp count: {}", timestamps.len());
+                
+                let expected_count = channel.data_len();
+                let mut timestamp_buffer = vec![(0i64, 0u64); expected_count];
+                match channel.read_timestamp_into(&mut timestamp_buffer) {
+                    Ok(count) => {
+                        println!("   Raw timestamp count: {}", count);
 
-                // Show raw TDMS timestamps
-                println!("\n🔢 Raw TDMS Timestamps (first 5):");
-                for (i, (seconds, fraction)) in timestamps.iter().take(5).enumerate() {
-                    println!("   [{}]: {} seconds + {} fraction", i, seconds, fraction);
-                }
+                        // Show raw TDMS timestamps
+                        println!("\n🔢 Raw TDMS Timestamps (first 5):");
+                        for (i, (seconds, fraction)) in timestamp_buffer.iter().take(5).enumerate() {
+                            println!("   [{}]: {} seconds + {} fraction", i, seconds, fraction);
+                        }
 
-                // Convert to f64 seconds since 1904
-                if let Some(f64_times) = channel.as_timestamps_f64() {
-                    println!("\n⏱️  Converted to f64 seconds since 1904 (first 5):");
-                    for (i, time) in f64_times.iter().take(5).enumerate() {
-                        println!("   [{}]: {:.9} seconds", i, time);
-                    }
+                        // Convert to f64 seconds since 1904
+                        let f64_times: Vec<f64> = timestamp_buffer.iter().take(count).map(|(sec, frac)| {
+                            *sec as f64 + (*frac as f64) / (1u64 << 63) as f64
+                        }).collect();
+                        
+                        if !f64_times.is_empty() {
+                            println!("\n⏱️  Converted to f64 seconds since 1904 (first 5):");
+                            for (i, time) in f64_times.iter().take(5).enumerate() {
+                                println!("   [{}]: {:.9} seconds", i, time);
+                            }
 
-                    // Show time differences (intervals)
-                    if f64_times.len() > 1 {
-                        println!("\n📏 Time intervals between samples:");
-                        for i in 1..std::cmp::min(6, f64_times.len()) {
-                            let interval = f64_times[i] - f64_times[i - 1];
-                            println!("   Sample {} to {}: {:.9} seconds", i - 1, i, interval);
+                            // Show time differences (intervals)
+                            if f64_times.len() > 1 {
+                                println!("\n📏 Time intervals between samples:");
+                                for i in 1..std::cmp::min(6, f64_times.len()) {
+                                    let interval = f64_times[i] - f64_times[i - 1];
+                                    println!("   Sample {} to {}: {:.9} seconds", i - 1, i, interval);
+                                }
+                            }
+                        }
+
+                        // Convert to Unix timestamps
+                        const TDMS_TO_UNIX_OFFSET: f64 = 2082844800.0; // seconds between 1904 and 1970
+                        let unix_times: Vec<f64> = f64_times.iter().map(|t| t - TDMS_TO_UNIX_OFFSET).collect();
+                        
+                        if !unix_times.is_empty() {
+                            println!("\n🌍 Converted to Unix epoch (first 5):");
+                            for (i, time) in unix_times.iter().take(5).enumerate() {
+                                // Convert to a readable date (simple approximation)
+                                let days_since_1970 = (*time / 86400.0) as i64;
+                                let year_approx = 1970 + (days_since_1970 / 365);
+                                println!("   [{}]: {:.9} (≈ year {})", i, time, year_approx);
+                            }
                         }
                     }
-                }
-
-                // Convert to Unix timestamps
-                if let Some(unix_times) = channel.timestamps_to_unix() {
-                    println!("\n🌍 Converted to Unix epoch (first 5):");
-                    for (i, time) in unix_times.iter().take(5).enumerate() {
-                        // Convert to a readable date (simple approximation)
-                        let days_since_1970 = (*time / 86400.0) as i64;
-                        let year_approx = 1970 + (days_since_1970 / 365);
-                        println!("   [{}]: {:.9} (≈ year {})", i, time, year_approx);
+                    Err(e) => {
+                        println!("   Error reading timestamps: {:?}", e);
                     }
                 }
 
@@ -145,24 +162,36 @@ fn create_timestamp_example() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(channel) = file.get_channel("Time", "Events") {
         println!("\n📊 Example Timestamp Data:");
 
-        if let Some(timestamps) = channel.as_timestamps() {
-            println!("   Raw timestamps:");
-            for (i, (seconds, fraction)) in timestamps.iter().enumerate() {
-                println!("     [{}]: {} seconds + {} fraction", i, seconds, fraction);
-            }
-        }
+        let expected_count = channel.data_len();
+        let mut timestamp_buffer = vec![(0i64, 0u64); expected_count];
+        match channel.read_timestamp_into(&mut timestamp_buffer) {
+            Ok(count) => {
+                println!("   Raw timestamps:");
+                for (i, (seconds, fraction)) in timestamp_buffer.iter().take(count).enumerate() {
+                    println!("     [{}]: {} seconds + {} fraction", i, seconds, fraction);
+                }
 
-        if let Some(f64_times) = channel.as_timestamps_f64() {
-            println!("   As f64 seconds since 1904:");
-            for (i, time) in f64_times.iter().enumerate() {
-                println!("     [{}]: {:.9}", i, time);
-            }
-        }
+                // Convert to f64 seconds since 1904
+                let f64_times: Vec<f64> = timestamp_buffer.iter().take(count).map(|(sec, frac)| {
+                    *sec as f64 + (*frac as f64) / (1u64 << 63) as f64
+                }).collect();
+                
+                println!("   As f64 seconds since 1904:");
+                for (i, time) in f64_times.iter().enumerate() {
+                    println!("     [{}]: {:.9}", i, time);
+                }
 
-        if let Some(unix_times) = channel.timestamps_to_unix() {
-            println!("   As Unix timestamps:");
-            for (i, time) in unix_times.iter().enumerate() {
-                println!("     [{}]: {:.9}", i, time);
+                // Convert to Unix timestamps
+                const TDMS_TO_UNIX_OFFSET: f64 = 2082844800.0;
+                let unix_times: Vec<f64> = f64_times.iter().map(|t| t - TDMS_TO_UNIX_OFFSET).collect();
+                
+                println!("   As Unix timestamps:");
+                for (i, time) in unix_times.iter().enumerate() {
+                    println!("     [{}]: {:.9}", i, time);
+                }
+            }
+            Err(e) => {
+                println!("   Error reading timestamps: {:?}", e);
             }
         }
     }

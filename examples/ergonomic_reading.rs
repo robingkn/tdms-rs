@@ -29,11 +29,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(channel) = group.channels.get("Channel") {
             println!("✅ Found channel using current API");
 
-            // Current: Type-specific data access
-            if let Some(data) = channel.as_f64() {
-                println!("   Data (f64): {} samples", data.len());
-                if !data.is_empty() {
-                    println!("   First value: {:.6}", data[0]);
+            // Current: Type-specific data access using slice-based API
+            let expected_count = channel.data_len();
+            let mut buffer = vec![0.0f64; expected_count];
+            if let Ok(count) = channel.read_f64_into(&mut buffer) {
+                println!("   Data (f64): {} samples", count);
+                if count > 0 {
+                    println!("   First value: {:.6}", buffer[0]);
                 }
             }
 
@@ -94,48 +96,88 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
             println!("   Data length: {}", channel.data_len());
 
-            // Show all new helper methods
-            if let Some(data) = channel.as_f64() {
-                println!("   ✅ as_f64() works: {} values", data.len());
-            }
-            if let Some(data) = channel.as_f32() {
-                println!("   ✅ as_f32() works: {} values", data.len());
-            }
-            if let Some(data) = channel.as_i8() {
-                println!("   ✅ as_i8() works: {} values", data.len());
-            }
-            if let Some(data) = channel.as_i16() {
-                println!("   ✅ as_i16() works: {} values", data.len());
-            }
-            if let Some(data) = channel.as_i32() {
-                println!("   ✅ as_i32() works: {} values", data.len());
-            }
-            if let Some(data) = channel.as_i64() {
-                println!("   ✅ as_i64() works: {} values", data.len());
-            }
-            if let Some(data) = channel.as_u8() {
-                println!("   ✅ as_u8() works: {} values", data.len());
-            }
-            if let Some(data) = channel.as_u16() {
-                println!("   ✅ as_u16() works: {} values", data.len());
-            }
-            if let Some(data) = channel.as_u32() {
-                println!("   ✅ as_u32() works: {} values", data.len());
-            }
-            if let Some(data) = channel.as_u64() {
-                println!("   ✅ as_u64() works: {} values", data.len());
-            }
-            if let Some(data) = channel.as_bool() {
-                println!("   ✅ as_bool() works: {} values", data.len());
-            }
-            if let Some(data) = channel.as_timestamps() {
-                println!("   ✅ as_timestamps() works: {} values", data.len());
-            }
-
-            // Show numeric conversion
-            if let Some(numeric_data) = channel.as_numeric() {
-                let avg = numeric_data.iter().sum::<f64>() / numeric_data.len() as f64;
-                println!("   Average (as_numeric): {:.6}", avg);
+            // Show slice-based reading methods
+            let expected_count = channel.data_len();
+            match channel.data_type_name() {
+                Some("Double") => {
+                    let mut buffer = vec![0.0f64; expected_count];
+                    if let Ok(count) = channel.read_f64_into(&mut buffer) {
+                        println!("   ✅ read_f64_into() works: {} values", count);
+                        if count > 0 {
+                            let avg = buffer.iter().take(count).sum::<f64>() / count as f64;
+                            println!("   Average: {:.6}", avg);
+                        }
+                    }
+                }
+                Some("Float") => {
+                    let mut buffer = vec![0.0f32; expected_count];
+                    if let Ok(count) = channel.read_f32_into(&mut buffer) {
+                        println!("   ✅ read_f32_into() works: {} values", count);
+                    }
+                }
+                Some("I8") => {
+                    let mut buffer = vec![0i8; expected_count];
+                    if let Ok(count) = channel.read_i8_into(&mut buffer) {
+                        println!("   ✅ read_i8_into() works: {} values", count);
+                    }
+                }
+                Some("I16") => {
+                    let mut buffer = vec![0i16; expected_count];
+                    if let Ok(count) = channel.read_i16_into(&mut buffer) {
+                        println!("   ✅ read_i16_into() works: {} values", count);
+                    }
+                }
+                Some("I32") => {
+                    let mut buffer = vec![0i32; expected_count];
+                    if let Ok(count) = channel.read_i32_into(&mut buffer) {
+                        println!("   ✅ read_i32_into() works: {} values", count);
+                    }
+                }
+                Some("I64") => {
+                    let mut buffer = vec![0i64; expected_count];
+                    if let Ok(count) = channel.read_i64_into(&mut buffer) {
+                        println!("   ✅ read_i64_into() works: {} values", count);
+                    }
+                }
+                Some("U8") => {
+                    let mut buffer = vec![0u8; expected_count];
+                    if let Ok(count) = channel.read_u8_into(&mut buffer) {
+                        println!("   ✅ read_u8_into() works: {} values", count);
+                    }
+                }
+                Some("U16") => {
+                    let mut buffer = vec![0u16; expected_count];
+                    if let Ok(count) = channel.read_u16_into(&mut buffer) {
+                        println!("   ✅ read_u16_into() works: {} values", count);
+                    }
+                }
+                Some("U32") => {
+                    let mut buffer = vec![0u32; expected_count];
+                    if let Ok(count) = channel.read_u32_into(&mut buffer) {
+                        println!("   ✅ read_u32_into() works: {} values", count);
+                    }
+                }
+                Some("U64") => {
+                    let mut buffer = vec![0u64; expected_count];
+                    if let Ok(count) = channel.read_u64_into(&mut buffer) {
+                        println!("   ✅ read_u64_into() works: {} values", count);
+                    }
+                }
+                Some("Boolean") => {
+                    let mut buffer = vec![false; expected_count];
+                    if let Ok(count) = channel.read_bool_into(&mut buffer) {
+                        println!("   ✅ read_bool_into() works: {} values", count);
+                    }
+                }
+                Some("TimeStamp") => {
+                    let mut buffer = vec![(0i64, 0u64); expected_count];
+                    if let Ok(count) = channel.read_timestamp_into(&mut buffer) {
+                        println!("   ✅ read_timestamp_into() works: {} values", count);
+                    }
+                }
+                _ => {
+                    println!("   Data type: {:?}", channel.data_type_name());
+                }
             }
 
             // Show existing and new property helpers

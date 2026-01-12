@@ -80,9 +80,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nAccessing Channel1 data...");
     let t1 = Instant::now();
     if let Some(channel) = file.get_channel("Group1", "Channel1") {
-        if let Some(data) = channel.as_f64() {
-             println!("Access Time: {:?}", t1.elapsed());
-             println!("Data Samples: {}", data.len());
+        let expected_count = channel.data_len();
+        let mut buffer = vec![0.0f64; expected_count];
+        match channel.read_f64_into(&mut buffer) {
+            Ok(count) => {
+                println!("Access Time: {:?}", t1.elapsed());
+                println!("Data Samples: {}", count);
+            }
+            Err(e) => {
+                println!("Error reading data: {:?}", e);
+            }
         }
     }
 

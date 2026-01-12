@@ -104,7 +104,7 @@ use byteorder::{LittleEndian, WriteBytesExt};
 use indexmap::IndexMap;
 use std::collections::BTreeMap;
 use std::fs::File;
-use std::io::{BufWriter, Cursor, Write};
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 /// A TDMS file writer that can create TDMS files matching the corpus format.
@@ -153,8 +153,16 @@ pub struct TdmsGroupWriter {
 
 /// A channel writer containing data and properties.
 pub struct TdmsChannelWriter {
-    data: TdmsData,
+    data: TdmsData,  // TODO: Remove in favor of slice-based API
     properties: IndexMap<String, PropertyValue>,
+}
+
+/// Slice-based channel data descriptor for zero-copy writing.
+/// Stores only metadata; actual data is provided at write time.
+pub struct ChannelDataDescriptor {
+    pub data_type: crate::datatypes::DataType,
+    pub count: usize,
+    pub properties: IndexMap<String, PropertyValue>,
 }
 
 impl TdmsFileWriter {
@@ -604,81 +612,44 @@ impl TdmsFileWriter {
     }
 
     fn write_channel_data_direct(&self, file: &mut File, data: &TdmsData) -> Result<()> {
+        // Use chunked writing for all data types to minimize syscalls
+        const CHUNK_SIZE: usize = 64 * 1024 * 1024; // 64MB
+        
         match data {
             TdmsData::Double(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 8)
-                };
-                use std::io::Write;
-                file.write_all(buf)?;
+                self.write_f64_slice_chunked(file, values, CHUNK_SIZE)?;
             }
             TdmsData::Float(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 4)
-                };
-                use std::io::Write;
-                file.write_all(buf)?;
+                self.write_f32_slice_chunked(file, values, CHUNK_SIZE)?;
             }
             TdmsData::I8(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len())
-                };
-                use std::io::Write;
-                file.write_all(buf)?;
+                self.write_i8_slice_chunked(file, values, CHUNK_SIZE)?;
             }
             TdmsData::I16(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 2)
-                };
-                use std::io::Write;
-                file.write_all(buf)?;
+                self.write_i16_slice_chunked(file, values, CHUNK_SIZE)?;
             }
             TdmsData::I32(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 4)
-                };
-                use std::io::Write;
-                file.write_all(buf)?;
+                self.write_i32_slice_chunked(file, values, CHUNK_SIZE)?;
             }
             TdmsData::I64(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 8)
-                };
-                use std::io::Write;
-                file.write_all(buf)?;
+                self.write_i64_slice_chunked(file, values, CHUNK_SIZE)?;
             }
             TdmsData::U8(values) => {
-                use std::io::Write;
-                file.write_all(values)?;
+                self.write_u8_slice_chunked(file, values, CHUNK_SIZE)?;
             }
             TdmsData::U16(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 2)
-                };
-                use std::io::Write;
-                file.write_all(buf)?;
+                self.write_u16_slice_chunked(file, values, CHUNK_SIZE)?;
             }
             TdmsData::U32(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 4)
-                };
-                use std::io::Write;
-                file.write_all(buf)?;
+                self.write_u32_slice_chunked(file, values, CHUNK_SIZE)?;
             }
             TdmsData::U64(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 8)
-                };
-                use std::io::Write;
-                file.write_all(buf)?;
+                self.write_u64_slice_chunked(file, values, CHUNK_SIZE)?;
             }
             TdmsData::Boolean(values) => {
-                let buf: Vec<u8> = values.iter().map(|&v| if v { 1 } else { 0 }).collect();
-                use std::io::Write;
-                file.write_all(&buf)?;
+                self.write_bool_slice_chunked(file, values, CHUNK_SIZE)?;
             }
             TdmsData::String(values) => {
-                use std::io::Write;
                 // Write offsets first
                 let mut offset = 0u32;
                 for s in values {
@@ -691,12 +662,163 @@ impl TdmsFileWriter {
                 }
             }
             TdmsData::TimeStamp(values) => {
-                use std::io::Write;
                 for &(seconds, fraction) in values {
                     file.write_u64::<LittleEndian>(fraction)?;
                     file.write_i64::<LittleEndian>(seconds)?;
                 }
             }
+        }
+        Ok(())
+    }
+
+    /// Write channel data from a slice directly to file with chunking for large datasets.
+    /// This function performs zero-copy writing: it writes directly from the slice
+    /// to disk without intermediate allocations.
+    ///
+    /// # Arguments
+    ///
+    /// * `file` - The file to write to
+    /// * `data` - Slice of data to write
+    /// * `chunk_size` - Size of chunks for large writes (in bytes), 0 for default (64MB)
+    pub fn write_f64_slice_chunked(
+        &self,
+        file: &mut File,
+        data: &[f64],
+        chunk_size: usize,
+    ) -> Result<()> {
+        let bytes = unsafe {
+            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 8)
+        };
+        Self::write_slice_chunked(file, bytes, chunk_size)
+    }
+
+    pub fn write_f32_slice_chunked(
+        &self,
+        file: &mut File,
+        data: &[f32],
+        chunk_size: usize,
+    ) -> Result<()> {
+        let bytes = unsafe {
+            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 4)
+        };
+        Self::write_slice_chunked(file, bytes, chunk_size)
+    }
+
+    pub fn write_i8_slice_chunked(
+        &self,
+        file: &mut File,
+        data: &[i8],
+        chunk_size: usize,
+    ) -> Result<()> {
+        let bytes = unsafe {
+            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len())
+        };
+        Self::write_slice_chunked(file, bytes, chunk_size)
+    }
+
+    pub fn write_i16_slice_chunked(
+        &self,
+        file: &mut File,
+        data: &[i16],
+        chunk_size: usize,
+    ) -> Result<()> {
+        let bytes = unsafe {
+            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 2)
+        };
+        Self::write_slice_chunked(file, bytes, chunk_size)
+    }
+
+    pub fn write_i32_slice_chunked(
+        &self,
+        file: &mut File,
+        data: &[i32],
+        chunk_size: usize,
+    ) -> Result<()> {
+        let bytes = unsafe {
+            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 4)
+        };
+        Self::write_slice_chunked(file, bytes, chunk_size)
+    }
+
+    pub fn write_i64_slice_chunked(
+        &self,
+        file: &mut File,
+        data: &[i64],
+        chunk_size: usize,
+    ) -> Result<()> {
+        let bytes = unsafe {
+            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 8)
+        };
+        Self::write_slice_chunked(file, bytes, chunk_size)
+    }
+
+    pub fn write_u8_slice_chunked(
+        &self,
+        file: &mut File,
+        data: &[u8],
+        chunk_size: usize,
+    ) -> Result<()> {
+        Self::write_slice_chunked(file, data, chunk_size)
+    }
+
+    pub fn write_u16_slice_chunked(
+        &self,
+        file: &mut File,
+        data: &[u16],
+        chunk_size: usize,
+    ) -> Result<()> {
+        let bytes = unsafe {
+            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 2)
+        };
+        Self::write_slice_chunked(file, bytes, chunk_size)
+    }
+
+    pub fn write_u32_slice_chunked(
+        &self,
+        file: &mut File,
+        data: &[u32],
+        chunk_size: usize,
+    ) -> Result<()> {
+        let bytes = unsafe {
+            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 4)
+        };
+        Self::write_slice_chunked(file, bytes, chunk_size)
+    }
+
+    pub fn write_u64_slice_chunked(
+        &self,
+        file: &mut File,
+        data: &[u64],
+        chunk_size: usize,
+    ) -> Result<()> {
+        let bytes = unsafe {
+            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 8)
+        };
+        Self::write_slice_chunked(file, bytes, chunk_size)
+    }
+
+    pub fn write_bool_slice_chunked(
+        &self,
+        file: &mut File,
+        data: &[bool],
+        chunk_size: usize,
+    ) -> Result<()> {
+        // Convert bools to bytes - minimal allocation necessary for TDMS format
+        let bytes: Vec<u8> = data.iter().map(|&v| if v { 1 } else { 0 }).collect();
+        Self::write_slice_chunked(file, &bytes, chunk_size)
+    }
+
+    /// Helper function to write a byte slice in chunks to minimize syscalls.
+    /// Uses 64MB chunks by default for optimal performance.
+    fn write_slice_chunked(file: &mut File, data: &[u8], chunk_size: usize) -> Result<()> {
+        const DEFAULT_CHUNK_SIZE: usize = 64 * 1024 * 1024; // 64MB
+        let chunk_size = if chunk_size > 0 { chunk_size } else { DEFAULT_CHUNK_SIZE };
+
+        let mut offset = 0;
+        while offset < data.len() {
+            let end = (offset + chunk_size).min(data.len());
+            file.write_all(&data[offset..end])?;
+            offset = end;
         }
         Ok(())
     }
@@ -967,15 +1089,23 @@ mod tests {
         assert_eq!(test_group.channels.len(), 3);
 
         // Verify data integrity
-        if let Some(alpha_data) = test_group.channels.get("Alpha").unwrap().as_i32() {
-            assert_eq!(alpha_data, &vec![1]);
-        }
-        if let Some(beta_data) = test_group.channels.get("Beta").unwrap().as_i32() {
-            assert_eq!(beta_data, &vec![2]);
-        }
-        if let Some(zebra_data) = test_group.channels.get("Zebra").unwrap().as_i32() {
-            assert_eq!(zebra_data, &vec![3]);
-        }
+        let alpha_channel = test_group.channels.get("Alpha").unwrap();
+        let mut alpha_buffer = vec![0i32; alpha_channel.data_len()];
+        let alpha_count = alpha_channel.read_i32_into(&mut alpha_buffer)?;
+        assert_eq!(alpha_count, 1);
+        assert_eq!(&alpha_buffer[..alpha_count], &[1]);
+
+        let beta_channel = test_group.channels.get("Beta").unwrap();
+        let mut beta_buffer = vec![0i32; beta_channel.data_len()];
+        let beta_count = beta_channel.read_i32_into(&mut beta_buffer)?;
+        assert_eq!(beta_count, 1);
+        assert_eq!(&beta_buffer[..beta_count], &[2]);
+
+        let zebra_channel = test_group.channels.get("Zebra").unwrap();
+        let mut zebra_buffer = vec![0i32; zebra_channel.data_len()];
+        let zebra_count = zebra_channel.read_i32_into(&mut zebra_buffer)?;
+        assert_eq!(zebra_count, 1);
+        assert_eq!(&zebra_buffer[..zebra_count], &[3]);
 
         Ok(())
     }
@@ -1069,8 +1199,9 @@ mod tests {
         let test_channel = test_group.channels.get("StringChannel").unwrap();
 
         // Verify string data
-        match test_channel.as_string() {
-            Some(written_strings) => {
+        let data = test_channel.ensure_data_loaded()?;
+        match data {
+            TdmsData::String(written_strings) => {
                 assert_eq!(written_strings.len(), string_data.len());
                 for (written, expected) in written_strings.iter().zip(string_data.iter()) {
                     assert_eq!(written, expected);
@@ -1094,8 +1225,12 @@ mod tests {
             println!("Group: {}", group_name);
             for (channel_name, channel) in &group.channels {
                 println!("  Channel: {}", channel_name);
-                if let Some(strings) = channel.as_string() {
-                    println!("    String data: {:?}", strings);
+                if let Ok(data) = channel.ensure_data_loaded() {
+                    if let TdmsData::String(strings) = data {
+                        println!("    String data: {:?}", strings);
+                    } else {
+                        println!("    Data type: {:?}", channel.data_type_name());
+                    }
                 } else {
                     println!("    Data type: {:?}", channel.data_type_name());
                 }
@@ -1132,24 +1267,20 @@ mod tests {
 
         // Verify boolean data
         let bool_channel = test_group.channels.get("BoolChannel").unwrap();
-        match bool_channel.as_bool() {
-            Some(written_bools) => {
-                assert_eq!(written_bools, &vec![true, false, true, false, true]);
-            }
-            _ => panic!("Expected boolean data, got {:?}", bool_channel.data_type_name()),
-        }
+        let mut bool_buffer = vec![false; bool_channel.data_len()];
+        let bool_count = bool_channel.read_bool_into(&mut bool_buffer)?;
+        assert_eq!(bool_count, 5);
+        assert_eq!(&bool_buffer[..bool_count], &[true, false, true, false, true]);
 
         // Verify timestamp data
         let timestamp_channel = test_group.channels.get("TimestampChannel").unwrap();
-        match timestamp_channel.as_timestamps() {
-            Some(written_timestamps) => {
-                assert_eq!(
-                    written_timestamps,
-                    &vec![(1000, 0), (2000, 500000000), (3000, 1000000000),]
-                );
-            }
-            _ => panic!("Expected timestamp data, got {:?}", timestamp_channel.data_type_name()),
-        }
+        let mut timestamp_buffer = vec![(0i64, 0u64); timestamp_channel.data_len()];
+        let timestamp_count = timestamp_channel.read_timestamp_into(&mut timestamp_buffer)?;
+        assert_eq!(timestamp_count, 3);
+        assert_eq!(
+            &timestamp_buffer[..timestamp_count],
+            &[(1000, 0), (2000, 500000000), (3000, 1000000000)]
+        );
 
         Ok(())
     }
@@ -1195,10 +1326,13 @@ mod tests {
         let written_channel = written_group.channels.get("Basic").unwrap();
         let reference_channel = reference_group.channels.get("Basic").unwrap();
 
-        match (written_channel.as_string(), reference_channel.as_string()) {
+        let written_data = written_channel.ensure_data_loaded()?;
+        let reference_data = reference_channel.ensure_data_loaded()?;
+        
+        match (written_data, reference_data) {
             (
-                Some(written_strings),
-                Some(reference_strings),
+                TdmsData::String(written_strings),
+                TdmsData::String(reference_strings),
             ) => {
                 assert_eq!(written_strings, reference_strings);
             }

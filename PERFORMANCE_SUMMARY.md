@@ -144,3 +144,4 @@ The bottleneck appears to be at the **OS/filesystem level** or in **nptdms-speci
 
 **Read performance advantage** (75% faster) suggests tdms-rs's architecture is sound; the write gap is likely due to OS-level or Python-specific optimizations that need deeper investigation.
 
+

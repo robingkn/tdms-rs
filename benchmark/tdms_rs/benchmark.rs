@@ -249,11 +249,16 @@ fn run_read_benchmark(
         let file = TdmsFile::load(path)?;
 
         if let Some(channel) = file.get_channel("BenchmarkGroup", "BenchmarkChannel") {
-            if let Some(read_data) = channel.as_f64() {
-                // Force evaluation
-                std::hint::black_box(read_data.len());
-            } else {
-                return Err("Failed to get f64 data".into());
+            let expected_count = channel.data_len();
+            let mut buffer = vec![0.0f64; expected_count];
+            match channel.read_f64_into(&mut buffer) {
+                Ok(count) => {
+                    // Force evaluation
+                    std::hint::black_box(buffer[..count].len());
+                }
+                Err(_) => {
+                    return Err("Failed to read f64 data".into());
+                }
             }
         } else {
             return Err("Channel not found".into());

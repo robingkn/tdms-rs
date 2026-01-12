@@ -14,8 +14,10 @@
 //! let file = TdmsFile::load(Path::new("data.tdms"))?;
 //!
 //! if let Some(channel) = file.get_channel("Sensors", "Temperature") {
-//!     if let Some(data) = channel.as_f64() {
-//!         let avg = data.iter().sum::<f64>() / data.len() as f64;
+//!     let expected_count = channel.data_len();
+//!     let mut buffer = vec![0.0f64; expected_count];
+//!     if let Ok(count) = channel.read_f64_into(&mut buffer) {
+//!         let avg = buffer.iter().take(count).sum::<f64>() / count as f64;
 //!         println!("Average: {:.2}", avg);
 //!     }
 //! }
@@ -333,141 +335,9 @@ impl TdmsChannel {
             data_type: None,
         }
     }
-    /// Get channel data as f64 slice if the data type is Double.
-    pub fn as_f64(&self) -> Option<&[f64]> {
-        let data = self.ensure_data_loaded().ok()?;
-        match data {
-            TdmsData::Double(values) => Some(values),
-            _ => None,
-        }
-    }
-
-    /// Get channel data as f32 slice if the data type is Float.
-    pub fn as_f32(&self) -> Option<&[f32]> {
-        let data = self.ensure_data_loaded().ok()?;
-        match data {
-            TdmsData::Float(values) => Some(values),
-            _ => None,
-        }
-    }
-
-    /// Get channel data as i32 slice if the data type is I32.
-    pub fn as_i32(&self) -> Option<&[i32]> {
-        let data = self.ensure_data_loaded().ok()?;
-        match data {
-            TdmsData::I32(values) => Some(values),
-            _ => None,
-        }
-    }
-
-    /// Get channel data as String slice if the data type is String.
-    pub fn as_string(&self) -> Option<&[String]> {
-        let data = self.ensure_data_loaded().ok()?;
-        match data {
-            TdmsData::String(values) => Some(values),
-            _ => None,
-        }
-    }
-
-    /// Get channel data as i8 slice if the data type is I8.
-    pub fn as_i8(&self) -> Option<&[i8]> {
-        let data = self.ensure_data_loaded().ok()?;
-        match data {
-            TdmsData::I8(values) => Some(values),
-            _ => None,
-        }
-    }
-
-    /// Get channel data as i16 slice if the data type is I16.
-    pub fn as_i16(&self) -> Option<&[i16]> {
-        let data = self.ensure_data_loaded().ok()?;
-        match data {
-            TdmsData::I16(values) => Some(values),
-            _ => None,
-        }
-    }
-
-    /// Get channel data as i64 slice if the data type is I64.
-    pub fn as_i64(&self) -> Option<&[i64]> {
-        let data = self.ensure_data_loaded().ok()?;
-        match data {
-            TdmsData::I64(values) => Some(values),
-            _ => None,
-        }
-    }
-
-    /// Get channel data as u8 slice if the data type is U8.
-    pub fn as_u8(&self) -> Option<&[u8]> {
-        let data = self.ensure_data_loaded().ok()?;
-        match data {
-            TdmsData::U8(values) => Some(values),
-            _ => None,
-        }
-    }
-
-    /// Get channel data as u16 slice if the data type is U16.
-    pub fn as_u16(&self) -> Option<&[u16]> {
-        let data = self.ensure_data_loaded().ok()?;
-        match data {
-            TdmsData::U16(values) => Some(values),
-            _ => None,
-        }
-    }
-
-    /// Get channel data as u32 slice if the data type is U32.
-    pub fn as_u32(&self) -> Option<&[u32]> {
-        let data = self.ensure_data_loaded().ok()?;
-        match data {
-            TdmsData::U32(values) => Some(values),
-            _ => None,
-        }
-    }
-
-    /// Get channel data as u64 slice if the data type is U64.
-    pub fn as_u64(&self) -> Option<&[u64]> {
-        let data = self.ensure_data_loaded().ok()?;
-        match data {
-            TdmsData::U64(values) => Some(values),
-            _ => None,
-        }
-    }
-
-    /// Get channel data as bool slice if the data type is Boolean.
-    pub fn as_bool(&self) -> Option<&[bool]> {
-        let data = self.ensure_data_loaded().ok()?;
-        match data {
-            TdmsData::Boolean(values) => Some(values),
-            _ => None,
-        }
-    }
-
-    /// Get channel data as timestamp slice if the data type is TimeStamp.
-    pub fn as_timestamps(&self) -> Option<&[(i64, u64)]> {
-        let data = self.ensure_data_loaded().ok()?;
-        match data {
-            TdmsData::TimeStamp(values) => Some(values),
-            _ => None,
-        }
-    }
-
-    /// Convert any numeric data to f64 vector.
-    /// Returns None if the data is not numeric.
-    pub fn as_numeric(&self) -> Option<Vec<f64>> {
-        let data = self.ensure_data_loaded().ok()?;
-        match data {
-            TdmsData::Double(values) => Some(values.clone()),
-            TdmsData::Float(values) => Some(values.iter().map(|&v| v as f64).collect()),
-            TdmsData::I8(values) => Some(values.iter().map(|&v| v as f64).collect()),
-            TdmsData::I16(values) => Some(values.iter().map(|&v| v as f64).collect()),
-            TdmsData::I32(values) => Some(values.iter().map(|&v| v as f64).collect()),
-            TdmsData::I64(values) => Some(values.iter().map(|&v| v as f64).collect()),
-            TdmsData::U8(values) => Some(values.iter().map(|&v| v as f64).collect()),
-            TdmsData::U16(values) => Some(values.iter().map(|&v| v as f64).collect()),
-            TdmsData::U32(values) => Some(values.iter().map(|&v| v as f64).collect()),
-            TdmsData::U64(values) => Some(values.iter().map(|&v| v as f64).collect()),
-            _ => None,
-        }
-    }
+    // All as_* methods have been removed in favor of explicit read_into methods.
+    // Use read_f64_into(), read_i32_into(), etc. instead.
+    // This change eliminates hidden allocations and makes I/O explicit.
 
     /// Get the number of data samples in this channel.
     pub fn data_len(&self) -> usize {
@@ -554,6 +424,254 @@ impl TdmsChannel {
 
         // Return the reference from the cache
         Ok(self.cache.get().unwrap())
+    }
+
+    /// Read channel data directly into a caller-provided buffer.
+    ///
+    /// This method performs explicit I/O to read channel data from disk into
+    /// the provided buffer. It supports multi-segment files by aggregating data
+    /// from all segments. No allocations are performed for the data itself.
+    ///
+    /// # Arguments
+    ///
+    /// * `buffer` - Caller-owned buffer to fill with data
+    ///
+    /// # Returns
+    ///
+    /// Number of elements read into the buffer. May be less than buffer length
+    /// if the channel contains less data than the buffer size.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The channel data type doesn't match the buffer type
+    /// - I/O errors occur during reading
+    /// - File path is not set (channel wasn't loaded from file)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use tdms_rs::TdmsFile;
+    /// use std::path::Path;
+    ///
+    /// let file = TdmsFile::load(Path::new("data.tdms"))?;
+    /// if let Some(channel) = file.get_channel("Group", "Channel") {
+    ///     let expected_count = channel.data_len();
+    ///     let mut buffer = vec![0.0f64; expected_count];
+    ///     let read_count = channel.read_f64_into(&mut buffer)?;
+    ///     println!("Read {} f64 values", read_count);
+    /// }
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn read_f64_into(&self, buffer: &mut [f64]) -> Result<usize> {
+        self.read_numeric_into(
+            buffer,
+            crate::datatypes::DataType::DoubleFloat,
+            |reader, buf| crate::datatypes::read_f64_into(reader, buf),
+        )
+    }
+
+    pub fn read_f32_into(&self, buffer: &mut [f32]) -> Result<usize> {
+        self.read_numeric_into(
+            buffer,
+            crate::datatypes::DataType::SingleFloat,
+            |reader, buf| crate::datatypes::read_f32_into(reader, buf),
+        )
+    }
+
+    pub fn read_i8_into(&self, buffer: &mut [i8]) -> Result<usize> {
+        self.read_numeric_into(
+            buffer,
+            crate::datatypes::DataType::I8,
+            |reader, buf| crate::datatypes::read_i8_into(reader, buf),
+        )
+    }
+
+    pub fn read_i16_into(&self, buffer: &mut [i16]) -> Result<usize> {
+        self.read_numeric_into(
+            buffer,
+            crate::datatypes::DataType::I16,
+            |reader, buf| crate::datatypes::read_i16_into(reader, buf),
+        )
+    }
+
+    pub fn read_i32_into(&self, buffer: &mut [i32]) -> Result<usize> {
+        self.read_numeric_into(
+            buffer,
+            crate::datatypes::DataType::I32,
+            |reader, buf| crate::datatypes::read_i32_into(reader, buf),
+        )
+    }
+
+    pub fn read_i64_into(&self, buffer: &mut [i64]) -> Result<usize> {
+        self.read_numeric_into(
+            buffer,
+            crate::datatypes::DataType::I64,
+            |reader, buf| crate::datatypes::read_i64_into(reader, buf),
+        )
+    }
+
+    pub fn read_u8_into(&self, buffer: &mut [u8]) -> Result<usize> {
+        self.read_numeric_into(
+            buffer,
+            crate::datatypes::DataType::U8,
+            |reader, buf| crate::datatypes::read_u8_into(reader, buf),
+        )
+    }
+
+    pub fn read_u16_into(&self, buffer: &mut [u16]) -> Result<usize> {
+        self.read_numeric_into(
+            buffer,
+            crate::datatypes::DataType::U16,
+            |reader, buf| crate::datatypes::read_u16_into(reader, buf),
+        )
+    }
+
+    pub fn read_u32_into(&self, buffer: &mut [u32]) -> Result<usize> {
+        self.read_numeric_into(
+            buffer,
+            crate::datatypes::DataType::U32,
+            |reader, buf| crate::datatypes::read_u32_into(reader, buf),
+        )
+    }
+
+    pub fn read_u64_into(&self, buffer: &mut [u64]) -> Result<usize> {
+        self.read_numeric_into(
+            buffer,
+            crate::datatypes::DataType::U64,
+            |reader, buf| crate::datatypes::read_u64_into(reader, buf),
+        )
+    }
+
+    pub fn read_bool_into(&self, buffer: &mut [bool]) -> Result<usize> {
+        self.read_numeric_into(
+            buffer,
+            crate::datatypes::DataType::Boolean,
+            |reader, buf| crate::datatypes::read_bool_into(reader, buf),
+        )
+    }
+
+    pub fn read_timestamp_into(&self, buffer: &mut [(i64, u64)]) -> Result<usize> {
+        let path = self.file_path.as_ref().ok_or(TdmsError::Io(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "File path not set for lazy loading",
+        )))?;
+
+        if self.data_locations.is_empty() {
+            return Ok(0);
+        }
+
+        // Check type matches
+        let expected_type = self.data_type.as_ref().or_else(|| {
+            self.data_locations.first().map(|loc| &loc.data_type)
+        });
+        
+        match expected_type {
+            Some(crate::datatypes::DataType::TimeStamp) => {},
+            _ => {
+                return Err(TdmsError::InvalidFormat(
+                    format!("Channel data type is not TimeStamp, got {:?}", expected_type)
+                ));
+            }
+        }
+
+        let file = File::open(path)?;
+        let mut reader = BufReader::new(file);
+
+        let mut offset = 0;
+
+        for loc in &self.data_locations {
+            if offset >= buffer.len() {
+                break;
+            }
+
+            reader.seek(std::io::SeekFrom::Start(loc.offset))?;
+            
+            let segment_count = loc.number_of_values as usize;
+            let to_read = (buffer.len() - offset).min(segment_count);
+            
+            if to_read == 0 {
+                continue;
+            }
+
+            let segment_buffer = &mut buffer[offset..offset + to_read];
+            let read_count = crate::datatypes::read_timestamp_into(&mut reader, segment_buffer)?;
+            
+            offset += read_count;
+        }
+
+        Ok(offset)
+    }
+
+    /// Internal helper for reading numeric types into slices.
+    /// Handles multi-segment files by aggregating reads across all data locations.
+    fn read_numeric_into<T>(
+        &self,
+        buffer: &mut [T],
+        expected_type: crate::datatypes::DataType,
+        read_fn: impl Fn(&mut BufReader<File>, &mut [T]) -> Result<usize>,
+    ) -> Result<usize> {
+        let path = self.file_path.as_ref().ok_or(TdmsError::Io(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "File path not set for lazy loading",
+        )))?;
+
+        if self.data_locations.is_empty() {
+            return Ok(0);
+        }
+
+        // Check type matches
+        let actual_type = self.data_type.as_ref().or_else(|| {
+            self.data_locations.first().map(|loc| &loc.data_type)
+        });
+        
+        match actual_type {
+            Some(actual) if *actual == expected_type => {},
+            Some(other) => {
+                return Err(TdmsError::InvalidFormat(
+                    format!("Type mismatch: expected {:?}, got {:?}", expected_type, other)
+                ));
+            }
+            None => {
+                return Err(TdmsError::InvalidFormat(
+                    "Channel data type unknown".to_string()
+                ));
+            }
+        }
+
+        let file = File::open(path)?;
+        let mut reader = BufReader::new(file);
+
+        let mut offset = 0;
+
+        for loc in &self.data_locations {
+            if offset >= buffer.len() {
+                break;
+            }
+
+            // Verify type matches for this segment
+            if loc.data_type != expected_type {
+                return Err(TdmsError::InvalidFormat(
+                    format!("Segment type mismatch: expected {:?}, got {:?}", expected_type, loc.data_type)
+                ));
+            }
+
+            reader.seek(std::io::SeekFrom::Start(loc.offset))?;
+            
+            let segment_count = loc.number_of_values as usize;
+            let to_read = (buffer.len() - offset).min(segment_count);
+            
+            if to_read == 0 {
+                continue;
+            }
+
+            let segment_buffer = &mut buffer[offset..offset + to_read];
+            let read_count = read_fn(&mut reader, segment_buffer)?;
+            
+            offset += read_count;
+        }
+
+        Ok(offset)
     }
 
     // Property helpers for common TDMS properties
@@ -656,68 +774,8 @@ impl TdmsChannel {
         }
     }
 
-    /// Convert TDMS timestamps to seconds since 1904 as f64.
-    ///
-    /// TDMS timestamps are stored as (seconds, fraction) where the fraction
-    /// represents sub-second precision in units of 2^-64 seconds.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use tdms_rs::TdmsFile;
-    /// use std::path::Path;
-    ///
-    /// let file = TdmsFile::load(Path::new("data.tdms"))?;
-    /// if let Some(channel) = file.get_channel("Time", "Timestamps") {
-    ///     if let Some(times) = channel.as_timestamps_f64() {
-    ///         for time in times {
-    ///             println!("Time: {:.9} seconds since 1904", time);
-    ///         }
-    ///     }
-    /// }
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
-    /// ```
-    pub fn as_timestamps_f64(&self) -> Option<Vec<f64>> {
-        self.as_timestamps().map(|timestamps| {
-            timestamps
-                .iter()
-                .map(|(seconds, fraction)| {
-                    *seconds as f64 + (*fraction as f64 / (1u64 << 63) as f64) / 2.0
-                })
-                .collect()
-        })
-    }
-
-    /// Convert TDMS timestamps to Unix epoch (seconds since 1970-01-01).
-    ///
-    /// This converts from TDMS epoch (1904-01-01) to Unix epoch (1970-01-01).
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use tdms_rs::TdmsFile;
-    /// use std::path::Path;
-    ///
-    /// let file = TdmsFile::load(Path::new("data.tdms"))?;
-    /// if let Some(channel) = file.get_channel("Time", "Timestamps") {
-    ///     if let Some(unix_times) = channel.timestamps_to_unix() {
-    ///         for time in unix_times {
-    ///             println!("Unix time: {:.9}", time);
-    ///         }
-    ///     }
-    /// }
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
-    /// ```
-    pub fn timestamps_to_unix(&self) -> Option<Vec<f64>> {
-        const TDMS_TO_UNIX_OFFSET: i64 = 2082844800; // Seconds from 1904 to 1970
-
-        self.as_timestamps_f64().map(|timestamps| {
-            timestamps
-                .iter()
-                .map(|&t| t - TDMS_TO_UNIX_OFFSET as f64)
-                .collect()
-        })
-    }
+    // Timestamp conversion methods removed - they allocated memory.
+    // Users should read timestamps with read_timestamp_into() and convert manually if needed.
 }
 
 impl Default for TdmsFile {

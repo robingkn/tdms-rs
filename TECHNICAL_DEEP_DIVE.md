@@ -289,3 +289,4 @@ The bottleneck appears to be at the **OS/filesystem level**:
 4. **Investigate nptdms source**: Understand Python-specific optimizations
 5. **Try alternative APIs**: `std::fs::write()`, `write_vectored()`, memory-mapped I/O
 
+
