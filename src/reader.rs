@@ -52,7 +52,7 @@ impl<R: Read + Seek> TdmsReader<R> {
             let count = self.reader.read_u32::<LittleEndian>()?;
             // eprintln!("DEBUG: Object Count: {}", count);
 
-            for i in 0..count {
+            for _ in 0..count {
                 // Read Object Path (String)
                 let path_len = self.reader.read_u32::<LittleEndian>()?;
                 // eprintln!("DEBUG: Obj {} Path Len: {}", i, path_len);
