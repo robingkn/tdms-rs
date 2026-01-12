@@ -23,10 +23,17 @@ pip install numpy nptdms
    python generate_file.py
    ```
 
-2. **Run the Benchmark**
-   Execute the benchmark script.
+
+2. **Run the Read Benchmark**
+   Execute the read benchmark script.
    ```bash
    python benchmark.py
+   ```
+
+3. **Run the Write Benchmark**
+   Execute the write benchmark script.
+   ```bash
+   python write_benchmark.py
    ```
 
 ## Methodology
