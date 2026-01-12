@@ -14,4 +14,3 @@ venv/
 __pycache__/
 *.py[cod]
 *$py.class
-benchmark/disk/__pycache__/diskspd.cpython-314.pyc
