@@ -1,9 +1,14 @@
 /target/
 **/*.rs.bk
 *.tdms
+!tests/fixtures/tdms_corpus/**/*.tdms
 *.dat
 benchmark_results.md
 venv/
+
+# Examples and Output
+/examples/output/*
+!/examples/output/.gitkeep
 
 # Benchmarking
 /benchmark/data/*

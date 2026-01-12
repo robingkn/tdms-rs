@@ -1,24 +1,15 @@
 //! TDMS file writer implementation.
 //!
-//! This module provides functionality to create TDMS files that match the existing corpus exactly.
-//! The writer API follows a hierarchical structure: File -> Groups -> Channels with full support
-//! for all TDMS data types and properties.
+//! This module provides functionality to create TDMS files with a hierarchical
+//! structure: File -> Groups -> Channels. It supports all TDMS data types
+//! and properties, ensuring binary compatibility with National Instruments software.
 //!
-//! # Features
-//!
-//! - **All Data Types**: Support for Double, Float, I8-I64, U8-U64, Boolean, String, TimeStamp
-//! - **Properties**: File, group, and channel-level properties
-//! - **Multi-group/channel**: Complex file structures with deterministic ordering
-//! - **Corpus Compatible**: Output matches existing TDMS files exactly
-//! - **Round-trip Verified**: Write → read → compare testing ensures correctness
-//!
-//! # Quick Start
+//! # Examples
 //!
 //! ```no_run
 //! use tdms_rs::writer::TdmsFileWriter;
 //! use tdms_rs::TdmsData;
 //!
-//! // Create a simple TDMS file
 //! let mut writer = TdmsFileWriter::new("measurements.tdms");
 //! let group = writer.add_group("Sensors")?;
 //! group.add_channel("Temperature", TdmsData::Double(vec![20.1, 21.5, 22.3]))?;

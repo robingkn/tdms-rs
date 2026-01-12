@@ -1,16 +1,7 @@
 //! # tdms-rs
 //!
 //! A pure Rust library for reading and writing National Instruments TDMS
-//! (Technical Data Management Streaming) files with full format support and excellent performance.
-//!
-//! ## Features
-//!
-//! - **Complete TDMS Support**: Read and write all TDMS data types and structures
-//! - **High Performance**: Zero-copy parsing and efficient memory usage  
-//! - **Type Safety**: Rust's type system prevents common data handling errors
-//! - **Binary Compatibility**: Output files work with National Instruments software
-//! - **Production Ready**: Comprehensive test coverage with 24+ test scenarios
-//! - **Pure Rust**: Minimal external dependencies
+//! (Technical Data Management Streaming) files with full format support and high performance.
 //!
 //! ## Quick Start
 //!
@@ -20,30 +11,12 @@
 //! use tdms_rs::TdmsFile;
 //! use std::path::Path;
 //!
-//! // Load a TDMS file
 //! let file = TdmsFile::load(Path::new("data.tdms"))?;
 //!
-//! // Iterate through groups and channels
-//! for (group_name, group) in &file.groups {
-//!     println!("Group: {}", group_name);
-//!     for (channel_name, channel) in &group.channels {
-//!         if let Some(data) = &channel.data {
-//!             println!("  Channel {}: {} samples", channel_name, data.len());
-//!             
-//!             // Access typed data
-//!             match data {
-//!                 tdms_rs::TdmsData::Double(values) => {
-//!                     let avg = values.iter().sum::<f64>() / values.len() as f64;
-//!                     println!("    Average: {:.2}", avg);
-//!                 },
-//!                 tdms_rs::TdmsData::I32(values) => {
-//!                     println!("    Range: {} to {}",
-//!                         values.iter().min().unwrap(),
-//!                         values.iter().max().unwrap());
-//!                 },
-//!                 _ => println!("    Other data type"),
-//!             }
-//!         }
+//! if let Some(channel) = file.get_channel("Sensors", "Temperature") {
+//!     if let Some(data) = channel.as_f64() {
+//!         let avg = data.iter().sum::<f64>() / data.len() as f64;
+//!         println!("Average: {:.2}", avg);
 //!     }
 //! }
 //! # Ok::<(), Box<dyn std::error::Error>>(())
@@ -54,41 +27,17 @@
 //! ```no_run
 //! use tdms_rs::{TdmsFileWriter, TdmsData, PropertyValue};
 //!
-//! // Create a new TDMS file
 //! let mut writer = TdmsFileWriter::new("output.tdms");
+//! writer.add_property("Author", "Rust App")?;
 //!
-//! // Add file-level properties
-//! writer.add_property("Author", PropertyValue::String("Rust App".into()))?;
-//!
-//! // Create groups and channels
 //! let group = writer.add_group("Sensors")?;
 //! group.add_channel("Temperature", TdmsData::Double(vec![20.1, 21.5, 22.3]))?;
-//! group.add_channel("Pressure", TdmsData::I32(vec![1013, 1015, 1012]))?;
 //!
-//! // Add channel properties
-//! let voltage_channel = group.add_channel("Voltage", TdmsData::Double(vec![1.1, 2.2, 3.3]))?;
-//! voltage_channel.add_property("wf_unit_string", PropertyValue::String("V".into()))?;
-//!
-//! // Write the file
 //! writer.write()?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
-//! ## Error Handling
-//!
-//! ```no_run
-//! use tdms_rs::TdmsFile;
-//! use std::path::Path;
-//!
-//! match TdmsFile::load(Path::new("data.tdms")) {
-//!     Ok(file) => println!("Loaded {} groups", file.groups.len()),
-//!     Err(e) => eprintln!("Failed to load TDMS file: {}", e),
-//! }
-//! ```
-//!
 //! ## Supported Data Types
-//!
-//! All TDMS data types are fully supported with Rust type safety:
 //!
 //! | TDMS Type | Rust Type | Description |
 //! |-----------|-----------|-------------|
@@ -99,21 +48,12 @@
 //! | String    | `String`  | UTF-8 encoded text |
 //! | Boolean   | `bool`    | True/false values |
 //! | TimeStamp | `(i64, u64)` | TDMS timestamp format |
-//!
-//! ## Performance Guarantees
-//!
-//! - **Zero-copy parsing** where possible for efficient memory usage
-//! - **Streaming reads** handle large files without loading everything into memory
-//! - **Binary compatibility** with National Instruments TDMS readers
-//! - **Deterministic output** ensures consistent file generation
 
-pub mod channel;
 pub mod datatypes;
 pub mod error;
 pub mod metadata;
 pub mod reader;
 pub mod segment;
-pub mod utils;
 pub mod writer;
 
 use crate::error::Result;

@@ -343,7 +343,6 @@ pub fn read_raw_data<R: Read + Seek>(
                 offsets.push(offset);
             }
 
-            // println!("DEBUG: Read Offsets: {:?}", offsets);
 
             // Calculate Char Size
             // Offsets are relative to the start of the character data.

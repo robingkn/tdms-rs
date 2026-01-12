@@ -18,7 +18,6 @@ impl<R: Read + Seek> TdmsReader<R> {
 
     pub fn read_segment(&mut self) -> Result<Segment> {
         let start_pos = self.reader.stream_position()?;
-        // println!("DEBUG: Reading Segment at offset {}", start_pos);
 
         // Read Lead In
         let mut lead_in = [0u8; 4];
@@ -38,10 +37,6 @@ impl<R: Read + Seek> TdmsReader<R> {
         let next_segment_offset = self.reader.read_u64::<LittleEndian>()?;
         let raw_data_offset = self.reader.read_u64::<LittleEndian>()?;
 
-        // println!(
-        //     "DEBUG: Next Segment Offset: {}, Raw Data Offset: {}",
-        //     next_segment_offset, raw_data_offset
-        // );
 
         let mask = crate::segment::Mask::new(mask);
 
@@ -50,17 +45,14 @@ impl<R: Read + Seek> TdmsReader<R> {
         if mask.has_new_obj_list() {
             // Read number of objects
             let count = self.reader.read_u32::<LittleEndian>()?;
-            // eprintln!("DEBUG: Object Count: {}", count);
 
             for _ in 0..count {
                 // Read Object Path (String)
                 let path_len = self.reader.read_u32::<LittleEndian>()?;
-                // eprintln!("DEBUG: Obj {} Path Len: {}", i, path_len);
                 let mut path_bytes = vec![0u8; path_len as usize];
                 self.reader.read_exact(&mut path_bytes)?;
                 let path_str =
                     String::from_utf8(path_bytes).map_err(|_| TdmsError::StringEncoding)?;
-                // eprintln!("DEBUG: Obj {} Path: {}", i, path_str);
 
                 // Read Raw Data Index
                 let raw_data_index = self.reader.read_u32::<LittleEndian>()?;
@@ -169,32 +161,18 @@ impl<R: Read + Seek> TdmsReader<R> {
             // This is correct.
 
             let raw_data_start_pos = start_pos + 28 + raw_data_offset;
-            // println!("DEBUG: Seeking to Raw Data at {}", raw_data_start_pos);
             self.reader
                 .seek(std::io::SeekFrom::Start(raw_data_start_pos))?;
 
             for obj in &mut objects {
                 let path_str = obj.path.raw.clone();
-                // println!(
-                //     "DEBUG: Processing Object {} Index: {:x}",
-                //     path_str, obj.raw_data_index
-                // );
 
                 if let Some(meta) = &obj.raw_data_meta {
-                    // println!(
-                    //     "DEBUG: Found Meta for {}, Count: {}",
-                    //     path_str, meta.number_of_values
-                    // );
                     // Update active meta for this channel
                     self.active_meta.insert(path_str.clone(), meta.clone());
 
                     if meta.number_of_values > 0 {
                         // Read data based on type and count
-                        // Helper function to read vector
-                        // println!(
-                        //     "DEBUG: Reading Raw Data at {}",
-                        //     self.reader.stream_position()?
-                        // );
                         let data = crate::datatypes::read_raw_data(
                             &mut self.reader,
                             &meta.data_type,
@@ -213,19 +191,8 @@ impl<R: Read + Seek> TdmsReader<R> {
                         }
                     }
                 } else if obj.raw_data_index == 0 {
-                    // println!("DEBUG: Index 0 for {}", path_str);
-                    // Same as previous segment?
                     // Use cached meta if available
                     if let Some(meta) = self.active_meta.get(&path_str) {
-                        // println!(
-                        //     "DEBUG: Reusing Meta for {}, Count: {}",
-                        //     path_str, meta.number_of_values
-                        // );
-                        // Note: When RawDataIndex is 0, it means "same *structure* as previous".
-                        // Does it mean same *number of values*?
-                        // TDMS spec says: "If this value is 0, the raw data information ... matches the information ... in the previous segment"
-                        // This implies Count is also reused.
-
                         if meta.number_of_values > 0 {
                             let data = crate::datatypes::read_raw_data(
                                 &mut self.reader,
@@ -242,7 +209,6 @@ impl<R: Read + Seek> TdmsReader<R> {
                             }
                         }
                     } else {
-                        // println!("DEBUG: No Active Meta for {}", path_str);
                         // Warning: Index 0 but no previous meta?
                         // Maybe it's a new channel without data?
                         // Ignore
@@ -256,10 +222,6 @@ impl<R: Read + Seek> TdmsReader<R> {
             let current_pos = self.reader.stream_position()?;
 
             if current_pos < target_pos {
-                // println!(
-                //     "DEBUG: Skipping {} bytes to end of segment",
-                //     target_pos - current_pos
-                // );
                 self.reader.seek(std::io::SeekFrom::Start(target_pos))?;
             } else if current_pos > target_pos {
                 eprintln!(
@@ -272,10 +234,6 @@ impl<R: Read + Seek> TdmsReader<R> {
             }
         }
 
-        // println!(
-        //     "DEBUG: Ended Segment at offset {}",
-        //     self.reader.stream_position()?
-        // );
         Ok(Segment {
             version,
             next_segment_offset,
