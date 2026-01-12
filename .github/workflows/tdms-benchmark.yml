@@ -1,0 +1,48 @@
+name: TDMS Benchmark
+
+# Manual trigger only
+on:
+  workflow_dispatch:
+
+jobs:
+  run-benchmark:
+    runs-on: windows-latest
+
+    steps:
+      # Checkout repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # Install Python dependencies
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Setup Rust
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      # Run the benchmark
+      - name: Run TDMS Benchmark
+        run: |
+          python run.py
+
+      # Upload reports as artifact
+      - name: Upload Benchmark Reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: tdms-benchmark-reports
+          path: |
+            results.json
+            summary.md
