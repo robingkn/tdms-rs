@@ -281,6 +281,7 @@ impl TdmsFileWriter {
         writer.write_all(&raw_data_bytes)?;
 
         writer.flush()?;
+        writer.get_ref().sync_all()?;
         Ok(())
     }
 

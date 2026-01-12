@@ -49,6 +49,8 @@ def run_disk_benchmark(config):
     """
     bench_file = config['paths']['disk_bench_file']
     file_size_gb = config['file_size_gb']
+    iterations = config.get('iterations', 5)
+    warmup = config.get('warmup_iterations', 1)
     
     # Ensure directory exists
     os.makedirs(os.path.dirname(bench_file), exist_ok=True)
@@ -62,31 +64,61 @@ def run_disk_benchmark(config):
              print(f"[WARNING] {diskspd_exe} not found. Skipping disk benchmark.")
              return None, None
 
-    # Write Test
-    print("Running Raw Disk Write Benchmark (Cold Cache via Clobber)...")
-    clobber_cache(file_size_gb)
+    # Calculate number of 1MB blocks for fixed-size IO
+    # 1 GB = 1,000,000,000 bytes. 
+    # nptdms/tdms-rs use 125M samples * 8 = 1,000,000,000 bytes.
+    # diskspd -b1M uses 1024*1024 = 1,048,576 bytes.
+    # To get as close to 10^9 as possible: 10^9 / 1048576 = 953.67 blocks.
+    # We will use 1000 blocks of 1,000,000 bytes if diskspd supports it, 
+    # but diskspd -b usually expects power of 2.
+    # Let's use -b1000000 if possible, or just accept the tiny MiB/MB diff 
+    # and normalize carefully.
     
-    # -c1G: Create file
-    # -b1M: 1MB block size
-    # -d5: 5 seconds duration
-    # -o1: Overlapping IOs
-    # -t1: Threads
-    # -w100: 100% Write
-    # NO -Sh (Allow OS caching)
+    # Use -b1M (1,048,576 bytes) and -n 954 blocks ~= 1,000,344,064 bytes
+    n_blocks = int((file_size_gb * 1e9) / (1024 * 1024))
     
-    size_param = f"-c{int(file_size_gb * 1000)}M" # Use decimal M for file creation if possible, but 1024M is fine for diskspd
-    cmd_write = [diskspd_exe, size_param, "-b1M", "-d5", "-o1", "-t1", "-w100", "-L", bench_file]
-    res_write = run_command(cmd_write)
-    write_gb_s = parse_diskspd_throughput(res_write.stdout)
+    def run_trial(mode):
+        times = []
+        for i in range(iterations + warmup):
+            is_warmup = (i < warmup)
+            prefix = "WARMUP" if is_warmup else f"RUN {i - warmup}"
+            
+            clobber_cache(file_size_gb)
+            
+            # -c: Create file (only on first write)
+            # -b1M: 1MB block size
+            # -n: number of blocks (fixed task)
+            # -o1: Overlapping IOs
+            # -t1: Threads
+            # -Sh: Software cache disabled
+            # -D: Hardware cache/write-through
+            # -L: Latency/Progress
+            
+            if mode == 'write':
+                # Re-create file every time to be fair with library cold-create
+                if os.path.exists(bench_file): os.remove(bench_file)
+                cmd = [diskspd_exe, f"-c{int(file_size_gb * 1000)}M", "-b1M", f"-n{n_blocks}", "-o1", "-t1", "-w100", "-Sh", "-D", "-L", bench_file]
+            else:
+                cmd = [diskspd_exe, "-b1M", f"-n{n_blocks}", "-o1", "-t1", "-w0", "-Sh", "-D", "-L", bench_file]
+            
+            res = run_command(cmd)
+            gb_s = parse_diskspd_throughput(res.stdout)
+            
+            if not is_warmup and gb_s:
+                times.append(gb_s)
+            
+            if gb_s:
+                print(f"{mode.capitalize()} {prefix}: {gb_s:.2f} GB/s")
+            else:
+                print(f"{mode.capitalize()} {prefix}: FAILED")
+                
+        return max(times) if times else None
+
+    print(f"Running Raw Disk Write Benchmark ({iterations} runs, Unbuffered)...")
+    write_gb_s = run_trial('write')
     
-    # Read Test
-    print("Running Raw Disk Read Benchmark (Cold Cache via Clobber)...")
-    clobber_cache(file_size_gb)
-    
-    # -w0: 0% Write (100% Read)
-    cmd_read = [diskspd_exe, "-b1M", "-d5", "-o1", "-t1", "-w0", "-L", bench_file]
-    res_read = run_command(cmd_read)
-    read_gb_s = parse_diskspd_throughput(res_read.stdout)
+    print(f"\nRunning Raw Disk Read Benchmark ({iterations} runs, Unbuffered)...")
+    read_gb_s = run_trial('read')
     
     if os.path.exists(bench_file):
         os.remove(bench_file)
