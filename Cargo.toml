@@ -28,6 +28,10 @@ exclude = [
 name = "tdms-to-json"
 path = "src/bin/tdms_to_json.rs"
 
+[[bin]]
+name = "benchmark"
+path = "src/bin/benchmark.rs"
+
 [dependencies]
 byteorder = "1.4"
 ordered-float = "5.1.0"
