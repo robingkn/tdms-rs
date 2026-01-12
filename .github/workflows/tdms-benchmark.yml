@@ -11,11 +11,11 @@ jobs:
     steps:
       # Checkout repository
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Setup Python
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -46,7 +46,7 @@ jobs:
 
       # Upload reports as artifact
       - name: Upload Benchmark Reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: tdms-benchmark-reports
           path: |
