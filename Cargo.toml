@@ -32,6 +32,10 @@ path = "src/bin/tdms_to_json.rs"
 name = "benchmark"
 path = "benchmark/tdms_rs/benchmark.rs"
 
+[[bin]]
+name = "rust_loading"
+path = "benchmark/loading/rust_loading.rs"
+
 [dependencies]
 byteorder = "1.4"
 ordered-float = "5.1.0"
