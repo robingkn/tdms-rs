@@ -44,19 +44,17 @@ fn round_trip_minimal_file() -> Result<(), Box<dyn std::error::Error>> {
     let written_channel = written_group.channels.get("Channel1").unwrap();
     let reference_channel = reference_group.channels.get("Channel1").unwrap();
 
-    match (&written_channel.data, &reference_channel.data) {
-        (Some(TdmsData::Double(written_data)), Some(TdmsData::Double(reference_data))) => {
-            assert_eq!(written_data.len(), reference_data.len());
-            for (w, r) in written_data.iter().zip(reference_data.iter()) {
-                assert!(
-                    (w - r).abs() < f64::EPSILON,
-                    "Data mismatch: {} vs {}",
-                    w,
-                    r
-                );
-            }
-        }
-        _ => panic!("Data type mismatch or missing data"),
+    let written_data = written_channel.as_f64().expect("Missing written data");
+    let reference_data = reference_channel.as_f64().expect("Missing reference data");
+
+    assert_eq!(written_data.len(), reference_data.len());
+    for (w, r) in written_data.iter().zip(reference_data.iter()) {
+        assert!(
+            (w - r).abs() < f64::EPSILON,
+            "Data mismatch: {} vs {}",
+            w,
+            r
+        );
     }
 
     Ok(())
@@ -75,7 +73,7 @@ fn assert_round_trip(path: &str) -> Result<(), Box<dyn std::error::Error>> {
     for (group_name, group) in &file.groups {
         let g = writer.add_group(group_name)?;
         for (chan_name, chan) in &group.channels {
-            if let Some(data) = &chan.data {
+            if let Ok(data) = chan.ensure_data_loaded() {
                 g.add_channel(chan_name, data.clone())?;
             }
         }
@@ -99,7 +97,9 @@ fn assert_round_trip(path: &str) -> Result<(), Box<dyn std::error::Error>> {
         );
         for (channel_name, original_channel) in &original_group.channels {
             let round_trip_channel = round_trip_group.channels.get(channel_name).unwrap();
-            assert_eq!(original_channel.data, round_trip_channel.data);
+            let original_data = original_channel.ensure_data_loaded().expect("original data missing");
+            let round_trip_data = round_trip_channel.ensure_data_loaded().expect("round trip data missing");
+            assert_eq!(original_data, round_trip_data);
         }
     }
 
@@ -171,15 +171,9 @@ fn round_trip_integers() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Compare specific channel data
-    match (
-        &written_integers.channels.get("Int32").unwrap().data,
-        &reference_integers.channels.get("Int32").unwrap().data,
-    ) {
-        (Some(TdmsData::I32(written_data)), Some(TdmsData::I32(reference_data))) => {
-            assert_eq!(written_data, reference_data);
-        }
-        _ => panic!("Int32 data type mismatch or missing data"),
-    }
+    let written_data = written_integers.channels.get("Int32").unwrap().as_i32().expect("written Int32 missing");
+    let reference_data = reference_integers.channels.get("Int32").unwrap().as_i32().expect("reference Int32 missing");
+    assert_eq!(written_data, reference_data);
 
     Ok(())
 }
@@ -250,8 +244,8 @@ fn round_trip_file_properties() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(group.channels.len(), 1);
     let channel = group.channels.get("TestChannel").unwrap();
 
-    match &channel.data {
-        Some(TdmsData::Double(data)) => {
+    match channel.as_f64() {
+        Some(data) => {
             assert_eq!(data, &vec![1.0, 2.0, 3.0]);
         }
         _ => panic!("Channel data missing or wrong type"),

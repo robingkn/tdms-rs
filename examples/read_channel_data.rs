@@ -41,17 +41,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
     })?;
 
-    // Process the channel data
-    match &channel.data {
-        Some(data) => {
-            println!("\n✅ Found channel data!");
-            analyze_data(data, target_channel);
-        }
-        None => {
-            println!("❌ No data found in channel '{}'", target_channel);
-            return Ok(());
-        }
-    }
+    // Process the channel data using ensure_data_loaded()
+    // This triggers JIT loading of the data from disk.
+    let data = channel.ensure_data_loaded()?;
+
+    println!("\n✅ Successfully loaded channel data!");
+    analyze_data(data);
 
     // Show channel properties if any
     if !channel.properties.is_empty() {
@@ -64,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn analyze_data(data: &TdmsData, _channel_name: &str) {
+fn analyze_data(data: &TdmsData) {
     match data {
         TdmsData::Double(values) => {
             println!("Data type: f64 (double precision)");
@@ -81,15 +76,7 @@ fn analyze_data(data: &TdmsData, _channel_name: &str) {
                 println!("  Max: {:.6}", max);
                 println!("  Mean: {:.6}", mean);
 
-                // Show first and last few values
-                print_sample_values(values, "f64");
-
-                // Check for special values
-                let nan_count = values.iter().filter(|&&x| x.is_nan()).count();
-                let inf_count = values.iter().filter(|&&x| x.is_infinite()).count();
-                if nan_count > 0 || inf_count > 0 {
-                    println!("Special values: {} NaN, {} Infinite", nan_count, inf_count);
-                }
+                print_sample_values(values);
             }
         }
 
@@ -108,7 +95,7 @@ fn analyze_data(data: &TdmsData, _channel_name: &str) {
                 println!("  Max: {:.3}", max);
                 println!("  Mean: {:.3}", mean);
 
-                print_sample_values(values, "f32");
+                print_sample_values(values);
             }
         }
 
@@ -127,23 +114,7 @@ fn analyze_data(data: &TdmsData, _channel_name: &str) {
                 println!("  Max: {}", max);
                 println!("  Mean: {:.2}", mean);
 
-                print_sample_values(values, "i32");
-            }
-        }
-
-        TdmsData::I64(values) => {
-            println!("Data type: i64 (64-bit signed integer)");
-            println!("Sample count: {}", values.len());
-
-            if !values.is_empty() {
-                let min = *values.iter().min().unwrap();
-                let max = *values.iter().max().unwrap();
-
-                println!("Statistics:");
-                println!("  Min: {}", min);
-                println!("  Max: {}", max);
-
-                print_sample_values(values, "i64");
+                print_sample_values(values);
             }
         }
 
@@ -192,7 +163,7 @@ fn analyze_data(data: &TdmsData, _channel_name: &str) {
                     100.0 * false_count as f64 / values.len() as f64
                 );
 
-                print_sample_values(values, "bool");
+                print_sample_values(values);
             }
         }
 
@@ -202,48 +173,28 @@ fn analyze_data(data: &TdmsData, _channel_name: &str) {
 
             if !values.is_empty() {
                 println!("Note: Timestamps are seconds since 1904-01-01 00:00:00 UTC");
-                println!("Format: (seconds, fraction) where fraction is in 2^-64 units");
-
                 println!("Sample timestamps:");
                 for (i, (seconds, fraction)) in values.iter().take(5).enumerate() {
                     println!("  [{}]: {} seconds + {} fraction", i, seconds, fraction);
-                }
-                if values.len() > 5 {
-                    println!("  ... and {} more", values.len() - 5);
                 }
             }
         }
 
         _ => {
-            println!("Data type: {:?}", data);
-            println!("This data type is not handled by this example.");
+            println!("Data type: {:?}", data.type_name());
+            println!("This data type is not specifically handled in this summary.");
         }
     }
 }
 
-fn print_sample_values<T: std::fmt::Display>(values: &[T], _type_name: &str) {
+fn print_sample_values<T: std::fmt::Display>(values: &[T]) {
     const SAMPLE_SIZE: usize = 5;
 
     if values.len() <= SAMPLE_SIZE * 2 {
-        // Show all values if there aren't many
-        println!(
-            "All values: {:?}",
-            values.iter().map(|v| v.to_string()).collect::<Vec<_>>()
-        );
+        println!("All values: {:?}", values.iter().map(|v| v.to_string()).collect::<Vec<_>>());
     } else {
-        // Show first and last few values
-        let first: Vec<String> = values
-            .iter()
-            .take(SAMPLE_SIZE)
-            .map(|v| v.to_string())
-            .collect();
-        let last: Vec<String> = values
-            .iter()
-            .rev()
-            .take(SAMPLE_SIZE)
-            .rev()
-            .map(|v| v.to_string())
-            .collect();
+        let first: Vec<String> = values.iter().take(SAMPLE_SIZE).map(|v| v.to_string()).collect();
+        let last: Vec<String> = values.iter().rev().take(SAMPLE_SIZE).rev().map(|v| v.to_string()).collect();
 
         println!("First {} values: [{}]", SAMPLE_SIZE, first.join(", "));
         println!("Last {} values: [{}]", SAMPLE_SIZE, last.join(", "));

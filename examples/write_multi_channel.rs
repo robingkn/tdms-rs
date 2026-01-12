@@ -86,75 +86,73 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for (group_name, group) in &file.groups {
         println!("   Group: {}", group_name);
         for (channel_name, channel) in &group.channels {
-            if let Some(data) = &channel.data {
-                match data {
-                    tdms_rs::TdmsData::Double(values) => {
-                        println!(
-                            "     Channel '{}': {} double values",
-                            channel_name,
-                            values.len()
-                        );
-                        println!(
-                            "       Range: {:.2} to {:.2}",
-                            values.iter().fold(f64::INFINITY, |a, &b| a.min(b)),
-                            values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b))
-                        );
-                    }
-                    tdms_rs::TdmsData::Float(values) => {
-                        println!(
-                            "     Channel '{}': {} float values",
-                            channel_name,
-                            values.len()
-                        );
-                        println!(
-                            "       Range: {:.2} to {:.2}",
-                            values.iter().fold(f32::INFINITY, |a, &b| a.min(b)),
-                            values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b))
-                        );
-                    }
-                    tdms_rs::TdmsData::I32(values) => {
-                        println!(
-                            "     Channel '{}': {} i32 values",
-                            channel_name,
-                            values.len()
-                        );
-                        println!(
-                            "       Range: {} to {}",
-                            values.iter().min().unwrap(),
-                            values.iter().max().unwrap()
-                        );
-                    }
-                    tdms_rs::TdmsData::U8(values) => {
-                        println!(
-                            "     Channel '{}': {} u8 values",
-                            channel_name,
-                            values.len()
-                        );
-                        println!("       Values: {:?}", values);
-                    }
-                    tdms_rs::TdmsData::Boolean(values) => {
-                        let true_count = values.iter().filter(|&&x| x).count();
-                        println!(
-                            "     Channel '{}': {} boolean values",
-                            channel_name,
-                            values.len()
-                        );
-                        println!(
-                            "       True: {}, False: {}",
-                            true_count,
-                            values.len() - true_count
-                        );
-                    }
-                    tdms_rs::TdmsData::String(values) => {
-                        println!(
-                            "     Channel '{}': {} string values",
-                            channel_name,
-                            values.len()
-                        );
-                        println!("       Values: {:?}", values);
-                    }
-                    _ => println!("     Channel '{}': {:?}", channel_name, data),
+            match channel.ensure_data_loaded()? {
+                tdms_rs::TdmsData::Double(values) => {
+                    println!(
+                        "     Channel '{}': {} double values",
+                        channel_name,
+                        values.len()
+                    );
+                    println!(
+                        "       Range: {:.2} to {:.2}",
+                        values.iter().fold(f64::INFINITY, |a, &b| a.min(b)),
+                        values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b))
+                    );
                 }
+                tdms_rs::TdmsData::Float(values) => {
+                    println!(
+                        "     Channel '{}': {} float values",
+                        channel_name,
+                        values.len()
+                    );
+                    println!(
+                        "       Range: {:.2} to {:.2}",
+                        values.iter().fold(f32::INFINITY, |a, &b| a.min(b)),
+                        values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b))
+                    );
+                }
+                tdms_rs::TdmsData::I32(values) => {
+                    println!(
+                        "     Channel '{}': {} i32 values",
+                        channel_name,
+                        values.len()
+                    );
+                    println!(
+                        "       Range: {} to {}",
+                        values.iter().min().unwrap(),
+                        values.iter().max().unwrap()
+                    );
+                }
+                tdms_rs::TdmsData::U8(values) => {
+                    println!(
+                        "     Channel '{}': {} u8 values",
+                        channel_name,
+                        values.len()
+                    );
+                    println!("       Values: {:?}", values);
+                }
+                tdms_rs::TdmsData::Boolean(values) => {
+                    let true_count = values.iter().filter(|&&x| x).count();
+                    println!(
+                        "     Channel '{}': {} boolean values",
+                        channel_name,
+                        values.len()
+                    );
+                    println!(
+                        "       True: {}, False: {}",
+                        true_count,
+                        values.len() - true_count
+                    );
+                }
+                tdms_rs::TdmsData::String(values) => {
+                    println!(
+                        "     Channel '{}': {} string values",
+                        channel_name,
+                        values.len()
+                    );
+                    println!("       Values: {:?}", values);
+                }
+                data => println!("     Channel '{}': {:?}", channel_name, data.type_name()),
             }
         }
     }

@@ -853,13 +853,13 @@ mod tests {
         assert_eq!(test_group.channels.len(), 3);
 
         // Verify data integrity
-        if let Some(TdmsData::I32(alpha_data)) = &test_group.channels.get("Alpha").unwrap().data {
+        if let Some(alpha_data) = test_group.channels.get("Alpha").unwrap().as_i32() {
             assert_eq!(alpha_data, &vec![1]);
         }
-        if let Some(TdmsData::I32(beta_data)) = &test_group.channels.get("Beta").unwrap().data {
+        if let Some(beta_data) = test_group.channels.get("Beta").unwrap().as_i32() {
             assert_eq!(beta_data, &vec![2]);
         }
-        if let Some(TdmsData::I32(zebra_data)) = &test_group.channels.get("Zebra").unwrap().data {
+        if let Some(zebra_data) = test_group.channels.get("Zebra").unwrap().as_i32() {
             assert_eq!(zebra_data, &vec![3]);
         }
 
@@ -955,14 +955,14 @@ mod tests {
         let test_channel = test_group.channels.get("StringChannel").unwrap();
 
         // Verify string data
-        match &test_channel.data {
-            Some(TdmsData::String(written_strings)) => {
+        match test_channel.as_string() {
+            Some(written_strings) => {
                 assert_eq!(written_strings.len(), string_data.len());
                 for (written, expected) in written_strings.iter().zip(string_data.iter()) {
                     assert_eq!(written, expected);
                 }
             }
-            _ => panic!("Expected string data, got {:?}", test_channel.data),
+            _ => panic!("Expected string data, got {:?}", test_channel.data_type_name()),
         }
 
         Ok(())
@@ -980,13 +980,10 @@ mod tests {
             println!("Group: {}", group_name);
             for (channel_name, channel) in &group.channels {
                 println!("  Channel: {}", channel_name);
-                if let Some(data) = &channel.data {
-                    match data {
-                        TdmsData::String(strings) => {
-                            println!("    String data: {:?}", strings);
-                        }
-                        _ => println!("    Data type: {:?}", data),
-                    }
+                if let Some(strings) = channel.as_string() {
+                    println!("    String data: {:?}", strings);
+                } else {
+                    println!("    Data type: {:?}", channel.data_type_name());
                 }
             }
         }
@@ -1021,23 +1018,23 @@ mod tests {
 
         // Verify boolean data
         let bool_channel = test_group.channels.get("BoolChannel").unwrap();
-        match &bool_channel.data {
-            Some(TdmsData::Boolean(written_bools)) => {
+        match bool_channel.as_bool() {
+            Some(written_bools) => {
                 assert_eq!(written_bools, &vec![true, false, true, false, true]);
             }
-            _ => panic!("Expected boolean data, got {:?}", bool_channel.data),
+            _ => panic!("Expected boolean data, got {:?}", bool_channel.data_type_name()),
         }
 
         // Verify timestamp data
         let timestamp_channel = test_group.channels.get("TimestampChannel").unwrap();
-        match &timestamp_channel.data {
-            Some(TdmsData::TimeStamp(written_timestamps)) => {
+        match timestamp_channel.as_timestamps() {
+            Some(written_timestamps) => {
                 assert_eq!(
                     written_timestamps,
                     &vec![(1000, 0), (2000, 500000000), (3000, 1000000000),]
                 );
             }
-            _ => panic!("Expected timestamp data, got {:?}", timestamp_channel.data),
+            _ => panic!("Expected timestamp data, got {:?}", timestamp_channel.data_type_name()),
         }
 
         Ok(())
@@ -1084,10 +1081,10 @@ mod tests {
         let written_channel = written_group.channels.get("Basic").unwrap();
         let reference_channel = reference_group.channels.get("Basic").unwrap();
 
-        match (&written_channel.data, &reference_channel.data) {
+        match (written_channel.as_string(), reference_channel.as_string()) {
             (
-                Some(TdmsData::String(written_strings)),
-                Some(TdmsData::String(reference_strings)),
+                Some(written_strings),
+                Some(reference_strings),
             ) => {
                 assert_eq!(written_strings, reference_strings);
             }

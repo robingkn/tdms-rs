@@ -150,13 +150,8 @@ fn run_test_case(tdms_path: &Path) {
             // Assert Data
             // Simple presence check for now, eventually full comparison
             if !c_golden.data.is_null() {
-                assert!(
-                    c_parsed.data.is_some(),
-                    "Missing data for channel '{}'",
-                    c_name
-                );
-
-                match c_parsed.data.as_ref().unwrap() {
+                let data = c_parsed.ensure_data_loaded().expect("Failed to load channel data");
+                match data {
                     tdms_rs::TdmsData::Double(vals) => {
                         if let Some(expected) = c_golden.data.as_array() {
                             assert_eq!(vals.len(), expected.len(), "Count mismatch for {}", c_name);

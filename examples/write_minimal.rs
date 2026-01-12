@@ -39,18 +39,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for (group_name, group) in &file.groups {
         println!("   Group: {}", group_name);
         for (channel_name, channel) in &group.channels {
-            if let Some(data) = &channel.data {
-                match data {
-                    tdms_rs::TdmsData::Double(values) => {
-                        println!(
-                            "     Channel '{}': {} double values",
-                            channel_name,
-                            values.len()
-                        );
-                        println!("     Values: {:?}", values);
-                    }
-                    _ => println!("     Channel '{}': {:?}", channel_name, data),
-                }
+            if let Some(values) = channel.as_f64() {
+                println!(
+                    "     Channel '{}': {} double values",
+                    channel_name,
+                    values.len()
+                );
+                println!("     Values: {:?}", values);
+            } else {
+                println!("     Channel '{}': no data or wrong type", channel_name);
             }
         }
     }

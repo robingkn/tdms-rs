@@ -6,6 +6,7 @@ use std::io::{Read, Seek};
 pub struct TdmsReader<R: Read + Seek> {
     reader: R,
     active_meta: std::collections::HashMap<String, crate::metadata::RawDataMeta>,
+    object_order: Vec<String>,
 }
 
 impl<R: Read + Seek> TdmsReader<R> {
@@ -13,6 +14,7 @@ impl<R: Read + Seek> TdmsReader<R> {
         Self {
             reader,
             active_meta: std::collections::HashMap::new(),
+            object_order: Vec::new(),
         }
     }
 
@@ -44,6 +46,7 @@ impl<R: Read + Seek> TdmsReader<R> {
         if mask.has_new_obj_list() {
             // Read number of objects
             let count = self.reader.read_u32::<LittleEndian>()?;
+            self.object_order.clear();
 
             for _ in 0..count {
                 // Read Object Path (String)
@@ -52,6 +55,8 @@ impl<R: Read + Seek> TdmsReader<R> {
                 self.reader.read_exact(&mut path_bytes)?;
                 let path_str =
                     String::from_utf8(path_bytes).map_err(|_| TdmsError::StringEncoding)?;
+                
+                self.object_order.push(path_str.clone());
 
                 // Read Raw Data Index
                 let raw_data_index = self.reader.read_u32::<LittleEndian>()?;
@@ -147,9 +152,23 @@ impl<R: Read + Seek> TdmsReader<R> {
                     raw_data_index,
                     properties,
                     raw_data_meta,
+                    data_location: None,
                     data: None, // Will be filled below
                 });
             }
+        } else {
+            // Reuse object list if it exists and has raw data
+            for path_str in &self.object_order {
+                objects.push(crate::metadata::ParsingMetadata {
+                    path: crate::metadata::ObjectPath::new(path_str.clone()),
+                    raw_data_index: 0,
+                    properties: std::collections::HashMap::new(),
+                    raw_data_meta: None,
+                    data_location: None,
+                    data: None,
+                });
+            }
+        }
 
             // Parse Raw Data
             // RawDataOffset is relative to the segment payload (Start + 28).
@@ -159,9 +178,7 @@ impl<R: Read + Seek> TdmsReader<R> {
             // Dump at 0x79: 05 00 00 00 (Offset 5).
             // This is correct.
 
-            let raw_data_start_pos = start_pos + 28 + raw_data_offset;
-            self.reader
-                .seek(std::io::SeekFrom::Start(raw_data_start_pos))?;
+            let mut current_raw_offset = start_pos + 28 + raw_data_offset;
 
             for obj in &mut objects {
                 let path_str = obj.path.raw.clone();
@@ -171,66 +188,56 @@ impl<R: Read + Seek> TdmsReader<R> {
                     self.active_meta.insert(path_str.clone(), meta.clone());
 
                     if meta.number_of_values > 0 {
-                        // Read data based on type and count
-                        let data = crate::datatypes::read_raw_data(
-                            &mut self.reader,
-                            &meta.data_type,
-                            meta.number_of_values,
-                            meta.total_size_bytes,
-                        )?;
-                        obj.data = Some(data);
-                    } else {
-                        // Count is 0, but meta is present. Should we set empty data?
-                        // Yes, to match Golden JSON which expects specific types (e.g. [])
-                        // We need a helper to create empty TdmsData from DataType
-                        // usage: create_empty_data(meta.data_type)
-                        let data = crate::datatypes::create_empty_data(&meta.data_type);
-                        if let Ok(d) = data {
-                            obj.data = Some(d);
-                        }
+                        // Record location instead of reading
+                        let size = if let Some(s) = meta.data_type.size_of() {
+                            s * meta.number_of_values
+                        } else {
+                            // String or Void
+                            meta.total_size_bytes.unwrap_or(0)
+                        };
+
+                        obj.data_location = Some(crate::metadata::DataLocation {
+                            offset: current_raw_offset,
+                            number_of_values: meta.number_of_values,
+                            data_type: meta.data_type.clone(),
+                            total_size_bytes: meta.total_size_bytes,
+                        });
+
+                        current_raw_offset += size;
                     }
                 } else if obj.raw_data_index == 0 {
                     // Use cached meta if available
                     if let Some(meta) = self.active_meta.get(&path_str) {
                         if meta.number_of_values > 0 {
-                            let data = crate::datatypes::read_raw_data(
-                                &mut self.reader,
-                                &meta.data_type,
-                                meta.number_of_values,
-                                meta.total_size_bytes,
-                            )?;
-                            obj.data = Some(data);
-                        } else {
-                            // Empty logic
-                            let data = crate::datatypes::create_empty_data(&meta.data_type);
-                            if let Ok(d) = data {
-                                obj.data = Some(d);
-                            }
+                            let size = if let Some(s) = meta.data_type.size_of() {
+                                s * meta.number_of_values
+                            } else {
+                                // String or Void
+                                meta.total_size_bytes.unwrap_or(0)
+                            };
+
+                            obj.data_location = Some(crate::metadata::DataLocation {
+                                offset: current_raw_offset,
+                                number_of_values: meta.number_of_values,
+                                data_type: meta.data_type.clone(),
+                                total_size_bytes: meta.total_size_bytes,
+                            });
+
+                            current_raw_offset += size;
                         }
-                    } else {
-                        // Warning: Index 0 but no previous meta?
-                        // Maybe it's a new channel without data?
-                        // Ignore
                     }
                 }
             }
-        }
 
-        if next_segment_offset != 0xFFFFFFFFFFFFFFFF {
-            let target_pos = start_pos + 28 + next_segment_offset;
-            let current_pos = self.reader.stream_position()?;
+        let target_pos = if next_segment_offset != 0xFFFFFFFFFFFFFFFF {
+            start_pos + 28 + next_segment_offset
+        } else {
+            current_raw_offset
+        };
 
-            if current_pos < target_pos {
-                self.reader.seek(std::io::SeekFrom::Start(target_pos))?;
-            } else if current_pos > target_pos {
-                eprintln!(
-                    "WARNING: Read past segment end! Current: {}, Target: {}",
-                    current_pos, target_pos
-                );
-                // Seek back? Or assume offset was wrong?
-                // Usually safer to trust offset if available
-                self.reader.seek(std::io::SeekFrom::Start(target_pos))?;
-            }
+        let current_pos = self.reader.stream_position()?;
+        if current_pos != target_pos {
+            self.reader.seek(std::io::SeekFrom::Start(target_pos))?;
         }
 
         Ok(Segment {

@@ -29,6 +29,38 @@ pub enum DataType {
     // extended types later
 }
 
+impl DataType {
+    pub fn size_of(&self) -> Option<u64> {
+        match self {
+            DataType::I8 | DataType::U8 | DataType::Boolean => Some(1),
+            DataType::I16 | DataType::U16 => Some(2),
+            DataType::I32 | DataType::U32 | DataType::SingleFloat => Some(4),
+            DataType::I64 | DataType::U64 | DataType::DoubleFloat => Some(8),
+            DataType::TimeStamp => Some(16),
+            DataType::String | DataType::Void => None,
+        }
+    }
+
+    pub fn type_name_static(&self) -> &'static str {
+        match self {
+            DataType::I8 => "I8",
+            DataType::I16 => "I16",
+            DataType::I32 => "I32",
+            DataType::I64 => "I64",
+            DataType::U8 => "U8",
+            DataType::U16 => "U16",
+            DataType::U32 => "U32",
+            DataType::U64 => "U64",
+            DataType::SingleFloat => "Float",
+            DataType::DoubleFloat => "Double",
+            DataType::String => "String",
+            DataType::Boolean => "Boolean",
+            DataType::TimeStamp => "TimeStamp",
+            DataType::Void => "Void",
+        }
+    }
+}
+
 /// Property values stored as metadata in TDMS files.
 ///
 /// Properties provide metadata about files, groups, and channels. They are stored

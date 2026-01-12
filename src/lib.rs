@@ -56,11 +56,12 @@ pub mod reader;
 pub mod segment;
 pub mod writer;
 
-use crate::error::Result;
+use crate::error::{Result, TdmsError};
 use crate::reader::TdmsReader;
 use std::fs::File;
-use std::io::BufReader;
-use std::path::Path;
+use std::io::{BufReader, Seek};
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use indexmap::IndexMap;
 
@@ -172,6 +173,9 @@ pub struct TdmsFile {
     /// For example, a path like `/'Sensors'/'Temperature'` creates a group named "Sensors"
     /// containing a channel named "Temperature".
     pub groups: IndexMap<String, TdmsGroup>,
+
+    /// The path to the file on disk, used for lazy loading.
+    pub(crate) _file_path: Option<PathBuf>,
 }
 
 pub use crate::datatypes::{PropertyValue, TdmsData};
@@ -262,6 +266,11 @@ pub struct TdmsChannel {
     /// When present, data is stored in a type-safe enum that preserves the original
     /// TDMS data type (integers, floats, strings, timestamps, etc.).
     pub data: Option<TdmsData>,
+
+    pub(crate) data_locations: Vec<crate::metadata::DataLocation>,
+    pub(crate) file_path: Option<PathBuf>,
+    pub(crate) cache: OnceLock<TdmsData>,
+    pub(crate) data_type: Option<crate::datatypes::DataType>,
 }
 
 impl Default for TdmsGroup {
@@ -307,118 +316,136 @@ impl TdmsGroup {
 
 impl Default for TdmsChannel {
     fn default() -> Self {
-        Self::new()
+        Self::new("")
     }
 }
 
 impl TdmsChannel {
     /// Create a new empty channel.
-    pub fn new() -> Self {
+    pub fn new(name: impl Into<String>) -> Self {
+        let _unused_name = name.into();
         Self {
             properties: IndexMap::new(),
             data: None,
+            data_locations: Vec::new(),
+            file_path: None,
+            cache: OnceLock::new(),
+            data_type: None,
         }
     }
     /// Get channel data as f64 slice if the data type is Double.
     pub fn as_f64(&self) -> Option<&[f64]> {
-        match &self.data {
-            Some(TdmsData::Double(values)) => Some(values),
+        let data = self.ensure_data_loaded().ok()?;
+        match data {
+            TdmsData::Double(values) => Some(values),
             _ => None,
         }
     }
 
     /// Get channel data as f32 slice if the data type is Float.
     pub fn as_f32(&self) -> Option<&[f32]> {
-        match &self.data {
-            Some(TdmsData::Float(values)) => Some(values),
+        let data = self.ensure_data_loaded().ok()?;
+        match data {
+            TdmsData::Float(values) => Some(values),
             _ => None,
         }
     }
 
     /// Get channel data as i32 slice if the data type is I32.
     pub fn as_i32(&self) -> Option<&[i32]> {
-        match &self.data {
-            Some(TdmsData::I32(values)) => Some(values),
+        let data = self.ensure_data_loaded().ok()?;
+        match data {
+            TdmsData::I32(values) => Some(values),
             _ => None,
         }
     }
 
     /// Get channel data as String slice if the data type is String.
     pub fn as_string(&self) -> Option<&[String]> {
-        match &self.data {
-            Some(TdmsData::String(values)) => Some(values),
+        let data = self.ensure_data_loaded().ok()?;
+        match data {
+            TdmsData::String(values) => Some(values),
             _ => None,
         }
     }
 
     /// Get channel data as i8 slice if the data type is I8.
     pub fn as_i8(&self) -> Option<&[i8]> {
-        match &self.data {
-            Some(TdmsData::I8(values)) => Some(values),
+        let data = self.ensure_data_loaded().ok()?;
+        match data {
+            TdmsData::I8(values) => Some(values),
             _ => None,
         }
     }
 
     /// Get channel data as i16 slice if the data type is I16.
     pub fn as_i16(&self) -> Option<&[i16]> {
-        match &self.data {
-            Some(TdmsData::I16(values)) => Some(values),
+        let data = self.ensure_data_loaded().ok()?;
+        match data {
+            TdmsData::I16(values) => Some(values),
             _ => None,
         }
     }
 
     /// Get channel data as i64 slice if the data type is I64.
     pub fn as_i64(&self) -> Option<&[i64]> {
-        match &self.data {
-            Some(TdmsData::I64(values)) => Some(values),
+        let data = self.ensure_data_loaded().ok()?;
+        match data {
+            TdmsData::I64(values) => Some(values),
             _ => None,
         }
     }
 
     /// Get channel data as u8 slice if the data type is U8.
     pub fn as_u8(&self) -> Option<&[u8]> {
-        match &self.data {
-            Some(TdmsData::U8(values)) => Some(values),
+        let data = self.ensure_data_loaded().ok()?;
+        match data {
+            TdmsData::U8(values) => Some(values),
             _ => None,
         }
     }
 
     /// Get channel data as u16 slice if the data type is U16.
     pub fn as_u16(&self) -> Option<&[u16]> {
-        match &self.data {
-            Some(TdmsData::U16(values)) => Some(values),
+        let data = self.ensure_data_loaded().ok()?;
+        match data {
+            TdmsData::U16(values) => Some(values),
             _ => None,
         }
     }
 
     /// Get channel data as u32 slice if the data type is U32.
     pub fn as_u32(&self) -> Option<&[u32]> {
-        match &self.data {
-            Some(TdmsData::U32(values)) => Some(values),
+        let data = self.ensure_data_loaded().ok()?;
+        match data {
+            TdmsData::U32(values) => Some(values),
             _ => None,
         }
     }
 
     /// Get channel data as u64 slice if the data type is U64.
     pub fn as_u64(&self) -> Option<&[u64]> {
-        match &self.data {
-            Some(TdmsData::U64(values)) => Some(values),
+        let data = self.ensure_data_loaded().ok()?;
+        match data {
+            TdmsData::U64(values) => Some(values),
             _ => None,
         }
     }
 
     /// Get channel data as bool slice if the data type is Boolean.
     pub fn as_bool(&self) -> Option<&[bool]> {
-        match &self.data {
-            Some(TdmsData::Boolean(values)) => Some(values),
+        let data = self.ensure_data_loaded().ok()?;
+        match data {
+            TdmsData::Boolean(values) => Some(values),
             _ => None,
         }
     }
 
     /// Get channel data as timestamp slice if the data type is TimeStamp.
     pub fn as_timestamps(&self) -> Option<&[(i64, u64)]> {
-        match &self.data {
-            Some(TdmsData::TimeStamp(values)) => Some(values),
+        let data = self.ensure_data_loaded().ok()?;
+        match data {
+            TdmsData::TimeStamp(values) => Some(values),
             _ => None,
         }
     }
@@ -426,35 +453,107 @@ impl TdmsChannel {
     /// Convert any numeric data to f64 vector.
     /// Returns None if the data is not numeric.
     pub fn as_numeric(&self) -> Option<Vec<f64>> {
-        match &self.data {
-            Some(TdmsData::Double(values)) => Some(values.clone()),
-            Some(TdmsData::Float(values)) => Some(values.iter().map(|&v| v as f64).collect()),
-            Some(TdmsData::I8(values)) => Some(values.iter().map(|&v| v as f64).collect()),
-            Some(TdmsData::I16(values)) => Some(values.iter().map(|&v| v as f64).collect()),
-            Some(TdmsData::I32(values)) => Some(values.iter().map(|&v| v as f64).collect()),
-            Some(TdmsData::I64(values)) => Some(values.iter().map(|&v| v as f64).collect()),
-            Some(TdmsData::U8(values)) => Some(values.iter().map(|&v| v as f64).collect()),
-            Some(TdmsData::U16(values)) => Some(values.iter().map(|&v| v as f64).collect()),
-            Some(TdmsData::U32(values)) => Some(values.iter().map(|&v| v as f64).collect()),
-            Some(TdmsData::U64(values)) => Some(values.iter().map(|&v| v as f64).collect()),
+        let data = self.ensure_data_loaded().ok()?;
+        match data {
+            TdmsData::Double(values) => Some(values.clone()),
+            TdmsData::Float(values) => Some(values.iter().map(|&v| v as f64).collect()),
+            TdmsData::I8(values) => Some(values.iter().map(|&v| v as f64).collect()),
+            TdmsData::I16(values) => Some(values.iter().map(|&v| v as f64).collect()),
+            TdmsData::I32(values) => Some(values.iter().map(|&v| v as f64).collect()),
+            TdmsData::I64(values) => Some(values.iter().map(|&v| v as f64).collect()),
+            TdmsData::U8(values) => Some(values.iter().map(|&v| v as f64).collect()),
+            TdmsData::U16(values) => Some(values.iter().map(|&v| v as f64).collect()),
+            TdmsData::U32(values) => Some(values.iter().map(|&v| v as f64).collect()),
+            TdmsData::U64(values) => Some(values.iter().map(|&v| v as f64).collect()),
             _ => None,
         }
     }
 
     /// Get the number of data samples in this channel.
     pub fn data_len(&self) -> usize {
-        match &self.data {
-            Some(data) => data.len(),
-            None => 0,
+        if let Some(data) = &self.data {
+            data.len()
+        } else if let Some(data) = self.cache.get() {
+            data.len()
+        } else {
+            self.data_locations
+                .iter()
+                .map(|loc| loc.number_of_values as usize)
+                .sum()
         }
     }
 
     /// Get a human-readable name for the data type.
     pub fn data_type_name(&self) -> Option<&'static str> {
-        match &self.data {
-            Some(data) => Some(data.type_name()),
-            None => None,
+        if let Some(data) = &self.data {
+            Some(data.type_name())
+        } else if let Some(data) = self.cache.get() {
+            Some(data.type_name())
+        } else {
+            self.data_locations.first().map(|loc| loc.data_type.type_name_static())
         }
+    }
+
+    /// Ensures the channel data is loaded from disk.
+    /// This is called automatically by data accessors.
+    pub fn ensure_data_loaded(&self) -> Result<&TdmsData> {
+        if let Some(data) = &self.data {
+            return Ok(data);
+        }
+
+        if let Some(data) = self.cache.get() {
+            return Ok(data);
+        }
+
+        let path = self.file_path.as_ref().ok_or(TdmsError::Io(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "File path not set for lazy loading",
+        )))?;
+
+        let file = File::open(path)?;
+        let mut reader = BufReader::new(file);
+
+        let mut aggregated_data: Option<TdmsData> = None;
+
+        for loc in &self.data_locations {
+            reader.seek(std::io::SeekFrom::Start(loc.offset))?;
+            let data = crate::datatypes::read_raw_data(
+                &mut reader,
+                &loc.data_type,
+                loc.number_of_values,
+                loc.total_size_bytes,
+            )?;
+
+            if let Some(existing) = &mut aggregated_data {
+                existing.extend(data)?;
+            } else {
+                aggregated_data = Some(data);
+            }
+        }
+
+        let data = if let Some(d) = aggregated_data {
+            d
+        } else {
+            // No data locations or all were empty. Use data_type if available.
+            let dt = self.data_type.as_ref().or_else(|| {
+                self.data_locations.first().map(|loc| &loc.data_type)
+            });
+            
+            if let Some(dt) = dt {
+                crate::datatypes::create_empty_data(dt)?
+            } else {
+                return Err(TdmsError::Io(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    "No data found for channel and data type unknown",
+                )));
+            }
+        };
+
+        // Try to initialize. If someone else beat us to it, that's fine.
+        let _ = self.cache.set(data);
+
+        // Return the reference from the cache
+        Ok(self.cache.get().unwrap())
     }
 
     // Property helpers for common TDMS properties
@@ -633,6 +732,7 @@ impl TdmsFile {
         Self {
             properties: IndexMap::new(),
             groups: IndexMap::new(),
+            _file_path: None,
         }
     }
 
@@ -782,14 +882,17 @@ impl TdmsFile {
                                 .or_insert(TdmsChannel {
                                     properties: IndexMap::new(),
                                     data: None,
+                                    data_locations: Vec::new(),
+                                    file_path: Some(path.to_path_buf()),
+                                    cache: OnceLock::new(),
+                                    data_type: None,
                                 });
                         channel.properties.extend(obj.properties);
-                        if let Some(new_data) = obj.data {
-                            if let Some(existing_data) = &mut channel.data {
-                                existing_data.extend(new_data)?;
-                            } else {
-                                channel.data = Some(new_data);
-                            }
+                        if let Some(loc) = obj.data_location {
+                            channel.data_locations.push(loc);
+                        }
+                        if let Some(meta) = obj.raw_data_meta {
+                            channel.data_type = Some(meta.data_type);
                         }
                     } else {
                         // Group properties
@@ -806,6 +909,7 @@ impl TdmsFile {
         Ok(Self {
             properties: file_properties,
             groups,
+            _file_path: Some(path.to_path_buf()),
         })
     }
 }

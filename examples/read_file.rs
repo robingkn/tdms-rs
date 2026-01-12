@@ -34,9 +34,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // List channels in this group
         for (channel_name, channel) in &group.channels {
-            let data_info = match &channel.data {
-                Some(data) => format!("{} samples", get_data_len(data)),
-                None => "no data".to_string(),
+            let data_info = if channel.data_len() > 0 {
+                format!(
+                    "{} samples ({})",
+                    channel.data_len(),
+                    channel.data_type_name().unwrap_or("unknown")
+                )
+            } else {
+                "no data".to_string()
             };
             println!(
                 "   📊 Channel '{}': {} properties, {}",
@@ -49,23 +54,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n✅ File structure displayed successfully!");
     Ok(())
-}
-
-/// Helper function to get the number of data points in TdmsData
-fn get_data_len(data: &tdms_rs::TdmsData) -> usize {
-    match data {
-        tdms_rs::TdmsData::I8(v) => v.len(),
-        tdms_rs::TdmsData::I16(v) => v.len(),
-        tdms_rs::TdmsData::I32(v) => v.len(),
-        tdms_rs::TdmsData::I64(v) => v.len(),
-        tdms_rs::TdmsData::U8(v) => v.len(),
-        tdms_rs::TdmsData::U16(v) => v.len(),
-        tdms_rs::TdmsData::U32(v) => v.len(),
-        tdms_rs::TdmsData::U64(v) => v.len(),
-        tdms_rs::TdmsData::Float(v) => v.len(),
-        tdms_rs::TdmsData::Double(v) => v.len(),
-        tdms_rs::TdmsData::String(v) => v.len(),
-        tdms_rs::TdmsData::Boolean(v) => v.len(),
-        tdms_rs::TdmsData::TimeStamp(v) => v.len(),
-    }
 }

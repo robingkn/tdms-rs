@@ -159,26 +159,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         for (channel_name, channel) in &group.channels {
             println!("     Channel: {}", channel_name);
 
-            if let Some(data) = &channel.data {
-                match data {
-                    tdms_rs::TdmsData::Double(values) => {
-                        println!("       Data: {} double values", values.len());
-                    }
-                    tdms_rs::TdmsData::Float(values) => {
-                        println!("       Data: {} float values", values.len());
-                    }
-                    tdms_rs::TdmsData::I32(values) => {
-                        println!("       Data: {} i32 values", values.len());
-                    }
-                    tdms_rs::TdmsData::String(values) => {
-                        println!("       Data: {} string values", values.len());
-                    }
-                    tdms_rs::TdmsData::Boolean(values) => {
-                        println!("       Data: {} boolean values", values.len());
-                    }
-                    _ => println!("       Data: {:?}", data),
-                }
-            }
+            println!("       Data: {} samples ({})", 
+                channel.data_len(), 
+                channel.data_type_name().unwrap_or("None")
+            );
 
             // Display channel properties
             if !channel.properties.is_empty() {

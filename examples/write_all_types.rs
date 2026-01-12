@@ -306,44 +306,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Show channel summary
         for (channel_name, channel) in &group.channels {
-            if let Some(data) = &channel.data {
-                let type_name = match data {
-                    tdms_rs::TdmsData::I8(_) => "I8",
-                    tdms_rs::TdmsData::I16(_) => "I16",
-                    tdms_rs::TdmsData::I32(_) => "I32",
-                    tdms_rs::TdmsData::I64(_) => "I64",
-                    tdms_rs::TdmsData::U8(_) => "U8",
-                    tdms_rs::TdmsData::U16(_) => "U16",
-                    tdms_rs::TdmsData::U32(_) => "U32",
-                    tdms_rs::TdmsData::U64(_) => "U64",
-                    tdms_rs::TdmsData::Float(_) => "Float",
-                    tdms_rs::TdmsData::Double(_) => "Double",
-                    tdms_rs::TdmsData::Boolean(_) => "Boolean",
-                    tdms_rs::TdmsData::String(_) => "String",
-                    tdms_rs::TdmsData::TimeStamp(_) => "TimeStamp",
-                };
-
-                let count = match data {
-                    tdms_rs::TdmsData::I8(v) => v.len(),
-                    tdms_rs::TdmsData::I16(v) => v.len(),
-                    tdms_rs::TdmsData::I32(v) => v.len(),
-                    tdms_rs::TdmsData::I64(v) => v.len(),
-                    tdms_rs::TdmsData::U8(v) => v.len(),
-                    tdms_rs::TdmsData::U16(v) => v.len(),
-                    tdms_rs::TdmsData::U32(v) => v.len(),
-                    tdms_rs::TdmsData::U64(v) => v.len(),
-                    tdms_rs::TdmsData::Float(v) => v.len(),
-                    tdms_rs::TdmsData::Double(v) => v.len(),
-                    tdms_rs::TdmsData::Boolean(v) => v.len(),
-                    tdms_rs::TdmsData::String(v) => v.len(),
-                    tdms_rs::TdmsData::TimeStamp(v) => v.len(),
-                };
-
-                println!(
-                    "       Channel '{}': {} {} values",
-                    channel_name, count, type_name
-                );
-            }
+            println!(
+                "       Channel '{}': {} {} values",
+                channel_name,
+                channel.data_len(),
+                channel.data_type_name().unwrap_or("None")
+            );
         }
     }
 

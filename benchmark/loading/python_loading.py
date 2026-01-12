@@ -38,7 +38,7 @@ def run_python_benchmark(filename):
     with TdmsFile.read(filename) as tdms_file:
         t_open = time.perf_counter() - t0
         mem_after_open = get_memory_usage_mb()
-        print(f"Memory after TdmsFile.read(): {mem_after_open:.2f} MB (Δ {mem_after_open - mem_init:.2f} MB)")
+        print(f"Memory after TdmsFile.read(): {mem_after_open:.2f} MB (Delta {mem_after_open - mem_init:.2f} MB)")
         print(f"Open Time: {t_open:.4f}s")
         
         # 3. Access Data
@@ -49,7 +49,7 @@ def run_python_benchmark(filename):
         t_access = time.perf_counter() - t1
         
         mem_after_access = get_memory_usage_mb()
-        print(f"Memory after channel[:]: {mem_after_access:.2f} MB (Δ {mem_after_access - mem_after_open:.2f} MB)")
+        print(f"Memory after channel[:]: {mem_after_access:.2f} MB (Delta {mem_after_access - mem_after_open:.2f} MB)")
         print(f"Access Time: {t_access:.4f}s")
         print(f"Data Samples: {len(data)}")
 
