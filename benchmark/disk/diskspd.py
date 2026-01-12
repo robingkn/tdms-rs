@@ -64,18 +64,13 @@ def run_disk_benchmark(config):
              print(f"[WARNING] {diskspd_exe} not found. Skipping disk benchmark.")
              return None, None
 
-    # Calculate number of 1MB blocks for fixed-size IO
+    # Calculate number of 1 MiB blocks (1,048,576 bytes) for fixed-size IO.
+    # 1 MiB is a multiple of 4096, which satisfies Windows sector alignment 
+    # requirements for unbuffered I/O (-Sh).
     # 1 GB = 1,000,000,000 bytes. 
     # nptdms/tdms-rs use 125M samples * 8 = 1,000,000,000 bytes.
-    # diskspd -b1M uses 1024*1024 = 1,048,576 bytes.
-    # To get as close to 10^9 as possible: 10^9 / 1048576 = 953.67 blocks.
-    # We will use 1000 blocks of 1,000,000 bytes if diskspd supports it, 
-    # but diskspd -b usually expects power of 2.
-    # Let's use -b1000000 if possible, or just accept the tiny MiB/MB diff 
-    # and normalize carefully.
-    
-    # Use -b1M (1,048,576 bytes) and -n 954 blocks ~= 1,000,344,064 bytes
-    n_blocks = int((file_size_gb * 1e9) / (1024 * 1024))
+    block_size = 1048576
+    n_blocks = int((file_size_gb * 1e9) / block_size)
     
     def run_trial(mode):
         times = []
@@ -97,12 +92,20 @@ def run_disk_benchmark(config):
             if mode == 'write':
                 # Re-create file every time to be fair with library cold-create
                 if os.path.exists(bench_file): os.remove(bench_file)
-                cmd = [diskspd_exe, f"-c{int(file_size_gb * 1000)}M", "-b1M", f"-n{n_blocks}", "-o1", "-t1", "-w100", "-Sh", "-D", "-L", bench_file]
+                # -Sh: Software cache disabled (unbuffered).
+                # -D: Hardware cache/write-through.
+                # Alignment required: block_size must be a multiple of volume sector size.
+                cmd = [diskspd_exe, f"-c{int(file_size_gb * 1000)}M", f"-b{block_size}", f"-n{n_blocks}", "-o1", "-t1", "-w100", "-Sh", "-D", "-L", bench_file]
             else:
-                cmd = [diskspd_exe, "-b1M", f"-n{n_blocks}", "-o1", "-t1", "-w0", "-Sh", "-D", "-L", bench_file]
+                cmd = [diskspd_exe, f"-b{block_size}", f"-n{n_blocks}", "-o1", "-t1", "-w0", "-Sh", "-D", "-L", bench_file]
             
             res = run_command(cmd)
-            gb_s = parse_diskspd_throughput(res.stdout)
+            if res.returncode != 0:
+                print(f"{mode.capitalize()} {prefix}: COMMAND FAILED (code {res.returncode})")
+                if res.stderr: print(f"Error: {res.stderr.strip()}")
+                gb_s = None
+            else:
+                gb_s = parse_diskspd_throughput(res.stdout)
             
             if not is_warmup and gb_s:
                 times.append(gb_s)

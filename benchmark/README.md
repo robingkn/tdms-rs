@@ -52,5 +52,18 @@ This exceeds typical CPU L3 cache sizes to test main memory/disk throughput.
 
 ## Interpreting Results
 
-- **> 100%:** May indicate OS caching effects (if not strictly disabled) or compression (if enabled, currently disabled).
+- **> 100%:** May indicate residual OS caching effects or hardware compression.
 - **< 100%:** Indicates library overhead (serialization, buffer management, UTF-8 validation, etc.).
+
+## Methodology Notes
+
+### Baseline Alignment & Unbuffered I/O
+The disk baseline uses **unbuffered I/O (-Sh)** to bypass the OS page cache and measure true hardware throughput.
+- **Sector Alignment:** On Windows, unbuffered I/O requires sector-aligned block sizes. We use **1 MiB blocks** (1,048,576 bytes) to satisfy this requirement.
+- **File Size:** We adjust the number of blocks to match the library data volume (~1,000,000,000 bytes) as closely as possible per GB.
+- **Comparison:** Libraries use buffered I/O (evicted via clobbering) to represent realistic user-space library performance, while the disk baseline represents raw hardware potential without OS readahead artifacts.
+
+### Library Overhead & Materialization
+- **Rust (tdms-rs):** The benchmark uses `TdmsFile::load`, which eagerly parses all metadata and reads all data into memory. This captures the complete I/O path.
+- **Python (nptdms):** The benchmark uses `channel[:]`, which triggers the bulk read and conversion to a NumPy array.
+- **Clobbering:** The 4× file-size memory clobbering technique (e.g., 4 GB clobber for 1 GB file) is used to ensure cold-cache reads for all three paths.

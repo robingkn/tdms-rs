@@ -53,6 +53,49 @@ def print_header(title):
     print(f" {title}")
     print("="*50)
 
+def get_total_ram_gb():
+    """
+    Detects total system RAM in GB.
+    """
+    try:
+        import psutil
+        return psutil.virtual_memory().total / 1e9
+    except ImportError:
+        if platform.system() == "Windows":
+            try:
+                import ctypes
+                class MEMORYSTATUSEX(ctypes.Structure):
+                    _fields_ = [
+                        ("dwLength", ctypes.c_ulong),
+                        ("dwMemoryLoad", ctypes.c_ulong),
+                        ("ullTotalPhys", ctypes.c_ulonglong),
+                        ("ullAvailPhys", ctypes.c_ulonglong),
+                        ("ullTotalPageFile", ctypes.c_ulonglong),
+                        ("ullAvailPageFile", ctypes.c_ulonglong),
+                        ("ullTotalVirtual", ctypes.c_ulonglong),
+                        ("ullAvailVirtual", ctypes.c_ulonglong),
+                        ("sullAvailExtendedVirtual", ctypes.c_ulonglong),
+                    ]
+                stat = MEMORYSTATUSEX()
+                stat.dwLength = ctypes.sizeof(stat)
+                ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat))
+                return stat.ullTotalPhys / 1e9
+            except:
+                pass
+            try:
+                # wmic computersystem get totalphysicalmemory
+                res = subprocess.run(["wmic", "computersystem", "get", "totalphysicalmemory"], capture_output=True, text=True)
+                # Parse output like: 
+                # TotalPhysicalMemory
+                # 34241335296
+                for line in res.stdout.splitlines():
+                    clean = "".join(filter(str.isdigit, line))
+                    if clean:
+                        return int(clean) / 1e9
+            except:
+                pass
+    return None
+
 def run_command(cmd, cwd=None, capture_output=True):
     try:
         # result = subprocess.run(cmd, cwd=cwd, capture_output=capture_output, text=True, check=False)
@@ -74,7 +117,12 @@ def main():
         sys.exit(1)
         
     config = load_config(config_path)
-    print(f"Configuration loaded: {config['file_size_gb']} GB, {config['samples']} samples\n")
+    ram_gb = get_total_ram_gb()
+    print(f"Configuration loaded: {config['file_size_gb']} GB, {config['samples']} samples")
+    if ram_gb:
+        print(f"System RAM detected: {ram_gb:.1f} GB\n")
+    else:
+        print("System RAM detection failed.\n")
 
     # Ensure directories
     os.makedirs(config['paths']['results_dir'], exist_ok=True)
@@ -166,7 +214,7 @@ def main():
             py_res = None
 
     # 4. Generate Report
-    generate_report(config, disk_write, disk_read, rust_res, py_res)
+    generate_report(config, disk_write, disk_read, rust_res, py_res, ram_gb)
     
     # Cleanup data files if needed?
     # User said "TDMS files are generated per run and deleted (or reused)". 
@@ -178,7 +226,7 @@ def main():
         except:
             pass
 
-def generate_report(config, disk_write, disk_read, rust_res, py_res):
+def generate_report(config, disk_write, disk_read, rust_res, py_res, ram_gb):
     print_header("BENCHMARK REPORT")
     
     paths = config['paths']
@@ -207,6 +255,11 @@ def generate_report(config, disk_write, disk_read, rust_res, py_res):
     results = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "config": config,
+        "system": {
+            "platform": platform.platform(),
+            "cpu": platform.processor(),
+            "ram_gb": ram_gb
+        },
         "disk": {"write_gb_s": disk_write, "read_gb_s": disk_read},
         "nptdms": py_res,
         "tdms_rs": rust_res
@@ -217,11 +270,13 @@ def generate_report(config, disk_write, disk_read, rust_res, py_res):
         
     print(f"\nJSON results saved to {json_path}")
     
+    ram_str = f"{ram_gb:.1f} GB" if ram_gb is not None else "Unknown"
+    
     # Markdown Output
     md = f"""# TDMS Benchmark Results (Cold-Cache)
     
 **Date:** {results['timestamp']}
-**System:** {platform.system()} {platform.release()} {platform.processor()}
+**System:** {platform.system()} {platform.release()} ({ram_str} RAM)
 **File Size:** {config['file_size_gb']} GB
 **Conditions:** Cold-cache sequential I/O under memory pressure.
 
