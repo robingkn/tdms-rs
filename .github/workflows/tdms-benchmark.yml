@@ -38,6 +38,12 @@ jobs:
         run: |
           python run.py
 
+      # Render summary in GHA UI
+      - name: Render Summary in GitHub Actions UI
+        shell: bash
+        run: |
+          cat summary.md >> $GITHUB_STEP_SUMMARY
+
       # Upload reports as artifact
       - name: Upload Benchmark Reports
         uses: actions/upload-artifact@v3
