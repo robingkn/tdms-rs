@@ -359,7 +359,6 @@ impl TdmsFileWriter {
         Ok(metadata)
     }
 
-
     fn write_object_metadata<W: Write>(
         &self,
         writer: &mut W,
