@@ -4,6 +4,12 @@ import sys
 import argparse
 import json
 import numpy as np
+import os
+import sys
+
+# Add benchmark directory to path to import utils
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils import clobber_cache
 from nptdms import TdmsFile, TdmsWriter, ChannelObject, GroupObject
 
 # Configuration
@@ -73,11 +79,15 @@ def run_write_benchmark(filename, sample_count, iterations, warmup, silent=False
         if os.path.exists(filename):
             os.remove(filename)
             
+        clobber_cache(data_size_gb)
         t0 = time.perf_counter()
         
         with TdmsWriter(filename) as tdms_writer:
             channel = ChannelObject("Group1", "Channel1", data)
             tdms_writer.write_segment([channel])
+            # Ensure OS flush
+            tdms_writer._file.flush()
+            os.fsync(tdms_writer._file.fileno())
             
         dt = time.perf_counter() - t0
         
@@ -111,6 +121,7 @@ def run_read_benchmark(filename, sample_count, iterations, warmup, silent=False)
         is_warmup = (i < warmup)
         prefix = "WARMUP" if is_warmup else f"RUN {i - warmup}"
         
+        clobber_cache(data_size_gb)
         t0 = time.perf_counter()
         
         with TdmsFile.read(filename) as tdms_file:

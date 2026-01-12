@@ -9,3 +9,8 @@ venv/
 /benchmark/data/*
 /benchmark/results/*
 !/benchmark/data/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class

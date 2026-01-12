@@ -122,7 +122,10 @@ def main():
             rust_res = None
         else:
             try:
-                rust_res = json.loads(res.stdout)
+                # Find the last line that looks like JSON
+                lines = res.stdout.strip().splitlines()
+                json_line = lines[-1]
+                rust_res = json.loads(json_line)
                 print(f"Write: {rust_res['write_gb_s']:.2f} GB/s")
                 print(f"Read:  {rust_res['read_gb_s']:.2f} GB/s")
             except Exception as e:
@@ -151,7 +154,10 @@ def main():
         py_res = None
     else:
         try:
-            py_res = json.loads(res.stdout)
+            # Find the last line that looks like JSON
+            lines = res.stdout.strip().splitlines()
+            json_line = lines[-1]
+            py_res = json.loads(json_line)
             print(f"Write: {py_res['write_gb_s']:.2f} GB/s")
             print(f"Read:  {py_res['read_gb_s']:.2f} GB/s")
         except Exception as e:
@@ -212,11 +218,12 @@ def generate_report(config, disk_write, disk_read, rust_res, py_res):
     print(f"\nJSON results saved to {json_path}")
     
     # Markdown Output
-    md = f"""# TDMS Benchmark Results
+    md = f"""# TDMS Benchmark Results (Cold-Cache)
     
 **Date:** {results['timestamp']}
 **System:** {platform.system()} {platform.release()} {platform.processor()}
 **File Size:** {config['file_size_gb']} GB
+**Conditions:** Cold-cache sequential I/O under memory pressure.
 
 | Operation | Disk (GB/s) | nptdms (GB/s) | nptdms % | tdms-rs (GB/s) | tdms-rs % |
 |-----------|-------------|---------------|----------|----------------|-----------|
@@ -224,10 +231,12 @@ def generate_report(config, disk_write, disk_read, rust_res, py_res):
 | Read      | {fmt(disk_read)}  | {fmt(py_r)} | {pct(py_r, disk_read)}  | {fmt(rust_r)} | {pct(rust_r, disk_read)}  |
 
 ## Methodology
-- **Disk:** Sequential I/O using `diskspd` (Windows) or equivalent (Linux). Cache disabled.
-- **nptdms:** `numpy` array write/read.
-- **tdms-rs:** Rust `TdmsWriter`/`TdmsFile` generic write/read.
+- **Memory Clobbering:** Before every measured iteration, ~4GB of RAM is allocated and touched to evict the OS page cache.
+- **Disk:** Sequential I/O using `diskspd` (Windows). OS caching enabled but evicted via clobber.
+- **nptdms:** `numpy` array write/read. Explicit `fsync()` after writes.
+- **tdms-rs:** Rust `TdmsWriter`/`TdmsFile` generic write/read. Explicit `sync_all()` after writes.
 - **Baseline:** Disk speed is 100%.
+- **Units:** All throughput is reported in decimal GB/s (10^9 bytes/s).
 """
     with open(summary_path, "w") as f:
         f.write(md)

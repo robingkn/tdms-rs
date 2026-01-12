@@ -21,6 +21,25 @@ struct BenchmarkResult {
     read_min_time: f64,
 }
 
+fn clobber_cache(file_size_gb: f64) {
+    let clobber_size_gb = file_size_gb * 4.0;
+    let n_bytes = (clobber_size_gb * 1_000_000_000.0) as usize;
+    
+    println!("[INFO] Clobbering cache: allocating {:.1} GB...", clobber_size_gb);
+    
+    let mut buf: Vec<u8> = vec![0; n_bytes];
+    
+    // Touch 1 byte per 4KB page
+    for i in (0..n_bytes).step_by(4096) {
+        unsafe {
+            std::ptr::write_volatile(buf.as_mut_ptr().add(i), 1);
+        }
+    }
+    
+    std::hint::black_box(&buf);
+    drop(buf);
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     let json_mode = args.contains(&"--json".to_string());
@@ -135,15 +154,16 @@ fn run_write_benchmark(file_name: &str, sample_count: usize, iterations: usize, 
             fs::remove_file(file_name)?;
         }
 
+        clobber_cache(size_gb);
+
         let start = Instant::now();
         
-        let mut writer = TdmsFileWriter::new(file_name);
-        let group = writer.add_group("BenchmarkGroup")?;
-        group.add_channel("BenchmarkChannel", TdmsData::Double(data.clone()))?;
-        writer.write()?;
-        
-        // sync_all is usually what TdmsFileWriter calls internally or we trust std::fs to flush on close/drop?
-        // tdms-rs `write()` calls `flush()`. To be extra safe we could try to sync directory, but simplest is trust write().
+        {
+            let mut writer = TdmsFileWriter::new(file_name);
+            let group = writer.add_group("BenchmarkGroup")?;
+            group.add_channel("BenchmarkChannel", TdmsData::Double(data.clone()))?;
+            writer.write()?;
+        }
         
         let duration = start.elapsed();
         let seconds = duration.as_secs_f64();
@@ -187,6 +207,8 @@ fn run_read_benchmark(file_name: &str, iterations: usize, warmup: usize, size_gb
             print!("Run {}: ", if is_warmup { "Warmup" } else { "Measure" });
             std::io::stdout().flush()?;
         }
+
+        clobber_cache(size_gb);
 
         let start = Instant::now();
         

@@ -22,18 +22,26 @@ python benchmark/run.py
 
 ## Methodology
 
-### 1. Raw Disk Baseline
-We measure raw sequential read and write performance of the disk to establish a 100% baseline.
+### 1. Cold-Cache via Memory Clobbering
+To ensure a fair comparison and avoid OS page-cache effects, we standardized all benchmarks to use memory clobbering. Before every measured iteration:
+- We allocate a buffer 4× the file size (~4 GB).
+- We touch one byte per 4 KB page to ensure physical pages are mapped.
+- We then drop the buffer. This pressure forces the OS to evict the TDMS file from the page cache.
+
+### 2. Raw Disk Baseline
+We measure raw sequential read and write performance of the disk.
 - Tool: `diskspd` (Windows).
-- Settings: Unbuffered I/O, 1MB block size, sequential access.
+- Settings: OS caching enabled (but evicted via clobber), 1MB block size, sequential access.
+- Units: All throughput is normalized to decimal GB/s ($10^9$ bytes/s).
 
-### 2. File Size
-Default: 1.0 GB (125,000,000 float64 samples).
-This size is chosen to be large enough to minimize startup overhead but small enough to run quickly. It also exceeds typical CPU L3 cache sizes to test main memory/disk throughput.
+### 3. File Size
+Default: 1.0 GB ($1,000,000,000$ bytes).
+This exceeds typical CPU L3 cache sizes to test main memory/disk throughput.
 
-### 3. Measurements
-- **Best-Time (Min):** We run multiple iterations (default 5 + 1 warmup) and take the *minimum* time (maximum speed). This reduces noise from background system processes.
+### 4. Measurements
+- **Best-Time (Min):** We run multiple iterations (default 5 + 1 warmup) and take the *minimum* time (maximum speed).
 - **Percentages:** Library performance is expressed as a percentage of raw disk bandwidth.
+- **Storage:** Writes are explicitly synced to disk (`fsync` / `sync_all`) before timing ends.
 
 ## Requirements
 

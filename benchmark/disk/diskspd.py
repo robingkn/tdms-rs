@@ -1,7 +1,12 @@
-import subprocess
+import sys
 import os
+import subprocess
 import shutil
 import platform
+
+# Ensure utils is importable
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils import clobber_cache
 
 def run_command(cmd, cwd=None, capture_output=True):
     try:
@@ -20,7 +25,7 @@ def run_command(cmd, cwd=None, capture_output=True):
 def parse_diskspd_throughput(output):
     """
     Parses diskspd output to extract throughput in GB/s.
-    Assumes diskspd output shows MB/s or MiB/s, we normalize to GB/s (10^9).
+    diskspd reports MiB/s ($1024^2$), we normalize to GB/s ($10^9$).
     """
     if not output: return None
     lines = output.splitlines()
@@ -29,11 +34,10 @@ def parse_diskspd_throughput(output):
             parts = line.split("|")
             if len(parts) >= 3:
                 try:
-                    # Diskspd usually reports in MB/s (10^6) or MiB/s.
-                    # We will treat the number as MB/s and convert to GB/s.
-                    # This is an approximation based on typical diskspd output.
-                    mb_s = float(parts[2].strip())
-                    return mb_s / 1000.0 
+                    mib_s = float(parts[2].strip())
+                    # Convert MiB/s to B/s then to GB/s (decimal)
+                    gb_s = (mib_s * 1024 * 1024) / 1e9
+                    return gb_s
                 except:
                     return None
     return None
@@ -44,6 +48,8 @@ def run_disk_benchmark(config):
     Returns a tuple (write_gb_s, read_gb_s).
     """
     bench_file = config['paths']['disk_bench_file']
+    file_size_gb = config['file_size_gb']
+    
     # Ensure directory exists
     os.makedirs(os.path.dirname(bench_file), exist_ok=True)
 
@@ -52,46 +58,36 @@ def run_disk_benchmark(config):
         return None, None
 
     diskspd_exe = "diskspd.exe"
-    # Check if diskspd is in PATH or in strict locations if needed
-    if not shutil.which(diskspd_exe) and not os.path.exists(diskspd_exe):
-         # Try looking in tools/ if it exists there, but user didn't specify tools/ location for diskspd.
-         # We will assume it's in PATH or current root.
-         pass
-    
     if not shutil.which(diskspd_exe) and not os.path.exists(diskspd_exe):
              print(f"[WARNING] {diskspd_exe} not found. Skipping disk benchmark.")
              return None, None
 
     # Write Test
-    print("Running Raw Disk Write Benchmark (No Cache)...")
-    # -c1G : Create 1GB file (using config logic if possible, but keep simple flags for robust CLI)
-    # We will use the file size from config if we can pass it to diskspd properly. 
-    # diskspd -c takes string like 1G, 100M.
-    size_param = f"-c{int(config['file_size_gb'] * 1024)}M" # Convert GB to MB for flag
+    print("Running Raw Disk Write Benchmark (Cold Cache via Clobber)...")
+    clobber_cache(file_size_gb)
     
-    # -b1M : 1MB block size
-    # -d5  : 5 seconds duration
-    # -o1  : Overlapping IOs
-    # -t1  : Threads
-    # -Sh  : Disable write/read caching
+    # -c1G: Create file
+    # -b1M: 1MB block size
+    # -d5: 5 seconds duration
+    # -o1: Overlapping IOs
+    # -t1: Threads
     # -w100: 100% Write
-    # -L   : Latency stats
+    # NO -Sh (Allow OS caching)
     
-    cmd_write = [diskspd_exe, size_param, "-b1M", "-d5", "-o1", "-t1", "-Sh", "-w100", "-L", bench_file]
+    size_param = f"-c{int(file_size_gb * 1000)}M" # Use decimal M for file creation if possible, but 1024M is fine for diskspd
+    cmd_write = [diskspd_exe, size_param, "-b1M", "-d5", "-o1", "-t1", "-w100", "-L", bench_file]
     res_write = run_command(cmd_write)
     write_gb_s = parse_diskspd_throughput(res_write.stdout)
     
     # Read Test
-    print("Running Raw Disk Read Benchmark (No Cache)...")
-    # -w0  : 0% Write (100% Read)
-    # No -c flag because file exists (though -c creates/recreates)
-    # diskspd creates file if not exists or if -c is provided.
-    # We can just reuse the file.
-    cmd_read = [diskspd_exe, "-b1M", "-d5", "-o1", "-t1", "-Sh", "-w0", "-L", bench_file]
+    print("Running Raw Disk Read Benchmark (Cold Cache via Clobber)...")
+    clobber_cache(file_size_gb)
+    
+    # -w0: 0% Write (100% Read)
+    cmd_read = [diskspd_exe, "-b1M", "-d5", "-o1", "-t1", "-w0", "-L", bench_file]
     res_read = run_command(cmd_read)
     read_gb_s = parse_diskspd_throughput(res_read.stdout)
     
-    # Cleanup only if needed, but per specs we clean up data
     if os.path.exists(bench_file):
         os.remove(bench_file)
         
