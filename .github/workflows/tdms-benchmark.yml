@@ -33,6 +33,21 @@ jobs:
           profile: minimal
           override: true
 
+      # Install DiskSpd if missing
+      - name: Install DiskSpd
+        shell: powershell
+        run: |
+          if (!(Get-Command diskspd.exe -ErrorAction SilentlyContinue)) {
+            Write-Host "DiskSpd not found. Downloading..."
+            Invoke-WebRequest -Uri "https://github.com/Microsoft/diskspd/releases/latest/download/DiskSpd.zip" -OutFile "DiskSpd.zip"
+            Expand-Archive -Path "DiskSpd.zip" -DestinationPath "DiskSpd"
+            $diskspd_dir = Join-Path (Get-Location).Path "DiskSpd\amd64"
+            Add-Content -Path $env:GITHUB_PATH -Value $diskspd_dir
+            Write-Host "DiskSpd installed to $diskspd_dir and added to PATH."
+          } else {
+            Write-Host "DiskSpd is already available."
+          }
+
       # Run the benchmark
       - name: Run TDMS Benchmark
         run: |
