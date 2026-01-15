@@ -191,30 +191,36 @@ A lightweight runtime enumeration of channel types (`F64`, `I32`, `String`, etc.
 
 ---
 
-## 6. Examples
+## 6. Comprehensive Examples
 
-### Reading Example
+### 6.1 Basic Read Workflow
+Opening a file and reading a known channel.
+
 ```rust
 use tdms_rs::TdmsFile;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file = TdmsFile::open("data.tdms")?;
     
-    // Access hierarchy
+    // 1. Access hierarchy
     let group = file.group("Sensors").expect("Group not found");
     let channel = group.channel("Voltage").expect("Channel not found");
     
-    // Read formatted data
-    // read() returns a generic slice, as_typed() attempts to view it as &[f64]
+    // 2. Read data (returns generic slice)
+    // The range 0..100 reads the first 100 samples
     let slice = channel.read(0..100)?; 
-    let values: &[f64] = slice.as_typed()?;
     
-    println!("First sample: {}", values[0]);
+    // 3. Access as typed slice (cheap, checks type compatibility)
+    let data: &[f64] = slice.as_typed()?;
+    println!("First sample: {:.4}", data[0]);
+    
     Ok(())
 }
 ```
 
-### Writing Example
+### 6.2 Basic Write Workflow
+Creating a file with metadata and data.
+
 ```rust
 use tdms_rs::{TdmsWriter, PropertyValue};
 
@@ -223,12 +229,116 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let mut group = writer.add_group("Measurement")?;
     
-    // Create a typed channel (f64)
+    // Create strongly-typed channel (f64)
     let mut channel = group.add_channel::<f64>("Pressure")?;
     
     // Write data
-    channel.write(&[1.0, 1.1, 1.2])?;
+    channel.write(&[1.0, 1.1, 1.2, 1.3])?;
     channel.add_property("Unit", PropertyValue::String("Bar".into()))?;
+    
+    writer.close()?;
+    Ok(())
+}
+```
+
+### 6.3 Advanced Reading: Inspecting Unknown Files
+Recursively printing the structure of a file.
+
+```rust
+use tdms_rs::TdmsFile;
+
+fn inspect_file(path: &str) -> Option<()> {
+    let file = TdmsFile::open(path).ok()?;
+
+    println!("File Properties:");
+    for (name, value) in file.properties() {
+         println!("  {} = {}", name, value);
+    }
+
+    for group in file.groups() {
+        println!("Group: {}", group.name());
+        for (name, value) in group.properties() {
+            println!("  Property: {} = {}", name, value);
+        }
+
+        for channel in group.channels() {
+            println!("  Channel: {} ({} samples, {:?})", 
+                channel.name(), channel.len(), channel.dtype());
+        }
+    }
+    Some(())
+}
+```
+
+### 6.4 Advanced Reading: Chunked Processing
+Processing a large channel in blocks to minimize memory usage.
+
+```rust
+use tdms_rs::TdmsFile;
+
+fn calculate_average(path: &str) -> Result<f64, Box<dyn std::error::Error>> {
+    let file = TdmsFile::open(path)?;
+    let channel = file.group("G").unwrap().channel("C").unwrap();
+    
+    let mut sum = 0.0;
+    let mut count = 0;
+    
+    // Iterate over 1024-sample chunks
+    for chunk in channel.chunks(1024) {
+        let slice = chunk?;
+        let data = slice.as_typed::<f64>()?;
+        
+        sum += data.iter().sum::<f64>();
+        count += data.len();
+    }
+    
+    Ok(if count > 0 { sum / count as f64 } else { 0.0 })
+}
+```
+
+### 6.5 Advanced Reading: Zero-Allocation with Buffers
+Reusing a single buffer to read specific ranges, avoiding repeated allocations.
+
+```rust
+use tdms_rs::TdmsFile;
+
+fn read_with_buffer(path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let file = TdmsFile::open(path)?;
+    let channel = file.group("G").unwrap().channel("C").unwrap();
+    
+    // Pre-allocate buffer once
+    let mut buffer = vec![0.0f64; 100];
+    
+    // Read directly into buffer
+    let samples_read = channel.read_into(0..100, &mut buffer)?;
+    
+    println!("Read {} samples into buffer: {:?}", samples_read, &buffer[0..samples_read]);
+    Ok(())
+}
+```
+
+### 6.6 Advanced Writing: Generating Synthetic Data
+Writing channels dynamically in a loop.
+
+```rust
+use tdms_rs::TdmsWriter;
+use std::f64::consts::PI;
+
+fn generate_sine_waves() -> Result<(), Box<dyn std::error::Error>> {
+    let mut writer = TdmsWriter::create("sine_waves.tdms")?;
+    let mut group = writer.add_group("Generated")?;
+    
+    let t: Vec<f64> = (0..1000).map(|i| i as f64 * 0.01).collect();
+    
+    // Create 5 channels: Sine_0, Sine_1, ...
+    for i in 0..5 {
+        let name = format!("Sine_{}", i);
+        let phase = i as f64 * PI / 4.0;
+        let data: Vec<f64> = t.iter().map(|&x| (x + phase).sin()).collect();
+        
+        let mut channel = group.add_channel::<f64>(&name)?;
+        channel.write(&data)?;
+    }
     
     writer.close()?;
     Ok(())
