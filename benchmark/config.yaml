@@ -1,6 +1,6 @@
 file_size_gb: 1.0
 samples: 125000000
-iterations: 5
+iterations: 1
 warmup_iterations: 1
 paths:
   disk_bench_file: "benchmark/data/disk_bench.dat"
