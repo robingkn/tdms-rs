@@ -1,6 +1,6 @@
 //! Tests based on the API design examples in api_design/
 
-use tdms_rs::{TdmsFile, TdmsWriter, ChannelData};
+use tdms_rs::{TdmsFile, TdmsWriter};
 use std::sync::Arc;
 use std::thread;
 
@@ -13,7 +13,7 @@ fn test_basic_read() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let f = TdmsFile::open("data.tdms")?;
-    let ch = f.group("G")?.channel("C")?;
+    let ch = f.group("G").ok_or("group not found")?.channel("C").ok_or("channel not found")?;
 
     let slice = ch.read(0..100)?;
     let data: &[f64] = slice.as_typed()?;
@@ -31,7 +31,7 @@ fn test_chunk_streaming() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let f = TdmsFile::open("1TB.tdms")?;
-    let ch = f.group("G")?.channel("C")?;
+    let ch = f.group("G").ok_or("group not found")?.channel("C").ok_or("channel not found")?;
 
     for chunk in ch.chunks(10_000_000) {
         let slice = chunk?;
@@ -96,7 +96,7 @@ fn test_timestamps() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let f = TdmsFile::open("daq.tdms")?;
-    let ch = f.group("DAQ")?.channel("Voltage")?;
+    let ch = f.group("DAQ").ok_or("group not found")?.channel("Voltage").ok_or("channel not found")?;
 
     if let Some(ts) = ch.timestamps() {
         let slice = ch.read(0..ch.len())?;
@@ -152,7 +152,7 @@ fn test_zero_copy_check() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let f = TdmsFile::open("data.tdms")?;
-    let ch = f.group("G")?.channel("C")?;
+    let ch = f.group("G").ok_or("group not found")?.channel("C").ok_or("channel not found")?;
 
     let slice = ch.read(0..1000)?;
     println!("zero-copy: {}", slice.is_zero_copy());

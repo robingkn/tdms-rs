@@ -4,7 +4,7 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 use std::time::Instant;
-use tdms_rs::{TdmsData, TdmsFile, TdmsFileWriter};
+use tdms_rs::{TdmsFile, TdmsWriter};
 
 // Configuration
 // 125M f64s * 8 bytes = 1.0 GB strictly
@@ -186,10 +186,11 @@ fn run_write_benchmark(
         let start = Instant::now();
 
         {
-            let mut writer = TdmsFileWriter::new(file_name);
-            let group = writer.add_group("BenchmarkGroup")?;
-            group.add_channel("BenchmarkChannel", TdmsData::Double(data.clone()))?;
-            writer.write()?;
+            let mut writer = TdmsWriter::create(file_name)?;
+            let mut group = writer.add_group("BenchmarkGroup")?;
+            let mut channel = group.add_channel::<f64>("BenchmarkChannel")?;
+            channel.write(&data)?;
+            writer.close()?;
         }
 
         let duration = start.elapsed();
@@ -217,17 +218,6 @@ fn run_read_benchmark(
     size_gb: f64,
     silent: bool,
 ) -> Result<(f64, f64), Box<dyn std::error::Error>> {
-    // Ensure file exists (re-create if needed from write bench, but write bench should have left it?
-    // Ah, write bench deletes it at the start of loop. The last run of write bench leaves the file?
-    // In write bench loop: "Clean up previous file if exists".
-    // So after the loop finishes, the file FROM THE LAST RUN exists.
-    // BUT, wait.
-    // Loop `for i in ...`:
-    //   delete file
-    //   write file
-    // loop ends.
-    // So the file exists.
-
     if !Path::new(file_name).exists() {
         return Err("Benchmark file not found for read test".into());
     }
@@ -245,24 +235,17 @@ fn run_read_benchmark(
 
         let start = Instant::now();
 
-        let path = Path::new(file_name);
-        let file = TdmsFile::load(path)?;
+        let file = TdmsFile::open(Path::new(file_name))?;
+        let group = file.group("BenchmarkGroup")
+            .ok_or("BenchmarkGroup not found")?;
+        let channel = group.channel("BenchmarkChannel")
+            .ok_or("BenchmarkChannel not found")?;
 
-        if let Some(channel) = file.get_channel("BenchmarkGroup", "BenchmarkChannel") {
-            let expected_count = channel.data_len();
-            let mut buffer = vec![0.0f64; expected_count];
-            match channel.read_f64_into(&mut buffer) {
-                Ok(count) => {
-                    // Force evaluation
-                    std::hint::black_box(buffer[..count].len());
-                }
-                Err(_) => {
-                    return Err("Failed to read f64 data".into());
-                }
-            }
-        } else {
-            return Err("Channel not found".into());
-        }
+        let slice = channel.read_all()?;
+        let data = slice.as_typed::<f64>()?;
+        
+        // Force evaluation to ensure data is actually read
+        std::hint::black_box(data.len());
 
         let duration = start.elapsed();
         let seconds = duration.as_secs_f64();

@@ -10,20 +10,33 @@ fn read_channel_data_as_json(
 ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
     let slice = channel.read_all()?;
 
+    // Helper to convert f64 values to JSON, handling special floats
+    fn f64_to_json_value(v: f64) -> serde_json::Value {
+        if v.is_nan() {
+            serde_json::Value::String("nan".to_string())
+        } else if v == f64::INFINITY {
+            serde_json::Value::String("inf".to_string())
+        } else if v == f64::NEG_INFINITY {
+            serde_json::Value::String("-inf".to_string())
+        } else {
+            serde_json::json!(v)
+        }
+    }
+
     let json = match channel.dtype() {
-        TdmsDType::F64 => serde_json::Value::from(
+        TdmsDType::F64 => serde_json::Value::Array(
             slice
                 .as_typed::<f64>()?
                 .iter()
-                .copied()
-                .collect::<Vec<f64>>(),
+                .map(|&v| f64_to_json_value(v))
+                .collect(),
         ),
-        TdmsDType::F32 => serde_json::Value::from(
+        TdmsDType::F32 => serde_json::Value::Array(
             slice
                 .as_typed::<f32>()?
                 .iter()
-                .map(|v| *v as f64)
-                .collect::<Vec<f64>>(),
+                .map(|v| f64_to_json_value(*v as f64))
+                .collect(),
         ),
         TdmsDType::I8 => serde_json::Value::from(
             slice
@@ -242,15 +255,28 @@ fn run_test_case(tdms_path: &Path) {
                     match c_parsed.dtype() {
                         TdmsDType::F64 | TdmsDType::F32 => {
                             for (i, (a, e)) in actual.iter().zip(expected.iter()).enumerate() {
-                                let a = a.as_f64().expect("expected f64 JSON");
+                                // Parse actual value - may be f64 or special float string
+                                let a = if let Some(n) = a.as_f64() {
+                                    n
+                                } else if let Some(s) = a.as_str() {
+                                    match s {
+                                        "nan" | "NaN" => f64::NAN,
+                                        "inf" | "Infinity" => f64::INFINITY,
+                                        "-inf" | "-Infinity" => f64::NEG_INFINITY,
+                                        _ => panic!("Unknown float string {} at {} for {}", s, i, c_name),
+                                    }
+                                } else {
+                                    panic!("Expected numeric JSON for actual at {} for {}", i, c_name);
+                                };
                                 let e = if let Some(n) = e.as_f64() {
                                     n
                                 } else if let Some(s) = e.as_str() {
                                     match s {
-                                        "nan" => f64::NAN,
-                                        "inf" => f64::INFINITY,
-                                        "-inf" => f64::NEG_INFINITY,
-                                        _ => panic!("Unknown float string {}", s),
+                                        "nan" | "NaN" => f64::NAN,
+                                        "inf" | "Infinity" => f64::INFINITY,
+                                        "-inf" | "-Infinity" => f64::NEG_INFINITY,
+                                        // Try to parse as a regular float (handles "-0.0" etc.)
+                                        other => other.parse::<f64>().unwrap_or_else(|_| panic!("Unknown float string {}", s)),
                                     }
                                 } else {
                                     panic!("Expected numeric JSON");

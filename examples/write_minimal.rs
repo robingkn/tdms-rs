@@ -37,7 +37,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("   Group: {}", g.name());
         for c in g.channels() {
             if c.dtype() == tdms_rs::TdmsDType::F64 {
-                let data = c.read_all()?.as_typed::<f64>()?;
+                let slice = c.read_all()?;
+                let data = slice.as_typed::<f64>()?;
                 println!("     Channel '{}': {} double values", c.name(), data.len());
                 println!("     Values: {:?}", data);
             } else {

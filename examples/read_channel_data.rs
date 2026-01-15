@@ -39,19 +39,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match channel.dtype() {
         TdmsDType::F64 => {
-            let values = channel.read_all()?.as_typed::<f64>()?;
+            let slice = channel.read_all()?;
+            let values = slice.as_typed::<f64>()?;
             analyze_f64(values);
         }
         TdmsDType::F32 => {
-            let values = channel.read_all()?.as_typed::<f32>()?;
+            let slice = channel.read_all()?;
+            let values = slice.as_typed::<f32>()?;
             analyze_f32(values);
         }
         TdmsDType::I32 => {
-            let values = channel.read_all()?.as_typed::<i32>()?;
+            let slice = channel.read_all()?;
+            let values = slice.as_typed::<i32>()?;
             analyze_i32(values);
         }
         TdmsDType::Bool => {
-            let values = channel.read_all()?.as_typed::<bool>()?;
+            let slice = channel.read_all()?;
+            let values = slice.as_typed::<bool>()?;
             analyze_bool(values);
         }
         TdmsDType::String | TdmsDType::TimeStamp => {

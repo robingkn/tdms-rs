@@ -410,6 +410,8 @@ impl<'a> TdmsChannel<'a> {
 
     /// Read a range of data from this channel.
     ///
+    /// This is the primary method for reading channel data. Uses half-open range `[start..end)`.
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -421,6 +423,13 @@ impl<'a> TdmsChannel<'a> {
     /// let data: &[f64] = slice.as_typed()?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
+    pub fn read(&self, range: Range<usize>) -> Result<TdmsSlice<'a>> {
+        self.read_range(range)
+    }
+
+    /// Read a range of data from this channel.
+    ///
+    /// Alias for [`read`](Self::read).
     pub fn read_range(&self, range: Range<usize>) -> Result<TdmsSlice<'a>> {
         if range.end > self.data.len {
             return Err(TdmsError::InvalidRange(range.start, range.end, self.data.len));

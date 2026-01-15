@@ -19,23 +19,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("🏷️  Reading properties from: {}", file_path);
 
-    let file = TdmsFile::load(Path::new(file_path))?;
+    let file = TdmsFile::open(Path::new(file_path))?;
 
     println!("✅ File loaded successfully!");
 
     // Display file-level properties
     println!("\n📄 File Properties:");
-    if file.properties.is_empty() {
+    let file_prop_count = file.properties().count();
+    if file_prop_count == 0 {
         println!("   No file-level properties");
     } else {
-        println!("   File Properties ({}):", file.properties.len());
-        for (prop_name, prop_value) in &file.properties {
+        println!("   File Properties ({}):", file_prop_count);
+        for (prop_name, prop_value) in file.properties() {
             match prop_value {
-                tdms_rs::PropertyValue::String(s) => println!("     {}: \"{}\"", prop_name, s),
-                tdms_rs::PropertyValue::Double(d) => println!("     {}: {}", prop_name, d),
-                tdms_rs::PropertyValue::I32(i) => println!("     {}: {}", prop_name, i),
-                tdms_rs::PropertyValue::Boolean(b) => println!("     {}: {}", prop_name, b),
-                tdms_rs::PropertyValue::TimeStamp((s, f)) => {
+                PropertyValue::String(s) => println!("     {}: \"{}\"", prop_name, s),
+                PropertyValue::Double(d) => println!("     {}: {}", prop_name, d),
+                PropertyValue::I32(i) => println!("     {}: {}", prop_name, i),
+                PropertyValue::Boolean(b) => println!("     {}: {}", prop_name, b),
+                PropertyValue::TimeStamp((s, f)) => {
                     println!("     {}: {}.{:019}", prop_name, s, f)
                 }
                 _ => println!("     {}: {:?}", prop_name, prop_value),
@@ -44,15 +45,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Display group and channel properties
-    for (group_name, group) in &file.groups {
-        println!("\n📁 Group: '{}'", group_name);
+    for group in file.groups() {
+        println!("\n📁 Group: '{}'", group.name());
 
         // Group properties
-        if group.properties.is_empty() {
+        let group_prop_count = group.properties().count();
+        if group_prop_count == 0 {
             println!("   No group properties");
         } else {
-            println!("   Group Properties ({}):", group.properties.len());
-            for (prop_name, prop_value) in &group.properties {
+            println!("   Group Properties ({}):", group_prop_count);
+            for (prop_name, prop_value) in group.properties() {
                 println!(
                     "     • {}: {}",
                     prop_name,
@@ -62,14 +64,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Channel properties
-        for (channel_name, channel) in &group.channels {
-            println!("\n   📊 Channel: '{}'", channel_name);
+        for channel in group.channels() {
+            println!("\n   📊 Channel: '{}'", channel.name());
 
-            if channel.properties.is_empty() {
+            let channel_prop_count = channel.properties().count();
+            if channel_prop_count == 0 {
                 println!("      No channel properties");
             } else {
-                println!("      Channel Properties ({}):", channel.properties.len());
-                for (prop_name, prop_value) in &channel.properties {
+                println!("      Channel Properties ({}):", channel_prop_count);
+                for (prop_name, prop_value) in channel.properties() {
                     println!(
                         "        • {}: {}",
                         prop_name,
@@ -79,7 +82,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // Show common TDMS properties if present
-            show_common_properties(&channel.properties);
+            show_common_properties(&channel);
         }
     }
 
@@ -132,8 +135,6 @@ fn format_property_detailed(value: &PropertyValue) -> String {
         }
         PropertyValue::Boolean(v) => format!("{} (bool)", v),
         PropertyValue::TimeStamp((seconds, fraction)) => {
-            // TDMS timestamps are seconds since 1904-01-01 00:00:00 UTC
-            // with 2^-64 second precision in the fraction
             format!(
                 "timestamp({} seconds + {} fraction since 1904-01-01 UTC)",
                 seconds, fraction
@@ -142,13 +143,10 @@ fn format_property_detailed(value: &PropertyValue) -> String {
     }
 }
 
-fn show_common_properties(properties: &indexmap::IndexMap<String, PropertyValue>) {
+fn show_common_properties(channel: &tdms_rs::TdmsChannel) {
     // Check for common TDMS channel properties and explain their meaning
     let common_props = [
-        (
-            "wf_increment",
-            "Waveform time increment (sampling interval)",
-        ),
+        ("wf_increment", "Waveform time increment (sampling interval)"),
         ("wf_start_offset", "Waveform start time offset"),
         ("wf_samples", "Number of samples in waveform"),
         ("wf_start_time", "Waveform start time"),
@@ -160,7 +158,7 @@ fn show_common_properties(properties: &indexmap::IndexMap<String, PropertyValue>
 
     let mut found_common = false;
     for (prop_name, description) in &common_props {
-        if let Some(value) = properties.get(*prop_name) {
+        if let Some(value) = channel.property(prop_name) {
             if !found_common {
                 println!("      📋 Common TDMS Properties:");
                 found_common = true;
@@ -175,21 +173,20 @@ fn show_common_properties(properties: &indexmap::IndexMap<String, PropertyValue>
     }
 
     // Look for custom properties (not in the common list)
-    let custom_props: Vec<_> = properties
-        .keys()
-        .filter(|key| !common_props.iter().any(|(common_key, _)| common_key == key))
+    let common_keys: Vec<&str> = common_props.iter().map(|(k, _)| *k).collect();
+    let custom_props: Vec<_> = channel
+        .properties()
+        .filter(|(key, _)| !common_keys.contains(&key))
         .collect();
 
     if !custom_props.is_empty() {
         println!("      🔧 Custom Properties: {}", custom_props.len());
-        for prop_name in custom_props {
-            if let Some(value) = properties.get(prop_name) {
-                println!(
-                    "        • {}: {}",
-                    prop_name,
-                    format_property_detailed(value)
-                );
-            }
+        for (prop_name, value) in custom_props {
+            println!(
+                "        • {}: {}",
+                prop_name,
+                format_property_detailed(value)
+            );
         }
     }
 }

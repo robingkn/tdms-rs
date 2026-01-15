@@ -1,7 +1,7 @@
 use std::fs;
 use std::io::Write;
 use std::path::Path;
-use tdms_rs::{error::TdmsError, TdmsFile};
+use tdms_rs::{TdmsError, TdmsFile};
 
 #[test]
 fn test_invalid_signature() {

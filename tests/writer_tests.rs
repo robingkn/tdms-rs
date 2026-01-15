@@ -3,7 +3,7 @@ use std::path::Path;
 use tdms_rs::{PropertyValue, TdmsDType, TdmsFile, TdmsWriter};
 
 fn copy_channel_numeric(
-    src: tdms_rs::TdmsChannel,
+    src: &tdms_rs::TdmsChannel,
     dst_group: &mut tdms_rs::WriterGroup<'_>,
     channel_name: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -140,7 +140,8 @@ fn assert_round_trip(path: &str) -> Result<(), Box<dyn std::error::Error>> {
             }
 
             for ch in g.channels() {
-                copy_channel_numeric(ch, &mut wg, ch.name())?;
+                let ch_name = ch.name().to_string();
+                copy_channel_numeric(&ch, &mut wg, &ch_name)?;
                 for (k, v) in ch.properties() {
                     // Properties are only preserved for numeric channels we emitted.
                     // If the channel is unsupported and therefore not emitted, skip.
@@ -213,8 +214,10 @@ fn round_trip_integers() -> Result<(), Box<dyn std::error::Error>> {
 
     let written_channel = written_integers.channel("Int32").unwrap();
     let reference_channel = reference_integers.channel("Int32").unwrap();
-    let w = written_channel.read_all()?.as_typed::<i32>()?;
-    let r = reference_channel.read_all()?.as_typed::<i32>()?;
+    let w_slice = written_channel.read_all()?;
+    let w = w_slice.as_typed::<i32>()?;
+    let r_slice = reference_channel.read_all()?;
+    let r = r_slice.as_typed::<i32>()?;
     assert_eq!(w, r);
 
     Ok(())
@@ -282,7 +285,8 @@ fn round_trip_file_properties() -> Result<(), Box<dyn std::error::Error>> {
     let g = written_file.group("TestGroup").unwrap();
     let channel = g.channel("TestChannel").unwrap();
 
-    let data = channel.read_all()?.as_typed::<f64>()?;
+    let slice = channel.read_all()?;
+    let data = slice.as_typed::<f64>()?;
     assert_eq!(data, &[1.0, 2.0, 3.0]);
 
     Ok(())
