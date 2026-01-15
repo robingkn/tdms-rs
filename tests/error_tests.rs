@@ -14,7 +14,7 @@ fn test_invalid_signature() {
     file.write_all(&[0u8; 24]).unwrap(); // Rest of header
     drop(file);
 
-    let result = TdmsFile::load(Path::new(test_path));
+    let result = TdmsFile::open(Path::new(test_path));
     match result {
         Err(TdmsError::InvalidSignature) => {} // Expected
         Err(e) => panic!("Expected InvalidSignature, got: {:?}", e),
@@ -24,7 +24,7 @@ fn test_invalid_signature() {
 
 #[test]
 fn test_nonexistent_file() {
-    let result = TdmsFile::load(Path::new("tests/output/nonexistent.tdms"));
+    let result = TdmsFile::open(Path::new("tests/output/nonexistent.tdms"));
     match result {
         Err(TdmsError::Io(_)) => {} // Expected I/O error for missing file
         Err(e) => panic!("Expected I/O error, got: {:?}", e),

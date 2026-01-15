@@ -38,6 +38,27 @@ pub enum TdmsError {
 
     #[error("String formatting error: {0}")]
     StringFormatting(String),
+
+    #[error("Type mismatch")]
+    TypeMismatch,
+
+    #[error("Alignment error")]
+    AlignmentError,
+
+    #[error("Invalid range: {0}..{1} (len={2})")]
+    InvalidRange(usize, usize, usize),
+
+    #[error("Writer already closed")]
+    WriterClosed,
+
+    #[error("Compression not supported: {0}")]
+    CompressionNotSupported(String),
+
+    #[error("Property too large: {0} bytes")]
+    PropertyTooLarge(usize),
+
+    #[error("File closed")]
+    Closed,
 }
 
 pub type Result<T> = std::result::Result<T, TdmsError>;

@@ -7,7 +7,7 @@
 
 use std::env;
 use std::path::Path;
-use tdms_rs::{TdmsData, TdmsFile};
+use tdms_rs::{TdmsDType, TdmsFile};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -25,33 +25,48 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         target_group, target_channel
     );
 
-    let file = TdmsFile::load(Path::new(file_path))?;
-
-    // Find the specified group
+    let file = TdmsFile::open(Path::new(file_path))?;
     let group = file
-        .groups
-        .get(target_group)
+        .group(target_group)
         .ok_or_else(|| format!("Group '{}' not found", target_group))?;
+    let channel = group
+        .channel(target_channel)
+        .ok_or_else(|| format!("Channel '{}' not found in group '{}'", target_channel, target_group))?;
 
-    // Find the specified channel
-    let channel = group.channels.get(target_channel).ok_or_else(|| {
-        format!(
-            "Channel '{}' not found in group '{}'",
-            target_channel, target_group
-        )
-    })?;
+    println!("\n✅ Successfully opened channel!");
+    println!("dtype = {:?}", channel.dtype());
+    println!("len   = {}", channel.len());
 
-    // Process the channel data using ensure_data_loaded()
-    // This triggers JIT loading of the data from disk.
-    let data = channel.ensure_data_loaded()?;
-
-    println!("\n✅ Successfully loaded channel data!");
-    analyze_data(data);
+    match channel.dtype() {
+        TdmsDType::F64 => {
+            let values = channel.read_all()?.as_typed::<f64>()?;
+            analyze_f64(values);
+        }
+        TdmsDType::F32 => {
+            let values = channel.read_all()?.as_typed::<f32>()?;
+            analyze_f32(values);
+        }
+        TdmsDType::I32 => {
+            let values = channel.read_all()?.as_typed::<i32>()?;
+            analyze_i32(values);
+        }
+        TdmsDType::Bool => {
+            let values = channel.read_all()?.as_typed::<bool>()?;
+            analyze_bool(values);
+        }
+        TdmsDType::String | TdmsDType::TimeStamp => {
+            println!("This example does not decode String/TimeStamp channels in the redesigned API.");
+        }
+        other => {
+            println!("This example does not implement analysis for dtype {:?}", other);
+        }
+    }
 
     // Show channel properties if any
-    if !channel.properties.is_empty() {
+    let prop_count = channel.properties().count();
+    if prop_count > 0 {
         println!("\n📋 Channel Properties:");
-        for (prop_name, prop_value) in &channel.properties {
+        for (prop_name, prop_value) in channel.properties() {
             println!("  {}: {:?}", prop_name, prop_value);
         }
     }
@@ -59,131 +74,72 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn analyze_data(data: &TdmsData) {
-    match data {
-        TdmsData::Double(values) => {
-            println!("Data type: f64 (double precision)");
-            println!("Sample count: {}", values.len());
+fn analyze_f64(values: &[f64]) {
+    println!("Data type: f64 (double precision)");
+    println!("Sample count: {}", values.len());
+    if !values.is_empty() {
+        let min = values.iter().fold(f64::INFINITY, |a, &b| a.min(b));
+        let max = values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+        let sum: f64 = values.iter().sum();
+        let mean = sum / values.len() as f64;
+        println!("Statistics:");
+        println!("  Min: {:.6}", min);
+        println!("  Max: {:.6}", max);
+        println!("  Mean: {:.6}", mean);
+        print_sample_values(values);
+    }
+}
 
-            if !values.is_empty() {
-                let min = values.iter().fold(f64::INFINITY, |a, &b| a.min(b));
-                let max = values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-                let sum: f64 = values.iter().sum();
-                let mean = sum / values.len() as f64;
+fn analyze_f32(values: &[f32]) {
+    println!("Data type: f32 (single precision)");
+    println!("Sample count: {}", values.len());
+    if !values.is_empty() {
+        let min = values.iter().fold(f32::INFINITY, |a, &b| a.min(b));
+        let max = values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+        let sum: f32 = values.iter().sum();
+        let mean = sum / values.len() as f32;
+        println!("Statistics:");
+        println!("  Min: {:.3}", min);
+        println!("  Max: {:.3}", max);
+        println!("  Mean: {:.3}", mean);
+        print_sample_values(values);
+    }
+}
 
-                println!("Statistics:");
-                println!("  Min: {:.6}", min);
-                println!("  Max: {:.6}", max);
-                println!("  Mean: {:.6}", mean);
+fn analyze_i32(values: &[i32]) {
+    println!("Data type: i32 (32-bit signed integer)");
+    println!("Sample count: {}", values.len());
+    if !values.is_empty() {
+        let min = *values.iter().min().unwrap();
+        let max = *values.iter().max().unwrap();
+        let sum: i64 = values.iter().map(|&x| x as i64).sum();
+        let mean = sum as f64 / values.len() as f64;
+        println!("Statistics:");
+        println!("  Min: {}", min);
+        println!("  Max: {}", max);
+        println!("  Mean: {:.2}", mean);
+        print_sample_values(values);
+    }
+}
 
-                print_sample_values(values);
-            }
-        }
-
-        TdmsData::Float(values) => {
-            println!("Data type: f32 (single precision)");
-            println!("Sample count: {}", values.len());
-
-            if !values.is_empty() {
-                let min = values.iter().fold(f32::INFINITY, |a, &b| a.min(b));
-                let max = values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-                let sum: f32 = values.iter().sum();
-                let mean = sum / values.len() as f32;
-
-                println!("Statistics:");
-                println!("  Min: {:.3}", min);
-                println!("  Max: {:.3}", max);
-                println!("  Mean: {:.3}", mean);
-
-                print_sample_values(values);
-            }
-        }
-
-        TdmsData::I32(values) => {
-            println!("Data type: i32 (32-bit signed integer)");
-            println!("Sample count: {}", values.len());
-
-            if !values.is_empty() {
-                let min = *values.iter().min().unwrap();
-                let max = *values.iter().max().unwrap();
-                let sum: i64 = values.iter().map(|&x| x as i64).sum();
-                let mean = sum as f64 / values.len() as f64;
-
-                println!("Statistics:");
-                println!("  Min: {}", min);
-                println!("  Max: {}", max);
-                println!("  Mean: {:.2}", mean);
-
-                print_sample_values(values);
-            }
-        }
-
-        TdmsData::String(values) => {
-            println!("Data type: String");
-            println!("Sample count: {}", values.len());
-
-            if !values.is_empty() {
-                let lengths: Vec<usize> = values.iter().map(|s| s.len()).collect();
-                let min_len = *lengths.iter().min().unwrap();
-                let max_len = *lengths.iter().max().unwrap();
-                let avg_len = lengths.iter().sum::<usize>() as f64 / lengths.len() as f64;
-
-                println!("String length statistics:");
-                println!("  Min length: {}", min_len);
-                println!("  Max length: {}", max_len);
-                println!("  Average length: {:.1}", avg_len);
-
-                println!("Sample strings:");
-                for (i, s) in values.iter().take(5).enumerate() {
-                    println!("  [{}]: \"{}\"", i, s);
-                }
-                if values.len() > 5 {
-                    println!("  ... and {} more", values.len() - 5);
-                }
-            }
-        }
-
-        TdmsData::Boolean(values) => {
-            println!("Data type: bool");
-            println!("Sample count: {}", values.len());
-
-            if !values.is_empty() {
-                let true_count = values.iter().filter(|&&x| x).count();
-                let false_count = values.len() - true_count;
-
-                println!("Boolean distribution:");
-                println!(
-                    "  True: {} ({:.1}%)",
-                    true_count,
-                    100.0 * true_count as f64 / values.len() as f64
-                );
-                println!(
-                    "  False: {} ({:.1}%)",
-                    false_count,
-                    100.0 * false_count as f64 / values.len() as f64
-                );
-
-                print_sample_values(values);
-            }
-        }
-
-        TdmsData::TimeStamp(values) => {
-            println!("Data type: TimeStamp (TDMS timestamp)");
-            println!("Sample count: {}", values.len());
-
-            if !values.is_empty() {
-                println!("Note: Timestamps are seconds since 1904-01-01 00:00:00 UTC");
-                println!("Sample timestamps:");
-                for (i, (seconds, fraction)) in values.iter().take(5).enumerate() {
-                    println!("  [{}]: {} seconds + {} fraction", i, seconds, fraction);
-                }
-            }
-        }
-
-        _ => {
-            println!("Data type: {:?}", data.type_name());
-            println!("This data type is not specifically handled in this summary.");
-        }
+fn analyze_bool(values: &[bool]) {
+    println!("Data type: bool");
+    println!("Sample count: {}", values.len());
+    if !values.is_empty() {
+        let true_count = values.iter().filter(|&&x| x).count();
+        let false_count = values.len() - true_count;
+        println!("Boolean distribution:");
+        println!(
+            "  True: {} ({:.1}%)",
+            true_count,
+            100.0 * true_count as f64 / values.len() as f64
+        );
+        println!(
+            "  False: {} ({:.1}%)",
+            false_count,
+            100.0 * false_count as f64 / values.len() as f64
+        );
+        print_sample_values(values);
     }
 }
 

@@ -4,8 +4,7 @@
 //! with a single group and channel containing double-precision data.
 
 use std::fs;
-use tdms_rs::writer::TdmsFileWriter;
-use tdms_rs::TdmsData;
+use tdms_rs::{TdmsFile, TdmsWriter};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create output directory
@@ -14,19 +13,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📝 Creating minimal TDMS file...");
 
     // Create a new TDMS file writer
-    let mut writer = TdmsFileWriter::new("examples/output/minimal.tdms");
+    let mut writer = TdmsWriter::create("examples/output/minimal.tdms")?;
 
     // Add a group
-    let group = writer.add_group("Measurements")?;
+    let mut group = writer.add_group("Measurements")?;
 
     // Add a channel with some sample data
-    group.add_channel(
-        "Temperature",
-        TdmsData::Double(vec![20.1, 21.5, 22.3, 23.0, 22.8]),
-    )?;
+    let mut ch = group.add_channel::<f64>("Temperature")?;
+    ch.write(&[20.1, 21.5, 22.3, 23.0, 22.8])?;
 
     // Write the file
-    writer.write()?;
+    writer.close()?;
 
     println!("✅ Successfully created 'examples/output/minimal.tdms'");
     println!("   - 1 group: 'Measurements'");
@@ -34,25 +31,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify by reading it back
     println!("\n🔍 Verifying by reading the file back...");
-    let file = tdms_rs::TdmsFile::load(std::path::Path::new("examples/output/minimal.tdms"))?;
+    let file = TdmsFile::open(std::path::Path::new("examples/output/minimal.tdms"))?;
 
-    for (group_name, group) in &file.groups {
-        println!("   Group: {}", group_name);
-        for (channel_name, channel) in &group.channels {
-            let expected_count = channel.data_len();
-            let mut buffer = vec![0.0f64; expected_count];
-            match channel.read_f64_into(&mut buffer) {
-                Ok(count) => {
-                    println!(
-                        "     Channel '{}': {} double values",
-                        channel_name,
-                        count
-                    );
-                    println!("     Values: {:?}", &buffer[..count]);
-                }
-                Err(_) => {
-                    println!("     Channel '{}': no data or wrong type", channel_name);
-                }
+    for g in file.groups() {
+        println!("   Group: {}", g.name());
+        for c in g.channels() {
+            if c.dtype() == tdms_rs::TdmsDType::F64 {
+                let data = c.read_all()?.as_typed::<f64>()?;
+                println!("     Channel '{}': {} double values", c.name(), data.len());
+                println!("     Values: {:?}", data);
+            } else {
+                println!("     Channel '{}': {} samples ({:?})", c.name(), c.len(), c.dtype());
             }
         }
     }

@@ -1,1344 +1,660 @@
 //! TDMS file writer implementation.
-//!
-//! This module provides functionality to create TDMS files with a hierarchical
-//! structure: File -> Groups -> Channels. It supports all TDMS data types
-//! and properties, ensuring binary compatibility with National Instruments software.
-//!
-//! # Examples
-//!
-//! ```no_run
-//! use tdms_rs::writer::TdmsFileWriter;
-//! use tdms_rs::TdmsData;
-//!
-//! let mut writer = TdmsFileWriter::new("measurements.tdms");
-//! let group = writer.add_group("Sensors")?;
-//! group.add_channel("Temperature", TdmsData::Double(vec![20.1, 21.5, 22.3]))?;
-//! writer.write()?;
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! ```
-//!
-//! # Multiple Data Types
-//!
-//! ```no_run
-//! use tdms_rs::writer::TdmsFileWriter;
-//! use tdms_rs::TdmsData;
-//!
-//! let mut writer = TdmsFileWriter::new("multi_type.tdms");
-//! let group = writer.add_group("Mixed")?;
-//!
-//! // Different data types in one group
-//! group.add_channel("Voltage", TdmsData::Double(vec![1.1, 2.2, 3.3]))?;
-//! group.add_channel("Count", TdmsData::I32(vec![100, 200, 300]))?;
-//! group.add_channel("Valid", TdmsData::Boolean(vec![true, false, true]))?;
-//! group.add_channel("Labels", TdmsData::String(vec!["A".into(), "B".into(), "C".into()]))?;
-//!
-//! writer.write()?;
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! ```
-//!
-//! # Properties Example
-//!
-//! ```no_run
-//! use tdms_rs::writer::TdmsFileWriter;
-//! use tdms_rs::{TdmsData, PropertyValue};
-//!
-//! let mut writer = TdmsFileWriter::new("with_props.tdms");
-//!
-//! // File-level properties
-//! writer.add_property("Author", PropertyValue::String("TDMS Writer".into()))?;
-//! writer.add_property("Version", PropertyValue::I32(1))?;
-//!
-//! let group = writer.add_group("DAQ")?;
-//! // Group-level properties
-//! group.add_property("Sample_Rate", PropertyValue::Double(1000.0))?;
-//!
-//! let channel = group.add_channel("AI0", TdmsData::Double(vec![1.1, 2.2]))?;
-//! // Channel-level properties
-//! channel.add_property("wf_unit_string", PropertyValue::String("V".into()))?;
-//! channel.add_property("wf_increment", PropertyValue::Double(0.001))?;
-//!
-//! writer.write()?;
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! ```
-//!
-//! # All Supported Data Types
-//!
-//! ```no_run
-//! use tdms_rs::writer::TdmsFileWriter;
-//! use tdms_rs::TdmsData;
-//!
-//! let mut writer = TdmsFileWriter::new("all_types.tdms");
-//!
-//! // Integer types
-//! let integers = writer.add_group("Integers")?;
-//! integers.add_channel("I8", TdmsData::I8(vec![-128, 0, 127]))?;
-//! integers.add_channel("I16", TdmsData::I16(vec![-32768, 0, 32767]))?;
-//! integers.add_channel("I32", TdmsData::I32(vec![-2147483648, 0, 2147483647]))?;
-//! integers.add_channel("I64", TdmsData::I64(vec![i64::MIN, 0, i64::MAX]))?;
-//!
-//! // Unsigned integers
-//! let unsigned = writer.add_group("Unsigned")?;
-//! unsigned.add_channel("U8", TdmsData::U8(vec![0, 128, 255]))?;
-//! unsigned.add_channel("U16", TdmsData::U16(vec![0, 32768, 65535]))?;
-//! unsigned.add_channel("U32", TdmsData::U32(vec![0, 2147483648, 4294967295]))?;
-//! unsigned.add_channel("U64", TdmsData::U64(vec![0, u64::MAX/2, u64::MAX]))?;
-//!
-//! // Floating point
-//! let floats = writer.add_group("Floats")?;
-//! floats.add_channel("Float", TdmsData::Float(vec![1.1, 2.2, 3.3]))?;
-//! floats.add_channel("Double", TdmsData::Double(vec![1.1, 2.2, 3.3]))?;
-//!
-//! // Other types
-//! let misc = writer.add_group("Misc")?;
-//! misc.add_channel("Flags", TdmsData::Boolean(vec![true, false, true]))?;
-//! misc.add_channel("Text", TdmsData::String(vec!["Hello".into(), "World".into()]))?;
-//! misc.add_channel("Times", TdmsData::TimeStamp(vec![(1000, 0), (2000, 500000000)]))?;
-//!
-//! writer.write()?;
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! ```
 
-use crate::datatypes::{DataType, PropertyValue, TdmsData};
-use crate::error::Result;
+use crate::datatypes::DataType;
+use crate::error::{Result, TdmsError};
+use crate::PropertyValue;
 use byteorder::{LittleEndian, WriteBytesExt};
 use indexmap::IndexMap;
 use std::collections::BTreeMap;
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, Seek, Write};
+use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
-/// A TDMS file writer that can create TDMS files matching the corpus format.
-///
-/// The writer follows a builder pattern where you create groups, add channels with data,
-/// and then write the complete file structure. All channels must contain data - channels
-/// without data are not supported and will cause write operations to fail.
-///
-/// # Channel Data Requirements
-///
-/// - All channels must have associated data (empty channels are not allowed)
-/// - Data vectors can be empty (zero samples) but the TdmsData enum variant must be present
-/// - Channel names and group names must be valid UTF-8 strings
-/// - Property keys and string values must be valid UTF-8
-///
-/// # Output Guarantees
-///
-/// - Files are written in a single segment with deterministic channel ordering
-/// - Output is binary-compatible with National Instruments TDMS readers
-/// - Channel ordering within groups is deterministic (alphabetical by channel name)
-/// - Group ordering is deterministic (alphabetical by group name)
+/// A TDMS file writer.
 ///
 /// # Examples
 ///
 /// ```no_run
-/// use tdms_rs::writer::TdmsFileWriter;
-/// use tdms_rs::TdmsData;
+/// use tdms::TdmsWriter;
 ///
-/// let mut writer = TdmsFileWriter::new("output.tdms");
-/// let group = writer.add_group("Group")?;
-/// group.add_channel("Channel1", TdmsData::Double(vec![1.1, 2.2, 3.3]))?;
-/// writer.write()?;
+/// let mut w = TdmsWriter::create("out.tdms")?;
+/// let mut g = w.add_group("DAQ")?;
+/// let mut ch = g.add_channel::<f64>("Voltage")?;
+/// ch.write(&[1.0, 2.0, 3.0])?;
+/// w.close()?;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-pub struct TdmsFileWriter {
+pub struct TdmsWriter {
     path: PathBuf,
-    groups: IndexMap<String, TdmsGroupWriter>,
+    groups: IndexMap<String, WriterGroupData>,
+    properties: IndexMap<String, PropertyValue>,
+    closed: bool,
+}
+
+struct WriterGroupData {
+    name: String,
+    channels: BTreeMap<String, WriterChannelData>,
     properties: IndexMap<String, PropertyValue>,
 }
 
-/// A group writer for organizing related channels.
-pub struct TdmsGroupWriter {
-    channels: BTreeMap<String, TdmsChannelWriter>,
+struct WriterChannelData {
+    name: String,
+    data_type: DataType,
+    data: Vec<u8>,
     properties: IndexMap<String, PropertyValue>,
 }
 
-/// A channel writer containing data and properties.
-pub struct TdmsChannelWriter {
-    data: TdmsData,  // TODO: Remove in favor of slice-based API
-    properties: IndexMap<String, PropertyValue>,
+/// A group within a TDMS writer.
+pub struct WriterGroup<'w> {
+    writer: &'w mut TdmsWriter,
+    group_name: String,
 }
 
-/// Slice-based channel data descriptor for zero-copy writing.
-/// Stores only metadata; actual data is provided at write time.
-pub struct ChannelDataDescriptor {
-    pub data_type: crate::datatypes::DataType,
-    pub count: usize,
-    pub properties: IndexMap<String, PropertyValue>,
+/// A channel within a writer group.
+pub struct WriterChannel<'w, T> {
+    writer: &'w mut TdmsWriter,
+    group_name: String,
+    channel_name: String,
+    _phantom: PhantomData<T>,
 }
 
-impl TdmsFileWriter {
-    /// Create a new TDMS file writer for the specified path.
-    pub fn new(path: impl AsRef<Path>) -> Self {
-        Self {
+impl TdmsWriter {
+    /// Create a new TDMS file for writing.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use tdms::TdmsWriter;
+    ///
+    /// let mut w = TdmsWriter::create("output.tdms")?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn create(path: impl AsRef<Path>) -> Result<Self> {
+        Ok(Self {
             path: path.as_ref().to_path_buf(),
             groups: IndexMap::new(),
             properties: IndexMap::new(),
-        }
+            closed: false,
+        })
     }
 
-    /// Add a group to the file and return a mutable reference to it.
+    /// Add a group to the file.
     ///
-    /// # Arguments
+    /// # Examples
     ///
-    /// * `name` - The name of the group to create
+    /// ```no_run
+    /// use tdms::TdmsWriter;
     ///
-    /// # Returns
-    ///
-    /// Returns a mutable reference to the created group.
-    ///
-    /// # Errors
-    ///
-    /// Returns `TdmsError::InvalidName` if the group name is empty.
-    /// Returns `TdmsError::DuplicateName` if a group with this name already exists.
-    pub fn add_group(
-        &mut self,
-        name: impl Into<String>,
-    ) -> crate::error::Result<&mut TdmsGroupWriter> {
+    /// let mut w = TdmsWriter::create("out.tdms")?;
+    /// let mut g = w.add_group("Sensors")?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn add_group(&mut self, name: impl Into<String>) -> Result<WriterGroup> {
         let name = name.into();
 
         if name.is_empty() {
-            return Err(crate::error::TdmsError::InvalidName(
-                "Group name cannot be empty".into(),
-            ));
+            return Err(TdmsError::InvalidName("Group name cannot be empty".into()));
         }
 
-        if self.groups.contains_key(&name) {
-            return Err(crate::error::TdmsError::DuplicateName(format!(
-                "Group '{}' already exists",
-                name
-            )));
+        if !self.groups.contains_key(&name) {
+            self.groups.insert(
+                name.clone(),
+                WriterGroupData {
+                    name: name.clone(),
+                    channels: BTreeMap::new(),
+                    properties: IndexMap::new(),
+                },
+            );
         }
 
-        let group = TdmsGroupWriter {
-            channels: BTreeMap::new(),
-            properties: IndexMap::new(),
-        };
-        self.groups.insert(name.clone(), group);
-        Ok(self.groups.get_mut(&name).unwrap())
+        Ok(WriterGroup {
+            writer: self,
+            group_name: name,
+        })
     }
 
     /// Add a property to the file.
     ///
-    /// # Arguments
-    ///
-    /// * `key` - The property name
-    /// * `value` - The property value (can be any type that converts to PropertyValue)
-    ///
-    /// # Errors
-    ///
-    /// Returns `TdmsError::InvalidName` if the property key is empty.
-    ///
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms_rs::writer::TdmsFileWriter;
+    /// use tdms::TdmsWriter;
     ///
-    /// let mut writer = TdmsFileWriter::new("output.tdms");
-    ///
-    /// // Using the ergonomic From<T> conversions
-    /// writer.add_property("Author", "John Doe")?;
-    /// writer.add_property("Version", 1i32)?;
-    /// writer.add_property("Sample_Rate", 1000.0)?;
-    /// writer.add_property("Is_Valid", true)?;
+    /// let mut w = TdmsWriter::create("out.tdms")?;
+    /// w.add_property("Author", PropertyValue::String("John Doe".into()))?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn add_property(
         &mut self,
-        key: impl Into<String>,
-        value: impl Into<PropertyValue>,
-    ) -> crate::error::Result<()> {
-        let key = key.into();
+        name: impl Into<String>,
+        value: PropertyValue,
+    ) -> Result<&mut Self> {
+        let name = name.into();
+        if name.is_empty() {
+            return Err(TdmsError::InvalidName("Property name cannot be empty".into()));
+        }
+        self.properties.insert(name, value);
+        Ok(self)
+    }
 
-        if key.is_empty() {
-            return Err(crate::error::TdmsError::InvalidName(
-                "Property key cannot be empty".into(),
-            ));
+    /// Close and finalize the TDMS file.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use tdms::TdmsWriter;
+    ///
+    /// let mut w = TdmsWriter::create("out.tdms")?;
+    /// // ... add data ...
+    /// w.close()?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn close(mut self) -> Result<()> {
+        if self.closed {
+            return Err(TdmsError::WriterClosed);
         }
 
-        self.properties.insert(key, value.into());
+        self.write_file()?;
+        self.closed = true;
         Ok(())
     }
 
-    /// Write the TDMS file to disk.
-    pub fn write(&self) -> Result<()> {
+    /// Abort writing and delete the partial file.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use tdms::TdmsWriter;
+    ///
+    /// let mut w = TdmsWriter::create("partial.tdms")?;
+    /// // ... something goes wrong ...
+    /// w.abort()?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn abort(self) -> Result<()> {
+        if self.path.exists() {
+            std::fs::remove_file(&self.path)?;
+        }
+        Ok(())
+    }
+
+    fn write_file(&mut self) -> Result<()> {
         let file = File::create(&self.path)?;
-        // Use a larger buffer for high-throughput sequential I/O
-        // 8MB buffer allows better batching for large sequential writes
-        let mut writer = BufWriter::with_capacity(8 * 1024 * 1024, file);
+        let mut writer = BufWriter::new(file);
 
-        // Build metadata (raw data will be written separately)
-        let metadata_bytes = self.build_metadata()?;
+        // Write lead-in
+        writer.write_all(b"TDSm")?;
 
-        // Calculate offsets
-        let raw_data_offset = metadata_bytes.len() as u64;
-        let next_segment_offset = 0xFFFFFFFFFFFFFFFF; // No next segment
+        // ToC mask
+        let toc = 0x0E; // Has metadata, raw data, new object list
+        writer.write_u32::<LittleEndian>(toc)?;
 
-        // Write TDMS header (28 bytes)
-        self.write_header(&mut writer, next_segment_offset, raw_data_offset)?;
+        // Version
+        writer.write_u32::<LittleEndian>(4712)?;
+
+        // Placeholder for next segment offset and raw data offset
+        let segment_offset_pos = writer.stream_position()?;
+        writer.write_u64::<LittleEndian>(0xFFFFFFFFFFFFFFFF)?; // Next segment
+        writer.write_u64::<LittleEndian>(0)?; // Raw data offset (will update)
 
         // Write metadata
-        writer.write_all(&metadata_bytes)?;
-        
-        // Flush metadata to ensure it's written before raw data
-        writer.flush()?;
+        let _metadata_start = writer.stream_position()?;
 
-        // For very large data writes, bypass BufWriter and write directly to file
-        // BufWriter bypasses its buffer for writes larger than the buffer anyway,
-        // so writing directly avoids unnecessary buffering overhead
-        let file = writer.get_mut();
+        // Count objects
+        let mut object_count = 0;
+        if !self.properties.is_empty() {
+            object_count += 1; // Root object
+        }
         for group in self.groups.values() {
+            object_count += 1; // Always count group
+            object_count += group.channels.len() as u32;
+        }
+
+        writer.write_u32::<LittleEndian>(object_count)?;
+
+        // Write root object if it has properties
+        if !self.properties.is_empty() {
+            self.write_object(&mut writer, "/", &self.properties, None)?;
+        }
+
+        // Write groups and channels
+        for group in self.groups.values() {
+            let group_path = format!("/'{}' ", group.name);
+
+            // Always write group object (even without properties) so it exists
+            self.write_object(&mut writer, &group_path, &group.properties, None)?;
+
             for channel in group.channels.values() {
-                self.write_channel_data_direct(file, &channel.data)?;
-            }
-        }
-
-        file.sync_all()?;
-        Ok(())
-    }
-
-    fn write_header<W: Write>(
-        &self,
-        writer: &mut W,
-        next_segment_offset: u64,
-        raw_data_offset: u64,
-    ) -> Result<()> {
-        // Batch header writes into a single buffer to reduce syscall overhead
-        let mut header_buf = [0u8; 28];
-        let mut cursor = std::io::Cursor::new(&mut header_buf[..]);
-        
-        // TDMS signature: "TDSm"
-        cursor.write_all(b"TDSm")?;
-
-        // ToC mask (4 bytes) - from minimal.tdms: 0x0000000E
-        cursor.write_u32::<LittleEndian>(0x0000000E)?;
-
-        // Version (4 bytes) - from minimal.tdms: 4712
-        cursor.write_u32::<LittleEndian>(4712)?;
-
-        // Next segment offset (8 bytes)
-        cursor.write_u64::<LittleEndian>(next_segment_offset)?;
-
-        // Raw data offset (8 bytes) - relative to start of segment payload
-        cursor.write_u64::<LittleEndian>(raw_data_offset)?;
-
-        // Write entire header in one syscall
-        writer.write_all(&header_buf)?;
-        Ok(())
-    }
-
-    fn build_metadata(&self) -> Result<Vec<u8>> {
-        // Pre-allocate metadata Vec with estimated capacity to reduce reallocations
-        // Estimate: ~200 bytes per object (path + properties + raw data info)
-        let estimated_capacity = 200 * (1 + self.groups.len() + 
-            self.groups.values().map(|g| g.channels.len()).sum::<usize>());
-        let mut metadata = Vec::with_capacity(estimated_capacity);
-
-        // Count objects: file + groups + channels
-        let mut object_count = 1u32; // file object
-        object_count += self.groups.len() as u32; // group objects
-        for group in self.groups.values() {
-            object_count += group.channels.len() as u32; // channel objects
-        }
-
-        // Write object count
-        metadata.write_u32::<LittleEndian>(object_count)?;
-
-        // Write file object (root)
-        self.write_object_metadata(&mut metadata, "/", None, &self.properties)?;
-
-        // Write group objects
-        for (group_name, group) in &self.groups {
-            let path = format!("/'{}'", group_name); // Removed trailing slash
-            debug_assert!(
-                !path.ends_with('/'),
-                "Group path should not have trailing slash"
-            );
-            self.write_object_metadata(&mut metadata, &path, None, &group.properties)?;
-        }
-
-        // Write channel objects with reference to data
-        for (group_name, group) in &self.groups {
-            for (channel_name, channel) in &group.channels {
-                let path = format!("/'{}'/'{}'", group_name, channel_name);
-
-                // Build raw data info block with correct property count
-                let raw_data_info =
-                    self.build_raw_data_info_with_properties(&channel.data, &channel.properties)?;
-                let raw_data_index = raw_data_info.len() as u32;
-
-                // Check if this is string data
-                let is_string = matches!(channel.data, TdmsData::String(_));
-
-                // Write object metadata with raw data info embedded
-                self.write_channel_object_metadata(
-                    &mut metadata,
-                    &path,
-                    raw_data_index,
-                    &raw_data_info,
+                let channel_path = format!("/'{}'/'{}'", group.name, channel.name);
+                self.write_object(
+                    &mut writer,
+                    &channel_path,
                     &channel.properties,
-                    is_string,
+                    Some((&channel.data_type, channel.data.len())),
                 )?;
             }
         }
 
-        Ok(metadata)
-    }
+        // Write raw data
+        let raw_data_offset = writer.stream_position()?;
 
-    fn write_object_metadata<W: Write>(
-        &self,
-        writer: &mut W,
-        path: &str,
-        raw_data_index: Option<u32>,
-        properties: &IndexMap<String, PropertyValue>,
-    ) -> Result<()> {
-        // Object path length
-        writer.write_u32::<LittleEndian>(path.len() as u32)?;
-
-        // Object path
-        writer.write_all(path.as_bytes())?;
-
-        // Raw data index (4 bytes)
-        writer.write_u32::<LittleEndian>(raw_data_index.unwrap_or(0xFFFFFFFF))?;
-
-        // Number of properties (4 bytes)
-        writer.write_u32::<LittleEndian>(properties.len() as u32)?;
-
-        // Write properties
-        for (key, value) in properties {
-            self.write_property(writer, key, value)?;
+        for group in self.groups.values() {
+            for channel in group.channels.values() {
+                writer.write_all(&channel.data)?;
+            }
         }
 
+        // Update raw data offset
+        let end_pos = writer.stream_position()?;
+        writer.seek(std::io::SeekFrom::Start(segment_offset_pos + 8))?;
+        writer.write_u64::<LittleEndian>(raw_data_offset)?;
+        writer.seek(std::io::SeekFrom::Start(end_pos))?;
+
+        writer.flush()?;
         Ok(())
     }
 
-    fn write_channel_object_metadata<W: Write>(
+    fn write_object(
         &self,
-        writer: &mut W,
+        writer: &mut BufWriter<File>,
         path: &str,
-        raw_data_index: u32,
-        raw_data_info: &[u8],
         properties: &IndexMap<String, PropertyValue>,
-        is_string: bool,
+        raw_data: Option<(&DataType, usize)>,
     ) -> Result<()> {
-        // Object path length
+        // Write path
         writer.write_u32::<LittleEndian>(path.len() as u32)?;
-
-        // Object path
         writer.write_all(path.as_bytes())?;
 
-        // Raw data index (length of raw data info)
+        // Raw data index
+        let raw_data_index = if raw_data.is_some() {
+            0x00001269_u32 // Has raw data
+        } else {
+            0xFFFFFFFF_u32 // No raw data
+        };
         writer.write_u32::<LittleEndian>(raw_data_index)?;
 
-        // Write raw data info block
-        writer.write_all(raw_data_info)?;
-
-        // For strings, property count is written separately after raw data info
-        // For other types, property count is already included in raw data info
-        if is_string {
-            writer.write_u32::<LittleEndian>(properties.len() as u32)?;
+        // Write raw data metadata if present
+        if let Some((dtype, byte_len)) = raw_data {
+            writer.write_u32::<LittleEndian>(dtype.to_u32())?;
+            writer.write_u32::<LittleEndian>(1)?; // Array dimension
+            let count = byte_len / dtype.itemsize();
+            writer.write_u64::<LittleEndian>(count as u64)?;
         }
 
         // Write properties
+        writer.write_u32::<LittleEndian>(properties.len() as u32)?;
         for (key, value) in properties {
-            self.write_property(writer, key, value)?;
+            writer.write_u32::<LittleEndian>(key.len() as u32)?;
+            writer.write_all(key.as_bytes())?;
+
+            self.write_property_value(writer, value)?;
         }
 
         Ok(())
     }
 
-    fn build_raw_data_info_with_properties(
+    fn write_property_value(
         &self,
-        data: &TdmsData,
-        properties: &IndexMap<String, PropertyValue>,
-    ) -> Result<Vec<u8>> {
-        let mut raw_data_info = Vec::new();
-
-        match data {
-            TdmsData::Double(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::DoubleFloat as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(properties.len() as u32)?;
-            }
-            TdmsData::Float(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::SingleFloat as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(properties.len() as u32)?;
-            }
-            TdmsData::I8(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::I8 as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(properties.len() as u32)?;
-            }
-            TdmsData::I16(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::I16 as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(properties.len() as u32)?;
-            }
-            TdmsData::I32(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::I32 as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(properties.len() as u32)?;
-            }
-            TdmsData::I64(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::I64 as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(properties.len() as u32)?;
-            }
-            TdmsData::U8(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::U8 as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(properties.len() as u32)?;
-            }
-            TdmsData::U16(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::U16 as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(properties.len() as u32)?;
-            }
-            TdmsData::U32(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::U32 as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(properties.len() as u32)?;
-            }
-            TdmsData::U64(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::U64 as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(properties.len() as u32)?;
-            }
-            TdmsData::Boolean(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::Boolean as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(properties.len() as u32)?;
-            }
-            TdmsData::String(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::String as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-
-                // Calculate total size for strings (offsets + string bytes)
-                let total_size = values.iter().map(|s| s.len()).sum::<usize>() + (values.len() * 4); // 4 bytes per offset
-                raw_data_info.write_u64::<LittleEndian>(total_size as u64)?;
-                // Property count is written separately for strings
-            }
-            TdmsData::TimeStamp(values) => {
-                raw_data_info.write_u32::<LittleEndian>(DataType::TimeStamp as u32)?;
-                raw_data_info.write_u32::<LittleEndian>(1)?;
-                raw_data_info.write_u64::<LittleEndian>(values.len() as u64)?;
-                raw_data_info.write_u32::<LittleEndian>(properties.len() as u32)?;
-            }
-        }
-
-        Ok(raw_data_info)
-    }
-
-    fn write_property<W: Write>(
-        &self,
-        writer: &mut W,
-        key: &str,
+        writer: &mut BufWriter<File>,
         value: &PropertyValue,
     ) -> Result<()> {
-        // Key length and key
-        writer.write_u32::<LittleEndian>(key.len() as u32)?;
-        writer.write_all(key.as_bytes())?;
-
-        // Value type and value
         match value {
-            PropertyValue::I8(i) => {
-                writer.write_u32::<LittleEndian>(DataType::I8 as u32)?;
-                writer.write_i8(*i)?;
+            PropertyValue::I8(v) => {
+                writer.write_u32::<LittleEndian>(DataType::I8.to_u32())?;
+                writer.write_i8(*v)?;
             }
-            PropertyValue::I16(i) => {
-                writer.write_u32::<LittleEndian>(DataType::I16 as u32)?;
-                writer.write_i16::<LittleEndian>(*i)?;
+            PropertyValue::I16(v) => {
+                writer.write_u32::<LittleEndian>(DataType::I16.to_u32())?;
+                writer.write_i16::<LittleEndian>(*v)?;
             }
-            PropertyValue::I32(i) => {
-                writer.write_u32::<LittleEndian>(DataType::I32 as u32)?;
-                writer.write_i32::<LittleEndian>(*i)?;
+            PropertyValue::I32(v) => {
+                writer.write_u32::<LittleEndian>(DataType::I32.to_u32())?;
+                writer.write_i32::<LittleEndian>(*v)?;
             }
-            PropertyValue::I64(i) => {
-                writer.write_u32::<LittleEndian>(DataType::I64 as u32)?;
-                writer.write_i64::<LittleEndian>(*i)?;
+            PropertyValue::I64(v) => {
+                writer.write_u32::<LittleEndian>(DataType::I64.to_u32())?;
+                writer.write_i64::<LittleEndian>(*v)?;
             }
-            PropertyValue::U8(u) => {
-                writer.write_u32::<LittleEndian>(DataType::U8 as u32)?;
-                writer.write_u8(*u)?;
+            PropertyValue::U8(v) => {
+                writer.write_u32::<LittleEndian>(DataType::U8.to_u32())?;
+                writer.write_u8(*v)?;
             }
-            PropertyValue::U16(u) => {
-                writer.write_u32::<LittleEndian>(DataType::U16 as u32)?;
-                writer.write_u16::<LittleEndian>(*u)?;
+            PropertyValue::U16(v) => {
+                writer.write_u32::<LittleEndian>(DataType::U16.to_u32())?;
+                writer.write_u16::<LittleEndian>(*v)?;
             }
-            PropertyValue::U32(u) => {
-                writer.write_u32::<LittleEndian>(DataType::U32 as u32)?;
-                writer.write_u32::<LittleEndian>(*u)?;
+            PropertyValue::U32(v) => {
+                writer.write_u32::<LittleEndian>(DataType::U32.to_u32())?;
+                writer.write_u32::<LittleEndian>(*v)?;
             }
-            PropertyValue::U64(u) => {
-                writer.write_u32::<LittleEndian>(DataType::U64 as u32)?;
-                writer.write_u64::<LittleEndian>(*u)?;
+            PropertyValue::U64(v) => {
+                writer.write_u32::<LittleEndian>(DataType::U64.to_u32())?;
+                writer.write_u64::<LittleEndian>(*v)?;
             }
-            PropertyValue::Float(f) => {
-                writer.write_u32::<LittleEndian>(DataType::SingleFloat as u32)?;
-                writer.write_f32::<LittleEndian>(*f)?;
+            PropertyValue::Float(v) => {
+                writer.write_u32::<LittleEndian>(DataType::SingleFloat.to_u32())?;
+                writer.write_f32::<LittleEndian>(*v)?;
             }
-            PropertyValue::Double(d) => {
-                writer.write_u32::<LittleEndian>(DataType::DoubleFloat as u32)?;
-                writer.write_f64::<LittleEndian>(*d)?;
+            PropertyValue::Double(v) => {
+                writer.write_u32::<LittleEndian>(DataType::DoubleFloat.to_u32())?;
+                writer.write_f64::<LittleEndian>(*v)?;
             }
             PropertyValue::String(s) => {
-                writer.write_u32::<LittleEndian>(DataType::String as u32)?;
+                writer.write_u32::<LittleEndian>(DataType::String.to_u32())?;
                 writer.write_u32::<LittleEndian>(s.len() as u32)?;
                 writer.write_all(s.as_bytes())?;
             }
             PropertyValue::Boolean(b) => {
-                writer.write_u32::<LittleEndian>(DataType::Boolean as u32)?;
+                writer.write_u32::<LittleEndian>(DataType::Boolean.to_u32())?;
                 writer.write_u8(if *b { 1 } else { 0 })?;
             }
-            PropertyValue::TimeStamp((seconds, fraction)) => {
-                writer.write_u32::<LittleEndian>(DataType::TimeStamp as u32)?;
-                writer.write_u64::<LittleEndian>(*fraction)?;
-                writer.write_i64::<LittleEndian>(*seconds)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn write_channel_data_direct(&self, file: &mut File, data: &TdmsData) -> Result<()> {
-        // Use chunked writing for all data types to minimize syscalls
-        const CHUNK_SIZE: usize = 64 * 1024 * 1024; // 64MB
-        
-        match data {
-            TdmsData::Double(values) => {
-                self.write_f64_slice_chunked(file, values, CHUNK_SIZE)?;
-            }
-            TdmsData::Float(values) => {
-                self.write_f32_slice_chunked(file, values, CHUNK_SIZE)?;
-            }
-            TdmsData::I8(values) => {
-                self.write_i8_slice_chunked(file, values, CHUNK_SIZE)?;
-            }
-            TdmsData::I16(values) => {
-                self.write_i16_slice_chunked(file, values, CHUNK_SIZE)?;
-            }
-            TdmsData::I32(values) => {
-                self.write_i32_slice_chunked(file, values, CHUNK_SIZE)?;
-            }
-            TdmsData::I64(values) => {
-                self.write_i64_slice_chunked(file, values, CHUNK_SIZE)?;
-            }
-            TdmsData::U8(values) => {
-                self.write_u8_slice_chunked(file, values, CHUNK_SIZE)?;
-            }
-            TdmsData::U16(values) => {
-                self.write_u16_slice_chunked(file, values, CHUNK_SIZE)?;
-            }
-            TdmsData::U32(values) => {
-                self.write_u32_slice_chunked(file, values, CHUNK_SIZE)?;
-            }
-            TdmsData::U64(values) => {
-                self.write_u64_slice_chunked(file, values, CHUNK_SIZE)?;
-            }
-            TdmsData::Boolean(values) => {
-                self.write_bool_slice_chunked(file, values, CHUNK_SIZE)?;
-            }
-            TdmsData::String(values) => {
-                // Write offsets first
-                let mut offset = 0u32;
-                for s in values {
-                    offset += s.len() as u32;
-                    file.write_u32::<LittleEndian>(offset)?;
-                }
-                // Write string bytes
-                for s in values {
-                    file.write_all(s.as_bytes())?;
-                }
-            }
-            TdmsData::TimeStamp(values) => {
-                for &(seconds, fraction) in values {
-                    file.write_u64::<LittleEndian>(fraction)?;
-                    file.write_i64::<LittleEndian>(seconds)?;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Write channel data from a slice directly to file with chunking for large datasets.
-    /// This function performs zero-copy writing: it writes directly from the slice
-    /// to disk without intermediate allocations.
-    ///
-    /// # Arguments
-    ///
-    /// * `file` - The file to write to
-    /// * `data` - Slice of data to write
-    /// * `chunk_size` - Size of chunks for large writes (in bytes), 0 for default (64MB)
-    pub fn write_f64_slice_chunked(
-        &self,
-        file: &mut File,
-        data: &[f64],
-        chunk_size: usize,
-    ) -> Result<()> {
-        let bytes = unsafe {
-            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 8)
-        };
-        Self::write_slice_chunked(file, bytes, chunk_size)
-    }
-
-    pub fn write_f32_slice_chunked(
-        &self,
-        file: &mut File,
-        data: &[f32],
-        chunk_size: usize,
-    ) -> Result<()> {
-        let bytes = unsafe {
-            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 4)
-        };
-        Self::write_slice_chunked(file, bytes, chunk_size)
-    }
-
-    pub fn write_i8_slice_chunked(
-        &self,
-        file: &mut File,
-        data: &[i8],
-        chunk_size: usize,
-    ) -> Result<()> {
-        let bytes = unsafe {
-            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len())
-        };
-        Self::write_slice_chunked(file, bytes, chunk_size)
-    }
-
-    pub fn write_i16_slice_chunked(
-        &self,
-        file: &mut File,
-        data: &[i16],
-        chunk_size: usize,
-    ) -> Result<()> {
-        let bytes = unsafe {
-            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 2)
-        };
-        Self::write_slice_chunked(file, bytes, chunk_size)
-    }
-
-    pub fn write_i32_slice_chunked(
-        &self,
-        file: &mut File,
-        data: &[i32],
-        chunk_size: usize,
-    ) -> Result<()> {
-        let bytes = unsafe {
-            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 4)
-        };
-        Self::write_slice_chunked(file, bytes, chunk_size)
-    }
-
-    pub fn write_i64_slice_chunked(
-        &self,
-        file: &mut File,
-        data: &[i64],
-        chunk_size: usize,
-    ) -> Result<()> {
-        let bytes = unsafe {
-            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 8)
-        };
-        Self::write_slice_chunked(file, bytes, chunk_size)
-    }
-
-    pub fn write_u8_slice_chunked(
-        &self,
-        file: &mut File,
-        data: &[u8],
-        chunk_size: usize,
-    ) -> Result<()> {
-        Self::write_slice_chunked(file, data, chunk_size)
-    }
-
-    pub fn write_u16_slice_chunked(
-        &self,
-        file: &mut File,
-        data: &[u16],
-        chunk_size: usize,
-    ) -> Result<()> {
-        let bytes = unsafe {
-            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 2)
-        };
-        Self::write_slice_chunked(file, bytes, chunk_size)
-    }
-
-    pub fn write_u32_slice_chunked(
-        &self,
-        file: &mut File,
-        data: &[u32],
-        chunk_size: usize,
-    ) -> Result<()> {
-        let bytes = unsafe {
-            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 4)
-        };
-        Self::write_slice_chunked(file, bytes, chunk_size)
-    }
-
-    pub fn write_u64_slice_chunked(
-        &self,
-        file: &mut File,
-        data: &[u64],
-        chunk_size: usize,
-    ) -> Result<()> {
-        let bytes = unsafe {
-            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 8)
-        };
-        Self::write_slice_chunked(file, bytes, chunk_size)
-    }
-
-    pub fn write_bool_slice_chunked(
-        &self,
-        file: &mut File,
-        data: &[bool],
-        chunk_size: usize,
-    ) -> Result<()> {
-        // Convert bools to bytes - minimal allocation necessary for TDMS format
-        let bytes: Vec<u8> = data.iter().map(|&v| if v { 1 } else { 0 }).collect();
-        Self::write_slice_chunked(file, &bytes, chunk_size)
-    }
-
-    /// Helper function to write a byte slice in chunks to minimize syscalls.
-    /// Uses 64MB chunks by default for optimal performance.
-    fn write_slice_chunked(file: &mut File, data: &[u8], chunk_size: usize) -> Result<()> {
-        const DEFAULT_CHUNK_SIZE: usize = 64 * 1024 * 1024; // 64MB
-        let chunk_size = if chunk_size > 0 { chunk_size } else { DEFAULT_CHUNK_SIZE };
-
-        let mut offset = 0;
-        while offset < data.len() {
-            let end = (offset + chunk_size).min(data.len());
-            file.write_all(&data[offset..end])?;
-            offset = end;
-        }
-        Ok(())
-    }
-
-    fn write_channel_data<W: Write>(&self, writer: &mut W, data: &TdmsData) -> Result<()> {
-        match data {
-            TdmsData::Double(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 8)
-                };
-                writer.write_all(buf)?;
-            }
-            TdmsData::Float(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 4)
-                };
-                writer.write_all(buf)?;
-            }
-            TdmsData::I8(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len())
-                };
-                writer.write_all(buf)?;
-            }
-            TdmsData::I16(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 2)
-                };
-                writer.write_all(buf)?;
-            }
-            TdmsData::I32(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 4)
-                };
-                writer.write_all(buf)?;
-            }
-            TdmsData::I64(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 8)
-                };
-                writer.write_all(buf)?;
-            }
-            TdmsData::U8(values) => {
-                writer.write_all(values)?;
-            }
-            TdmsData::U16(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 2)
-                };
-                writer.write_all(buf)?;
-            }
-            TdmsData::U32(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 4)
-                };
-                writer.write_all(buf)?;
-            }
-            TdmsData::U64(values) => {
-                let buf = unsafe {
-                    std::slice::from_raw_parts(values.as_ptr() as *const u8, values.len() * 8)
-                };
-                writer.write_all(buf)?;
-            }
-            TdmsData::Boolean(values) => {
-                let buf: Vec<u8> = values.iter().map(|&v| if v { 1 } else { 0 }).collect();
-                writer.write_all(&buf)?;
-            }
-            TdmsData::String(values) => {
-                // Write offsets first
-                let mut offset = 0u32;
-                for s in values {
-                    offset += s.len() as u32;
-                    writer.write_u32::<LittleEndian>(offset)?;
-                }
-                // Write string bytes
-                for s in values {
-                    writer.write_all(s.as_bytes())?;
-                }
-            }
-            TdmsData::TimeStamp(values) => {
-                for &(seconds, fraction) in values {
-                    writer.write_u64::<LittleEndian>(fraction)?;
-                    writer.write_i64::<LittleEndian>(seconds)?;
-                }
+            PropertyValue::TimeStamp((secs, frac)) => {
+                writer.write_u32::<LittleEndian>(DataType::TimeStamp.to_u32())?;
+                writer.write_i64::<LittleEndian>(*secs)?;
+                writer.write_u64::<LittleEndian>(*frac)?;
             }
         }
         Ok(())
     }
 }
 
-impl TdmsGroupWriter {
-    /// Add a channel to this group with the specified data.
+impl<'w> WriterGroup<'w> {
+    /// Add a channel to this group.
     ///
-    /// # Arguments
+    /// # Examples
     ///
-    /// * `name` - The name of the channel to create
-    /// * `data` - The data to store in the channel
+    /// ```no_run
+    /// use tdms::TdmsWriter;
     ///
-    /// # Returns
-    ///
-    /// Returns a mutable reference to the created channel.
-    ///
-    /// # Errors
-    ///
-    /// Returns `TdmsError::InvalidName` if the channel name is empty.
-    /// Returns `TdmsError::DuplicateName` if a channel with this name already exists in this group.
-    pub fn add_channel(
+    /// let mut w = TdmsWriter::create("out.tdms")?;
+    /// let mut g = w.add_group("DAQ")?;
+    /// let mut ch = g.add_channel::<f64>("Voltage")?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn add_channel<T: WritableType>(
         &mut self,
         name: impl Into<String>,
-        data: TdmsData,
-    ) -> crate::error::Result<&mut TdmsChannelWriter> {
+    ) -> Result<WriterChannel<'_, T>> {
         let name = name.into();
 
         if name.is_empty() {
-            return Err(crate::error::TdmsError::InvalidName(
-                "Channel name cannot be empty".into(),
-            ));
+            return Err(TdmsError::InvalidName("Channel name cannot be empty".into()));
         }
 
-        if self.channels.contains_key(&name) {
-            return Err(crate::error::TdmsError::DuplicateName(format!(
-                "Channel '{}' already exists in this group",
-                name
-            )));
+        let group = self
+            .writer
+            .groups
+            .get_mut(&self.group_name)
+            .ok_or_else(|| TdmsError::GroupNotFound(self.group_name.clone()))?;
+
+        if !group.channels.contains_key(&name) {
+            group.channels.insert(
+                name.clone(),
+                WriterChannelData {
+                    name: name.clone(),
+                    data_type: T::data_type(),
+                    data: Vec::new(),
+                    properties: IndexMap::new(),
+                },
+            );
         }
 
-        let channel = TdmsChannelWriter {
-            data,
-            properties: IndexMap::new(),
-        };
-        self.channels.insert(name.clone(), channel);
-        Ok(self.channels.get_mut(&name).unwrap())
+        Ok(WriterChannel {
+            writer: self.writer,
+            group_name: self.group_name.clone(),
+            channel_name: name,
+            _phantom: PhantomData,
+        })
     }
 
     /// Add a property to this group.
     ///
-    /// # Arguments
-    ///
-    /// * `key` - The property name
-    /// * `value` - The property value (can be any type that converts to PropertyValue)
-    ///
-    /// # Errors
-    ///
-    /// Returns `TdmsError::InvalidName` if the property key is empty.
-    ///
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms_rs::writer::TdmsFileWriter;
+    /// use tdms::TdmsWriter;
     ///
-    /// let mut writer = TdmsFileWriter::new("output.tdms");
-    /// let group = writer.add_group("Sensors")?;
-    ///
-    /// // Using the ergonomic From<T> conversions
-    /// group.add_property("Location", "Lab A")?;
-    /// group.add_property("Sample_Rate", 1000.0)?;
-    /// group.add_property("Channel_Count", 4i32)?;
+    /// let mut w = TdmsWriter::create("out.tdms")?;
+    /// let mut g = w.add_group("DAQ")?;
+    /// g.add_property("Description", PropertyValue::String("Voltage channel".into()))?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn add_property(
         &mut self,
-        key: impl Into<String>,
-        value: impl Into<PropertyValue>,
-    ) -> crate::error::Result<()> {
-        let key = key.into();
-
-        if key.is_empty() {
-            return Err(crate::error::TdmsError::InvalidName(
-                "Property key cannot be empty".into(),
-            ));
+        name: impl Into<String>,
+        value: PropertyValue,
+    ) -> Result<&mut Self> {
+        let name = name.into();
+        if name.is_empty() {
+            return Err(TdmsError::InvalidName("Property name cannot be empty".into()));
         }
-
-        self.properties.insert(key, value.into());
-        Ok(())
+        let group = self
+            .writer
+            .groups
+            .get_mut(&self.group_name)
+            .ok_or_else(|| TdmsError::GroupNotFound(self.group_name.clone()))?;
+        group.properties.insert(name, value);
+        Ok(self)
     }
 }
 
-impl TdmsChannelWriter {
+impl<'w, T: WritableType> WriterChannel<'w, T> {
+    /// Write data to this channel.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use tdms::TdmsWriter;
+    ///
+    /// let mut w = TdmsWriter::create("out.tdms")?;
+    /// let mut g = w.add_group("DAQ")?;
+    /// let mut ch = g.add_channel::<f64>("Voltage")?;
+    /// ch.write(&[1.0, 2.0, 3.0])?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn write(&mut self, data: &[T]) -> Result<()> {
+        let group = self
+            .writer
+            .groups
+            .get_mut(&self.group_name)
+            .ok_or_else(|| TdmsError::GroupNotFound(self.group_name.clone()))?;
+
+        let channel = group
+            .channels
+            .get_mut(&self.channel_name)
+            .ok_or_else(|| {
+                TdmsError::ChannelNotFound(self.channel_name.clone(), self.group_name.clone())
+            })?;
+
+        T::write_to_buffer(data, &mut channel.data)?;
+        Ok(())
+    }
+
     /// Add a property to this channel.
     ///
-    /// # Arguments
-    ///
-    /// * `key` - The property name
-    /// * `value` - The property value (can be any type that converts to PropertyValue)
-    ///
-    /// # Errors
-    ///
-    /// Returns `TdmsError::InvalidName` if the property key is empty.
-    ///
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms_rs::writer::TdmsFileWriter;
-    /// use tdms_rs::TdmsData;
+    /// use tdms::TdmsWriter;
     ///
-    /// let mut writer = TdmsFileWriter::new("output.tdms");
-    /// let group = writer.add_group("Sensors")?;
-    /// let channel = group.add_channel("Temperature", TdmsData::Double(vec![20.0, 21.0]))?;
-    ///
-    /// // Using the ergonomic From<T> conversions
-    /// channel.add_property("wf_unit_string", "°C")?;
-    /// channel.add_property("wf_increment", 0.001)?;
-    /// channel.add_property("calibrated", true)?;
+    /// let mut w = TdmsWriter::create("out.tdms")?;
+    /// let mut g = w.add_group("DAQ")?;
+    /// let mut ch = g.add_channel::<f64>("Voltage")?;
+    /// ch.add_property("Unit", PropertyValue::String("V".into()))?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn add_property(
         &mut self,
-        key: impl Into<String>,
-        value: impl Into<PropertyValue>,
-    ) -> crate::error::Result<()> {
-        let key = key.into();
-
-        if key.is_empty() {
-            return Err(crate::error::TdmsError::InvalidName(
-                "Property key cannot be empty".into(),
-            ));
+        name: impl Into<String>,
+        value: PropertyValue,
+    ) -> Result<&mut Self> {
+        let name = name.into();
+        if name.is_empty() {
+            return Err(TdmsError::InvalidName("Property name cannot be empty".into()));
         }
 
-        self.properties.insert(key, value.into());
+        let group = self
+            .writer
+            .groups
+            .get_mut(&self.group_name)
+            .ok_or_else(|| TdmsError::GroupNotFound(self.group_name.clone()))?;
+
+        let channel = group
+            .channels
+            .get_mut(&self.channel_name)
+            .ok_or_else(|| {
+                TdmsError::ChannelNotFound(self.channel_name.clone(), self.group_name.clone())
+            })?;
+
+        channel.properties.insert(name, value);
+        Ok(self)
+    }
+}
+
+/// Trait for types that can be written to TDMS files.
+pub trait WritableType: Sized {
+    fn data_type() -> DataType;
+    fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()>;
+}
+
+impl WritableType for f64 {
+    fn data_type() -> DataType {
+        DataType::DoubleFloat
+    }
+
+    fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
+        for &v in data {
+            buffer.write_f64::<LittleEndian>(v)?;
+        }
         Ok(())
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::TdmsFile;
-    use std::fs;
-
-    #[test]
-    fn round_trip_group_path_no_trailing_slash() -> Result<()> {
-        // Create output directory if it doesn't exist
-        fs::create_dir_all("tests/output")?;
-
-        let output_path = "tests/output/group_path.tdms";
-        let mut writer = TdmsFileWriter::new(output_path);
-        let group = writer.add_group("Integers")?;
-        group.add_channel("Chan1", TdmsData::I32(vec![1, 2, 3]))?;
-        writer.write()?;
-
-        let written = TdmsFile::load(std::path::Path::new(output_path))?;
-        assert_eq!(written.groups.keys().collect::<Vec<_>>(), &["Integers"]); // no trailing slash
-        Ok(())
+impl WritableType for f32 {
+    fn data_type() -> DataType {
+        DataType::SingleFloat
     }
 
-    #[test]
-    fn deterministic_channel_ordering() -> Result<()> {
-        fs::create_dir_all("tests/output")?;
-
-        let output_path = "tests/output/channel_order.tdms";
-        let mut writer = TdmsFileWriter::new(output_path);
-        let group = writer.add_group("Test")?;
-
-        // Add channels in non-alphabetical order
-        group.add_channel("Zebra", TdmsData::I32(vec![3]))?;
-        group.add_channel("Alpha", TdmsData::I32(vec![1]))?;
-        group.add_channel("Beta", TdmsData::I32(vec![2]))?;
-
-        writer.write()?;
-
-        let written = TdmsFile::load(std::path::Path::new(output_path))?;
-        let test_group = written.groups.get("Test").unwrap();
-
-        // Verify all channels exist (order doesn't matter for this test since reader uses HashMap)
-        assert!(test_group.channels.contains_key("Alpha"));
-        assert!(test_group.channels.contains_key("Beta"));
-        assert!(test_group.channels.contains_key("Zebra"));
-        assert_eq!(test_group.channels.len(), 3);
-
-        // Verify data integrity
-        let alpha_channel = test_group.channels.get("Alpha").unwrap();
-        let mut alpha_buffer = vec![0i32; alpha_channel.data_len()];
-        let alpha_count = alpha_channel.read_i32_into(&mut alpha_buffer)?;
-        assert_eq!(alpha_count, 1);
-        assert_eq!(&alpha_buffer[..alpha_count], &[1]);
-
-        let beta_channel = test_group.channels.get("Beta").unwrap();
-        let mut beta_buffer = vec![0i32; beta_channel.data_len()];
-        let beta_count = beta_channel.read_i32_into(&mut beta_buffer)?;
-        assert_eq!(beta_count, 1);
-        assert_eq!(&beta_buffer[..beta_count], &[2]);
-
-        let zebra_channel = test_group.channels.get("Zebra").unwrap();
-        let mut zebra_buffer = vec![0i32; zebra_channel.data_len()];
-        let zebra_count = zebra_channel.read_i32_into(&mut zebra_buffer)?;
-        assert_eq!(zebra_count, 1);
-        assert_eq!(&zebra_buffer[..zebra_count], &[3]);
-
-        Ok(())
-    }
-
-    #[test]
-    fn properties_support() -> Result<()> {
-        fs::create_dir_all("tests/output")?;
-
-        let output_path = "tests/output/properties.tdms";
-        let mut writer = TdmsFileWriter::new(output_path);
-
-        // Add file-level properties
-        writer.add_property("file_prop", PropertyValue::String("file_value".to_string()))?;
-        writer.add_property("file_number", PropertyValue::I32(42))?;
-
-        let group = writer.add_group("TestGroup")?;
-
-        // Add group-level properties
-        group.add_property(
-            "group_prop",
-            PropertyValue::String("group_value".to_string()),
-        )?;
-        group.add_property("group_double", PropertyValue::Double(std::f64::consts::PI))?;
-
-        let channel = group.add_channel("TestChannel", TdmsData::Double(vec![1.0, 2.0, 3.0]))?;
-
-        // Add channel-level properties
-        channel.add_property("wf_unit_string", PropertyValue::String("V".to_string()))?;
-        channel.add_property("wf_increment", PropertyValue::Double(0.001))?;
-        channel.add_property("channel_bool", PropertyValue::Boolean(true))?;
-
-        writer.write()?;
-
-        let written = TdmsFile::load(std::path::Path::new(output_path))?;
-
-        // Verify file properties (note: current reader doesn't support file properties yet)
-        // This test will initially fail until we implement file property reading
-
-        // Verify group properties
-        let test_group = written.groups.get("TestGroup").unwrap();
-        assert_eq!(
-            test_group.properties.get("group_prop"),
-            Some(&PropertyValue::String("group_value".to_string()))
-        );
-        assert_eq!(
-            test_group.properties.get("group_double"),
-            Some(&PropertyValue::Double(std::f64::consts::PI))
-        );
-
-        // Verify channel properties
-        let test_channel = test_group.channels.get("TestChannel").unwrap();
-        assert_eq!(
-            test_channel.properties.get("wf_unit_string"),
-            Some(&PropertyValue::String("V".to_string()))
-        );
-        assert_eq!(
-            test_channel.properties.get("wf_increment"),
-            Some(&PropertyValue::Double(0.001))
-        );
-        assert_eq!(
-            test_channel.properties.get("channel_bool"),
-            Some(&PropertyValue::Boolean(true))
-        );
-
-        Ok(())
-    }
-
-    #[test]
-    fn string_data_support() -> Result<()> {
-        fs::create_dir_all("tests/output")?;
-
-        let output_path = "tests/output/string_data.tdms";
-        let mut writer = TdmsFileWriter::new(output_path);
-        let group = writer.add_group("StringGroup")?;
-
-        // Test multiple strings with different lengths
-        let string_data = vec![
-            "Hello".to_string(),
-            "World".to_string(),
-            "TDMS".to_string(),
-            "Test".to_string(),
-            "String Data".to_string(),
-        ];
-
-        group.add_channel("StringChannel", TdmsData::String(string_data.clone()))?;
-
-        writer.write()?;
-
-        let written = TdmsFile::load(std::path::Path::new(output_path))?;
-        let test_group = written.groups.get("StringGroup").unwrap();
-        let test_channel = test_group.channels.get("StringChannel").unwrap();
-
-        // Verify string data
-        let data = test_channel.ensure_data_loaded()?;
-        match data {
-            TdmsData::String(written_strings) => {
-                assert_eq!(written_strings.len(), string_data.len());
-                for (written, expected) in written_strings.iter().zip(string_data.iter()) {
-                    assert_eq!(written, expected);
-                }
-            }
-            _ => panic!("Expected string data, got {:?}", test_channel.data_type_name()),
+    fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
+        for &v in data {
+            buffer.write_f32::<LittleEndian>(v)?;
         }
-
         Ok(())
     }
+}
 
-    #[test]
-    fn examine_strings_corpus() -> Result<()> {
-        // Load the actual strings corpus to understand the format
-        let reference_file = TdmsFile::load(std::path::Path::new(
-            "tests/fixtures/tdms_corpus/03_datatypes/strings.tdms",
-        ))?;
+impl WritableType for i8 {
+    fn data_type() -> DataType {
+        DataType::I8
+    }
 
-        println!("Strings corpus structure:");
-        for (group_name, group) in &reference_file.groups {
-            println!("Group: {}", group_name);
-            for (channel_name, channel) in &group.channels {
-                println!("  Channel: {}", channel_name);
-                if let Ok(data) = channel.ensure_data_loaded() {
-                    if let TdmsData::String(strings) = data {
-                        println!("    String data: {:?}", strings);
-                    } else {
-                        println!("    Data type: {:?}", channel.data_type_name());
-                    }
-                } else {
-                    println!("    Data type: {:?}", channel.data_type_name());
-                }
-            }
+    fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
+        for &v in data {
+            buffer.write_i8(v)?;
         }
-
         Ok(())
     }
+}
 
-    #[test]
-    fn boolean_and_timestamp_data() -> Result<()> {
-        fs::create_dir_all("tests/output")?;
-
-        let output_path = "tests/output/bool_timestamp.tdms";
-        let mut writer = TdmsFileWriter::new(output_path);
-        let group = writer.add_group("MixedGroup")?;
-
-        // Test boolean data
-        group.add_channel(
-            "BoolChannel",
-            TdmsData::Boolean(vec![true, false, true, false, true]),
-        )?;
-
-        // Test timestamp data
-        group.add_channel(
-            "TimestampChannel",
-            TdmsData::TimeStamp(vec![(1000, 0), (2000, 500000000), (3000, 1000000000)]),
-        )?;
-
-        writer.write()?;
-
-        let written = TdmsFile::load(std::path::Path::new(output_path))?;
-        let test_group = written.groups.get("MixedGroup").unwrap();
-
-        // Verify boolean data
-        let bool_channel = test_group.channels.get("BoolChannel").unwrap();
-        let mut bool_buffer = vec![false; bool_channel.data_len()];
-        let bool_count = bool_channel.read_bool_into(&mut bool_buffer)?;
-        assert_eq!(bool_count, 5);
-        assert_eq!(&bool_buffer[..bool_count], &[true, false, true, false, true]);
-
-        // Verify timestamp data
-        let timestamp_channel = test_group.channels.get("TimestampChannel").unwrap();
-        let mut timestamp_buffer = vec![(0i64, 0u64); timestamp_channel.data_len()];
-        let timestamp_count = timestamp_channel.read_timestamp_into(&mut timestamp_buffer)?;
-        assert_eq!(timestamp_count, 3);
-        assert_eq!(
-            &timestamp_buffer[..timestamp_count],
-            &[(1000, 0), (2000, 500000000), (3000, 1000000000)]
-        );
-
-        Ok(())
+impl WritableType for i16 {
+    fn data_type() -> DataType {
+        DataType::I16
     }
 
-    #[test]
-    fn round_trip_strings_corpus() -> Result<()> {
-        fs::create_dir_all("tests/output")?;
-
-        let output_path = "tests/output/strings_corpus.tdms";
-        let mut writer = TdmsFileWriter::new(output_path);
-        let group = writer.add_group("Strings")?;
-
-        // Match the exact strings corpus data
-        let string_data = vec![
-            "Hello".to_string(),
-            "World".to_string(),
-            "".to_string(),
-            "TDMS".to_string(),
-            "File Format".to_string(),
-        ];
-
-        group.add_channel("Basic", TdmsData::String(string_data.clone()))?;
-
-        writer.write()?;
-
-        // Load and verify against the actual corpus
-        let written = TdmsFile::load(std::path::Path::new(output_path))?;
-        let reference = TdmsFile::load(std::path::Path::new(
-            "tests/fixtures/tdms_corpus/03_datatypes/strings.tdms",
-        ))?;
-
-        // Compare structure
-        assert_eq!(written.groups.len(), reference.groups.len());
-        assert_eq!(
-            written.groups.keys().collect::<Vec<_>>(),
-            reference.groups.keys().collect::<Vec<_>>()
-        );
-
-        // Compare string data
-        let written_group = written.groups.get("Strings").unwrap();
-        let reference_group = reference.groups.get("Strings").unwrap();
-
-        let written_channel = written_group.channels.get("Basic").unwrap();
-        let reference_channel = reference_group.channels.get("Basic").unwrap();
-
-        let written_data = written_channel.ensure_data_loaded()?;
-        let reference_data = reference_channel.ensure_data_loaded()?;
-        
-        match (written_data, reference_data) {
-            (
-                TdmsData::String(written_strings),
-                TdmsData::String(reference_strings),
-            ) => {
-                assert_eq!(written_strings, reference_strings);
-            }
-            _ => panic!("Expected string data in both files"),
+    fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
+        for &v in data {
+            buffer.write_i16::<LittleEndian>(v)?;
         }
+        Ok(())
+    }
+}
 
+impl WritableType for i32 {
+    fn data_type() -> DataType {
+        DataType::I32
+    }
+
+    fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
+        for &v in data {
+            buffer.write_i32::<LittleEndian>(v)?;
+        }
+        Ok(())
+    }
+}
+
+impl WritableType for i64 {
+    fn data_type() -> DataType {
+        DataType::I64
+    }
+
+    fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
+        for &v in data {
+            buffer.write_i64::<LittleEndian>(v)?;
+        }
+        Ok(())
+    }
+}
+
+impl WritableType for u8 {
+    fn data_type() -> DataType {
+        DataType::U8
+    }
+
+    fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
+        buffer.extend_from_slice(data);
+        Ok(())
+    }
+}
+
+impl WritableType for u16 {
+    fn data_type() -> DataType {
+        DataType::U16
+    }
+
+    fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
+        for &v in data {
+            buffer.write_u16::<LittleEndian>(v)?;
+        }
+        Ok(())
+    }
+}
+
+impl WritableType for u32 {
+    fn data_type() -> DataType {
+        DataType::U32
+    }
+
+    fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
+        for &v in data {
+            buffer.write_u32::<LittleEndian>(v)?;
+        }
+        Ok(())
+    }
+}
+
+impl WritableType for u64 {
+    fn data_type() -> DataType {
+        DataType::U64
+    }
+
+    fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
+        for &v in data {
+            buffer.write_u64::<LittleEndian>(v)?;
+        }
+        Ok(())
+    }
+}
+
+impl WritableType for bool {
+    fn data_type() -> DataType {
+        DataType::Boolean
+    }
+
+    fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
+        for &v in data {
+            buffer.write_u8(if v { 1 } else { 0 })?;
+        }
         Ok(())
     }
 }

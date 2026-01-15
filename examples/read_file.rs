@@ -21,33 +21,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Loading TDMS file: {}", file_path);
 
     // Load the TDMS file
-    let file = TdmsFile::load(Path::new(file_path))?;
+    let file = TdmsFile::open(Path::new(file_path))?;
 
     println!("Successfully loaded TDMS file!");
-    println!("Found {} groups:", file.groups.len());
+    println!("Found {} groups:", file.groups().count());
 
     // Print basic file structure
-    for (group_name, group) in &file.groups {
-        println!("\n📁 Group: '{}'", group_name);
-        println!("   Properties: {}", group.properties.len());
-        println!("   Channels: {}", group.channels.len());
+    for group in file.groups() {
+        println!("\n📁 Group: '{}'", group.name());
+        println!("   Properties: {}", group.properties().count());
+        println!("   Channels: {}", group.channels().count());
 
-        // List channels in this group
-        for (channel_name, channel) in &group.channels {
-            let data_info = if channel.data_len() > 0 {
-                format!(
-                    "{} samples ({})",
-                    channel.data_len(),
-                    channel.data_type_name().unwrap_or("unknown")
-                )
-            } else {
-                "no data".to_string()
-            };
+        for channel in group.channels() {
             println!(
-                "   📊 Channel '{}': {} properties, {}",
-                channel_name,
-                channel.properties.len(),
-                data_info
+                "   📊 Channel '{}': {} properties, {} samples ({:?})",
+                channel.name(),
+                channel.properties().count(),
+                channel.len(),
+                channel.dtype()
             );
         }
     }

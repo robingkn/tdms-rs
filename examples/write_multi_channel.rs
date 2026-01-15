@@ -4,8 +4,7 @@
 //! containing different data types, simulating a typical data acquisition scenario.
 
 use std::fs;
-use tdms_rs::writer::TdmsFileWriter;
-use tdms_rs::TdmsData;
+use tdms_rs::{TdmsDType, TdmsFile, TdmsWriter};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create output directory
@@ -14,66 +13,48 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📝 Creating multi-channel TDMS file...");
 
     // Create a new TDMS file writer
-    let mut writer = TdmsFileWriter::new("examples/output/multi_channel.tdms");
+    let mut writer = TdmsWriter::create("examples/output/multi_channel.tdms")?;
 
     // Add a sensors group
-    let sensors = writer.add_group("Sensors")?;
+    let mut sensors = writer.add_group("Sensors")?;
 
     // Temperature sensor data (double precision)
-    sensors.add_channel(
-        "Temperature",
-        TdmsData::Double(vec![20.1, 21.5, 22.3, 23.0, 22.8, 21.9, 20.5, 19.8]),
-    )?;
+    let mut temp = sensors.add_channel::<f64>("Temperature")?;
+    temp.write(&[20.1, 21.5, 22.3, 23.0, 22.8, 21.9, 20.5, 19.8])?;
 
     // Pressure sensor data (32-bit integers, representing pascals)
-    sensors.add_channel(
-        "Pressure",
-        TdmsData::I32(vec![
-            101325, 101330, 101320, 101315, 101310, 101305, 101300, 101295,
-        ]),
-    )?;
+    let mut pressure = sensors.add_channel::<i32>("Pressure")?;
+    pressure.write(&[101325, 101330, 101320, 101315, 101310, 101305, 101300, 101295])?;
 
     // Humidity sensor data (single precision floats)
-    sensors.add_channel(
-        "Humidity",
-        TdmsData::Float(vec![45.2, 46.1, 47.0, 48.5, 49.2, 48.8, 47.5, 46.3]),
-    )?;
+    let mut humidity = sensors.add_channel::<f32>("Humidity")?;
+    humidity.write(&[45.2, 46.1, 47.0, 48.5, 49.2, 48.8, 47.5, 46.3])?;
 
     // Validity flags (booleans)
-    sensors.add_channel(
-        "Valid",
-        TdmsData::Boolean(vec![true, true, true, false, true, true, true, true]),
-    )?;
+    let mut valid = sensors.add_channel::<bool>("Valid")?;
+    valid.write(&[true, true, true, false, true, true, true, true])?;
 
     // Add a digital I/O group
-    let digital = writer.add_group("Digital")?;
+    let mut digital = writer.add_group("Digital")?;
 
     // Digital input states (8-bit unsigned integers)
-    digital.add_channel(
-        "InputStates",
-        TdmsData::U8(vec![
-            0b00000001, 0b00000011, 0b00000111, 0b00001111, 0b00011111, 0b00111111, 0b01111111,
-            0b11111111,
-        ]),
-    )?;
+    let mut input_states = digital.add_channel::<u8>("InputStates")?;
+    input_states.write(&[
+        0b00000001,
+        0b00000011,
+        0b00000111,
+        0b00001111,
+        0b00011111,
+        0b00111111,
+        0b01111111,
+        0b11111111,
+    ])?;
 
-    // Event labels (strings)
-    digital.add_channel(
-        "EventLabels",
-        TdmsData::String(vec![
-            "Start".to_string(),
-            "Sensor1_Active".to_string(),
-            "Sensor2_Active".to_string(),
-            "Warning".to_string(),
-            "Normal".to_string(),
-            "Calibration".to_string(),
-            "Shutdown".to_string(),
-            "Stop".to_string(),
-        ]),
-    )?;
+    // String channels are intentionally not written by this example because the redesigned
+    // writer API only supports fixed-size primitive types and does not implement string encoding.
 
     // Write the file
-    writer.write()?;
+    writer.close()?;
 
     println!("✅ Successfully created 'examples/output/multi_channel.tdms'");
     println!("   - 2 groups: 'Sensors', 'Digital'");
@@ -81,78 +62,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify by reading it back
     println!("\n🔍 Verifying by reading the file back...");
-    let file = tdms_rs::TdmsFile::load(std::path::Path::new("examples/output/multi_channel.tdms"))?;
+    let file = TdmsFile::open(std::path::Path::new("examples/output/multi_channel.tdms"))?;
 
-    for (group_name, group) in &file.groups {
-        println!("   Group: {}", group_name);
-        for (channel_name, channel) in &group.channels {
-            match channel.ensure_data_loaded()? {
-                tdms_rs::TdmsData::Double(values) => {
-                    println!(
-                        "     Channel '{}': {} double values",
-                        channel_name,
-                        values.len()
-                    );
-                    println!(
-                        "       Range: {:.2} to {:.2}",
-                        values.iter().fold(f64::INFINITY, |a, &b| a.min(b)),
-                        values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b))
-                    );
+    for group in file.groups() {
+        println!("   Group: {}", group.name());
+        for channel in group.channels() {
+            match channel.dtype() {
+                TdmsDType::F64 => {
+                    let slice = channel.read_all()?;
+                    let values = slice.as_typed::<f64>()?;
+                    println!("     Channel '{}': {} f64 values", channel.name(), values.len());
                 }
-                tdms_rs::TdmsData::Float(values) => {
-                    println!(
-                        "     Channel '{}': {} float values",
-                        channel_name,
-                        values.len()
-                    );
-                    println!(
-                        "       Range: {:.2} to {:.2}",
-                        values.iter().fold(f32::INFINITY, |a, &b| a.min(b)),
-                        values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b))
-                    );
+                TdmsDType::F32 => {
+                    let slice = channel.read_all()?;
+                    let values = slice.as_typed::<f32>()?;
+                    println!("     Channel '{}': {} f32 values", channel.name(), values.len());
                 }
-                tdms_rs::TdmsData::I32(values) => {
-                    println!(
-                        "     Channel '{}': {} i32 values",
-                        channel_name,
-                        values.len()
-                    );
-                    println!(
-                        "       Range: {} to {}",
-                        values.iter().min().unwrap(),
-                        values.iter().max().unwrap()
-                    );
+                TdmsDType::I32 => {
+                    let slice = channel.read_all()?;
+                    let values = slice.as_typed::<i32>()?;
+                    println!("     Channel '{}': {} i32 values", channel.name(), values.len());
                 }
-                tdms_rs::TdmsData::U8(values) => {
-                    println!(
-                        "     Channel '{}': {} u8 values",
-                        channel_name,
-                        values.len()
-                    );
-                    println!("       Values: {:?}", values);
+                TdmsDType::U8 => {
+                    let slice = channel.read_all()?;
+                    let values = slice.as_typed::<u8>()?;
+                    println!("     Channel '{}': {} u8 values", channel.name(), values.len());
                 }
-                tdms_rs::TdmsData::Boolean(values) => {
-                    let true_count = values.iter().filter(|&&x| x).count();
-                    println!(
-                        "     Channel '{}': {} boolean values",
-                        channel_name,
-                        values.len()
-                    );
-                    println!(
-                        "       True: {}, False: {}",
-                        true_count,
-                        values.len() - true_count
-                    );
+                TdmsDType::Bool => {
+                    let slice = channel.read_all()?;
+                    let values = slice.as_typed::<bool>()?;
+                    println!("     Channel '{}': {} bool values", channel.name(), values.len());
                 }
-                tdms_rs::TdmsData::String(values) => {
-                    println!(
-                        "     Channel '{}': {} string values",
-                        channel_name,
-                        values.len()
-                    );
-                    println!("       Values: {:?}", values);
+                other => {
+                    println!("     Channel '{}': {} samples ({:?})", channel.name(), channel.len(), other);
                 }
-                data => println!("     Channel '{}': {:?}", channel_name, data.type_name()),
             }
         }
     }

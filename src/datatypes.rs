@@ -312,6 +312,36 @@ impl DataType {
             _ => Err(TdmsError::NotImplemented(format!("DataType {}", val))),
         }
     }
+
+    pub fn to_u32(&self) -> u32 {
+        match self {
+            DataType::Void => 0,
+            DataType::I8 => 1,
+            DataType::I16 => 2,
+            DataType::I32 => 3,
+            DataType::I64 => 4,
+            DataType::U8 => 5,
+            DataType::U16 => 6,
+            DataType::U32 => 7,
+            DataType::U64 => 8,
+            DataType::SingleFloat => 9,
+            DataType::DoubleFloat => 10,
+            DataType::String => 32,
+            DataType::Boolean => 33,
+            DataType::TimeStamp => 68,
+        }
+    }
+
+    pub fn itemsize(&self) -> usize {
+        match self {
+            DataType::I8 | DataType::U8 | DataType::Boolean => 1,
+            DataType::I16 | DataType::U16 => 2,
+            DataType::I32 | DataType::U32 | DataType::SingleFloat => 4,
+            DataType::I64 | DataType::U64 | DataType::DoubleFloat => 8,
+            DataType::TimeStamp => 16,
+            DataType::String | DataType::Void => 0,
+        }
+    }
 }
 
 pub fn read_property_value<R: Read + Seek>(

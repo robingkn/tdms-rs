@@ -24,17 +24,18 @@ exclude = [
     "!CHANGELOG.md"
 ]
 
-[[bin]]
-name = "tdms-to-json"
-path = "src/bin/tdms_to_json.rs"
+# Temporarily disabled during API redesign
+# [[bin]]
+# name = "tdms-to-json"
+# path = "src/bin/tdms_to_json.rs"
 
-[[bin]]
-name = "benchmark"
-path = "benchmark/tdms_rs/benchmark.rs"
+# [[bin]]
+# name = "benchmark"
+# path = "benchmark/tdms_rs/benchmark.rs"
 
-[[bin]]
-name = "rust_loading"
-path = "benchmark/loading/rust_loading.rs"
+# [[bin]]
+# name = "rust_loading"
+# path = "benchmark/loading/rust_loading.rs"
 
 [dependencies]
 byteorder = "1.4"
