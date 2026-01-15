@@ -46,6 +46,7 @@ impl<R: Read + Seek> TdmsReader<R> {
         if mask.has_new_obj_list() {
             // Read number of objects
             let count = self.reader.read_u32::<LittleEndian>()?;
+            // println!("DEBUG: Read object count: {}", count);
             self.object_order.clear();
 
             for _ in 0..count {
@@ -56,6 +57,7 @@ impl<R: Read + Seek> TdmsReader<R> {
                 let path_str =
                     String::from_utf8(path_bytes).map_err(|_| TdmsError::StringEncoding)?;
                 
+                // println!("DEBUG: Read object path: '{}'", path_str);
                 self.object_order.push(path_str.clone());
 
                 // Read Raw Data Index
@@ -234,6 +236,8 @@ impl<R: Read + Seek> TdmsReader<R> {
         } else {
             current_raw_offset
         };
+
+
 
         let current_pos = self.reader.stream_position()?;
         if current_pos != target_pos {

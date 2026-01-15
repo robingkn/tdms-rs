@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 /// # Examples
 ///
 /// ```no_run
-/// use tdms::TdmsWriter;
+/// use tdms_rs::TdmsWriter;
 ///
 /// let mut w = TdmsWriter::create("out.tdms")?;
 /// let mut g = w.add_group("DAQ")?;
@@ -65,7 +65,7 @@ impl TdmsWriter {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsWriter;
+    /// use tdms_rs::TdmsWriter;
     ///
     /// let mut w = TdmsWriter::create("output.tdms")?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -84,7 +84,7 @@ impl TdmsWriter {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsWriter;
+    /// use tdms_rs::TdmsWriter;
     ///
     /// let mut w = TdmsWriter::create("out.tdms")?;
     /// let mut g = w.add_group("Sensors")?;
@@ -119,7 +119,7 @@ impl TdmsWriter {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsWriter;
+    /// use tdms_rs::{TdmsWriter, PropertyValue};
     ///
     /// let mut w = TdmsWriter::create("out.tdms")?;
     /// w.add_property("Author", PropertyValue::String("John Doe".into()))?;
@@ -143,7 +143,7 @@ impl TdmsWriter {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsWriter;
+    /// use tdms_rs::TdmsWriter;
     ///
     /// let mut w = TdmsWriter::create("out.tdms")?;
     /// // ... add data ...
@@ -165,7 +165,7 @@ impl TdmsWriter {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsWriter;
+    /// use tdms_rs::TdmsWriter;
     ///
     /// let mut w = TdmsWriter::create("partial.tdms")?;
     /// // ... something goes wrong ...
@@ -220,7 +220,7 @@ impl TdmsWriter {
 
         // Write groups and channels
         for group in self.groups.values() {
-            let group_path = format!("/'{}' ", group.name);
+            let group_path = format!("/'{}'", group.name);
 
             // Always write group object (even without properties) so it exists
             self.write_object(&mut writer, &group_path, &group.properties, None)?;
@@ -248,7 +248,7 @@ impl TdmsWriter {
         // Update raw data offset
         let end_pos = writer.stream_position()?;
         writer.seek(std::io::SeekFrom::Start(segment_offset_pos + 8))?;
-        writer.write_u64::<LittleEndian>(raw_data_offset)?;
+        writer.write_u64::<LittleEndian>(raw_data_offset - 28)?;
         writer.seek(std::io::SeekFrom::Start(end_pos))?;
 
         writer.flush()?;
@@ -268,7 +268,7 @@ impl TdmsWriter {
 
         // Raw data index
         let raw_data_index = if raw_data.is_some() {
-            0x00001269_u32 // Has raw data
+            20_u32 // Has raw data: Type(4) + Dim(4) + Count(8) + PropCount(4) = 20
         } else {
             0xFFFFFFFF_u32 // No raw data
         };
@@ -351,8 +351,8 @@ impl TdmsWriter {
             }
             PropertyValue::TimeStamp((secs, frac)) => {
                 writer.write_u32::<LittleEndian>(DataType::TimeStamp.to_u32())?;
-                writer.write_i64::<LittleEndian>(*secs)?;
                 writer.write_u64::<LittleEndian>(*frac)?;
+                writer.write_i64::<LittleEndian>(*secs)?;
             }
         }
         Ok(())
@@ -365,7 +365,7 @@ impl<'w> WriterGroup<'w> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsWriter;
+    /// use tdms_rs::TdmsWriter;
     ///
     /// let mut w = TdmsWriter::create("out.tdms")?;
     /// let mut g = w.add_group("DAQ")?;
@@ -413,7 +413,7 @@ impl<'w> WriterGroup<'w> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsWriter;
+    /// use tdms_rs::{TdmsWriter, PropertyValue};
     ///
     /// let mut w = TdmsWriter::create("out.tdms")?;
     /// let mut g = w.add_group("DAQ")?;
@@ -445,7 +445,7 @@ impl<'w, T: WritableType> WriterChannel<'w, T> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsWriter;
+    /// use tdms_rs::TdmsWriter;
     ///
     /// let mut w = TdmsWriter::create("out.tdms")?;
     /// let mut g = w.add_group("DAQ")?;
@@ -476,7 +476,7 @@ impl<'w, T: WritableType> WriterChannel<'w, T> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsWriter;
+    /// use tdms_rs::{TdmsWriter, PropertyValue};
     ///
     /// let mut w = TdmsWriter::create("out.tdms")?;
     /// let mut g = w.add_group("DAQ")?;

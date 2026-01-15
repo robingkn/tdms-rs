@@ -103,3 +103,24 @@ pub struct ParsingMetadata {
     pub data_location: Option<DataLocation>,
     pub data: Option<TdmsData>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_paths() {
+        let p1 = ObjectPath::new("/'Group'".to_string());
+        assert_eq!(p1.components, vec!["Group"]);
+        assert_eq!(p1.group_name(), Some("Group"));
+
+        let p2 = ObjectPath::new("/'Group'/'Channel'".to_string());
+        assert_eq!(p2.components, vec!["Group", "Channel"]);
+        assert_eq!(p2.group_name(), Some("Group"));
+        assert_eq!(p2.channel_name(), Some("Channel"));
+        
+        let p3 = ObjectPath::new("/'Group' ".to_string());
+        assert_eq!(p3.components, vec!["Group"]);
+    }
+}
+

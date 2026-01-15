@@ -15,7 +15,7 @@ fn test_write_and_read_simple() -> Result<(), Box<dyn std::error::Error>> {
         w.close()?;
     }
     
-    // Read
+        // Read
     {
         let f = TdmsFile::open(test_file)?;
         let g = f.group("TestGroup").unwrap();

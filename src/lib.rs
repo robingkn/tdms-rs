@@ -5,7 +5,7 @@
 //! ## Reading Example
 //!
 //! ```no_run
-//! use tdms::TdmsFile;
+//! use tdms_rs::TdmsFile;
 //!
 //! let f = TdmsFile::open("data.tdms")?;
 //! let ch = f.group("G").unwrap().channel("C").unwrap();
@@ -17,7 +17,7 @@
 //! ## Writing Example
 //!
 //! ```no_run
-//! use tdms::TdmsWriter;
+//! use tdms_rs::TdmsWriter;
 //!
 //! let mut w = TdmsWriter::create("out.tdms")?;
 //! let mut g = w.add_group("DAQ")?;
@@ -35,6 +35,7 @@ mod segment;
 mod writer;
 
 pub use datatypes::PropertyValue;
+pub use datatypes::TdmsData;
 pub use error::{Result, TdmsError};
 pub use writer::{TdmsWriter, WriterGroup, WriterChannel};
 
@@ -122,7 +123,7 @@ impl TdmsFile {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let file = TdmsFile::open("data.tdms")?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -197,7 +198,7 @@ impl TdmsFile {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
     /// let g = f.group("Sensors").unwrap();
@@ -213,10 +214,10 @@ impl TdmsFile {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
-    /// let prop = f.property("prop_name")?;
+    /// let prop = f.property("prop_name").unwrap();
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn property(&self, name: &str) -> Option<&PropertyValue> {
@@ -228,7 +229,7 @@ impl TdmsFile {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
     /// for (name, prop) in f.properties() {
@@ -248,7 +249,7 @@ impl TdmsFile {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
     /// for g in f.groups() {
@@ -275,7 +276,7 @@ impl<'a> TdmsGroup<'a> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
     /// let g = f.group("Sensors").unwrap();
@@ -291,7 +292,7 @@ impl<'a> TdmsGroup<'a> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
     /// let g = f.group("Sensors").unwrap();
@@ -312,7 +313,7 @@ impl<'a> TdmsGroup<'a> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
     /// let g = f.group("Sensors").unwrap();
@@ -332,7 +333,7 @@ impl<'a> TdmsGroup<'a> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
     /// let g = f.group("Sensors").unwrap();
@@ -371,7 +372,7 @@ impl<'a> TdmsChannel<'a> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
     /// let ch = f.group("Sensors").unwrap().channel("Temperature").unwrap();
@@ -387,7 +388,7 @@ impl<'a> TdmsChannel<'a> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
     /// let ch = f.group("Sensors").unwrap().channel("Temperature").unwrap();
@@ -415,7 +416,7 @@ impl<'a> TdmsChannel<'a> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
     /// let ch = f.group("G").unwrap().channel("C").unwrap();
@@ -451,7 +452,7 @@ impl<'a> TdmsChannel<'a> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
     /// let ch = f.group("G").unwrap().channel("C").unwrap();
@@ -488,7 +489,7 @@ impl<'a> TdmsChannel<'a> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
     /// let ch = f.group("G").unwrap().channel("C").unwrap();
@@ -505,7 +506,7 @@ impl<'a> TdmsChannel<'a> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
     /// let ch = f.group("G").unwrap().channel("C").unwrap();
@@ -522,7 +523,7 @@ impl<'a> TdmsChannel<'a> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
     /// let ch = f.group("G").unwrap().channel("C").unwrap();
@@ -549,7 +550,7 @@ impl<'a> TdmsChannel<'a> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
     /// let ch = f.group("DAQ").unwrap().channel("Voltage").unwrap();
@@ -723,10 +724,10 @@ impl<'a> TdmsSlice<'a> {
     /// # Examples
     ///
     /// ```no_run
-    /// use tdms::TdmsFile;
+    /// use tdms_rs::TdmsFile;
     ///
     /// let f = TdmsFile::open("data.tdms")?;
-    /// let ch = f.group("G")?.channel("C")?;
+    /// let ch = f.group("G").unwrap().channel("C").unwrap();
     /// let slice = ch.read(0..100)?;
     /// let data: &[f64] = slice.as_typed()?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())

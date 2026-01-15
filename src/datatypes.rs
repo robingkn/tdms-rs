@@ -73,10 +73,10 @@ impl DataType {
 /// use tdms_rs::{TdmsFile, PropertyValue};
 /// use std::path::Path;
 ///
-/// let file = TdmsFile::load(Path::new("data.tdms"))?;
+/// let file = TdmsFile::open(Path::new("data.tdms"))?;
 ///
-/// if let Some(group) = file.groups.get("Sensors") {
-///     for (prop_name, prop_value) in &group.properties {
+/// if let Some(group) = file.group("Sensors") {
+///     for (prop_name, prop_value) in group.properties() {
 ///         match prop_value {
 ///             PropertyValue::String(s) => println!("String property {}: {}", prop_name, s),
 ///             PropertyValue::Double(d) => println!("Numeric property {}: {}", prop_name, d),
@@ -132,35 +132,29 @@ pub enum PropertyValue {
 ///
 /// # Examples
 ///
-/// ```no_run
-/// use tdms_rs::{TdmsFile, TdmsData};
-/// use std::path::Path;
+/// ```
+/// use tdms_rs::TdmsData;
 ///
-/// let file = TdmsFile::load(Path::new("data.tdms"))?;
+/// // Example of TdmsData variants
+/// let data = TdmsData::Double(vec![1.0, 2.0, 3.0]);
 ///
-/// if let Some(group) = file.groups.get("Measurements") {
-///     if let Some(channel) = group.channels.get("Voltage") {
-///         match &channel.data {
-///             Some(TdmsData::Double(values)) => {
-///                 println!("Voltage readings: {} samples", values.len());
-///                 let avg = values.iter().sum::<f64>() / values.len() as f64;
-///                 println!("Average voltage: {:.3} V", avg);
-///             },
-///             Some(TdmsData::Float(values)) => {
-///                 println!("Float voltage readings: {} samples", values.len());
-///             },
-///             Some(TdmsData::TimeStamp(timestamps)) => {
-///                 println!("Timestamp data: {} entries", timestamps.len());
-///                 for (seconds, fraction) in timestamps.iter().take(3) {
-///                     println!("  Time: {} seconds + {} fraction", seconds, fraction);
-///                 }
-///             },
-///             Some(other) => println!("Unexpected data type: {:?}", other),
-///             None => println!("No data in channel"),
+/// match &data {
+///     TdmsData::Double(values) => {
+///         println!("Voltage readings: {} samples", values.len());
+///         let avg = values.iter().sum::<f64>() / values.len() as f64;
+///         println!("Average voltage: {:.3} V", avg);
+///     },
+///     TdmsData::Float(values) => {
+///         println!("Float voltage readings: {} samples", values.len());
+///     },
+///     TdmsData::TimeStamp(timestamps) => {
+///         println!("Timestamp data: {} entries", timestamps.len());
+///         for (seconds, fraction) in timestamps.iter().take(3) {
+///             println!("  Time: {} seconds + {} fraction", seconds, fraction);
 ///         }
-///     }
+///     },
+///     _ => println!("Other data type"),
 /// }
-/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 ///
 /// # Timestamp Format
