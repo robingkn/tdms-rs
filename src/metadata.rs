@@ -75,14 +75,12 @@ fn trim_quotes(s: &str) -> String {
     }
 }
 
-use crate::datatypes::{DataType, PropertyValue, TdmsData};
+use crate::datatypes::{DataType, PropertyValue};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct RawDataMeta {
     pub data_type: DataType,
-    pub dimension: u32,
     pub number_of_values: u64,
     pub total_size_bytes: Option<u64>, // For variable length types
 }
@@ -97,14 +95,12 @@ pub struct DataLocation {
 }
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct ParsingMetadata {
     pub path: ObjectPath,
     pub raw_data_index: u32,
     pub properties: HashMap<String, PropertyValue>,
     pub raw_data_meta: Option<RawDataMeta>,
     pub data_location: Option<DataLocation>,
-    pub data: Option<TdmsData>,
 }
 
 #[cfg(test)]

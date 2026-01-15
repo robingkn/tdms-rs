@@ -33,9 +33,13 @@ exclude = [
 name = "benchmark"
 path = "benchmark/tdms_rs/benchmark.rs"
 
-# [[bin]]
-# name = "rust_loading"
-# path = "benchmark/loading/rust_loading.rs"
+[[test]]
+name = "integration"
+path = "tests/integration_tests/mod.rs"
+
+[[test]]
+name = "golden"
+path = "tests/golden_tests/mod.rs"
 
 [dependencies]
 byteorder = "1.4"

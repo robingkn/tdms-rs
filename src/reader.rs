@@ -46,7 +46,6 @@ impl<R: Read + Seek> TdmsReader<R> {
         if mask.has_new_obj_list() {
             // Read number of objects
             let count = self.reader.read_u32::<LittleEndian>()?;
-            // println!("DEBUG: Read object count: {}", count);
             self.object_order.clear();
 
             for _ in 0..count {
@@ -57,7 +56,6 @@ impl<R: Read + Seek> TdmsReader<R> {
                 let path_str =
                     String::from_utf8(path_bytes).map_err(|_| TdmsError::StringEncoding)?;
 
-                // println!("DEBUG: Read object path: '{}'", path_str);
                 self.object_order.push(path_str.clone());
 
                 // Read Raw Data Index
@@ -76,13 +74,13 @@ impl<R: Read + Seek> TdmsReader<R> {
                         let data_type = crate::datatypes::DataType::from_u32(type_code)?;
 
                         // Parse common fields
-                        let mut dim = 1;
+                        let mut _dim = 1;
                         let mut count = 0;
                         let mut total_size = None;
 
                         if raw_data_index >= 8 {
                             let mut dim_slice = &skipped[4..8];
-                            dim = dim_slice.read_u32::<LittleEndian>()?;
+                            _dim = dim_slice.read_u32::<LittleEndian>()?;
                         }
 
                         if data_type == crate::datatypes::DataType::String {
@@ -117,7 +115,6 @@ impl<R: Read + Seek> TdmsReader<R> {
 
                         raw_data_meta = Some(crate::metadata::RawDataMeta {
                             data_type,
-                            dimension: dim,
                             number_of_values: count,
                             total_size_bytes: total_size,
                         });
@@ -155,7 +152,6 @@ impl<R: Read + Seek> TdmsReader<R> {
                     properties,
                     raw_data_meta,
                     data_location: None,
-                    data: None, // Will be filled below
                 });
             }
         } else {
@@ -167,7 +163,6 @@ impl<R: Read + Seek> TdmsReader<R> {
                     properties: std::collections::HashMap::new(),
                     raw_data_meta: None,
                     data_location: None,
-                    data: None,
                 });
             }
         }

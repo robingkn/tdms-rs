@@ -378,151 +378,6 @@ pub fn read_property_value<R: Read + Seek>(
     }
 }
 
-#[allow(dead_code)]
-pub fn read_raw_data<R: Read + Seek>(
-    reader: &mut R,
-    data_type: &DataType,
-    count: u64,
-    total_size_bytes: Option<u64>,
-) -> Result<TdmsData> {
-    let count = count as usize;
-    match data_type {
-        DataType::Void => Err(TdmsError::NotImplemented("Raw data for Void".to_string())),
-        DataType::String => {
-            // String Data Parsing
-            let total_size = total_size_bytes
-                .ok_or(TdmsError::NotImplemented("String size missing".to_string()))?;
-            let offsets_size = (count * 4) as u64;
-
-            let mut offsets = Vec::with_capacity(count);
-            for _ in 0..count {
-                let offset = reader.read_u32::<LittleEndian>()?;
-                offsets.push(offset);
-            }
-
-            // Calculate Char Size
-            // Offsets are relative to the start of the character data.
-            // TotalSize in meta (45) INCLUDES offsets (20).
-            // Char data size = 25.
-            // Offsets: 5, 10, 10, 14, 25.
-            // These are End Offsets.
-            // Final offset (25) matches Char Size.
-
-            let char_size = total_size.saturating_sub(offsets_size);
-
-            let mut data_bytes = vec![0u8; char_size as usize];
-            reader.read_exact(&mut data_bytes)?;
-
-            let mut strings = Vec::with_capacity(count);
-            let mut start = 0;
-            for (_i, &offset) in offsets.iter().enumerate().take(count) {
-                let end = offset as usize;
-
-                // Bounds check
-                if end > data_bytes.len() {
-                    // Truncated string
-                    if start < data_bytes.len() {
-                        let slice = &data_bytes[start..];
-                        strings.push(String::from_utf8_lossy(slice).into_owned());
-                    } else {
-                        strings.push(String::new());
-                    }
-                } else if start <= end {
-                    let slice = &data_bytes[start..end];
-                    strings.push(String::from_utf8_lossy(slice).into_owned());
-                } else {
-                    strings.push(String::new());
-                }
-                start = end;
-            }
-            Ok(TdmsData::String(strings))
-        }
-        DataType::I8 => {
-            let mut data = vec![0i8; count];
-            let buf =
-                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count) };
-            reader.read_exact(buf)?;
-            Ok(TdmsData::I8(data))
-        }
-        DataType::I16 => {
-            let mut data = vec![0i16; count];
-            let buf =
-                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 2) };
-            reader.read_exact(buf)?;
-            Ok(TdmsData::I16(data))
-        }
-        DataType::I32 => {
-            let mut data = vec![0i32; count];
-            let buf =
-                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 4) };
-            reader.read_exact(buf)?;
-            Ok(TdmsData::I32(data))
-        }
-        DataType::I64 => {
-            let mut data = vec![0i64; count];
-            let buf =
-                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 8) };
-            reader.read_exact(buf)?;
-            Ok(TdmsData::I64(data))
-        }
-        DataType::U8 => {
-            let mut data = vec![0u8; count];
-            reader.read_exact(&mut data)?;
-            Ok(TdmsData::U8(data))
-        }
-        DataType::U16 => {
-            let mut data = vec![0u16; count];
-            let buf =
-                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 2) };
-            reader.read_exact(buf)?;
-            Ok(TdmsData::U16(data))
-        }
-        DataType::U32 => {
-            let mut data = vec![0u32; count];
-            let buf =
-                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 4) };
-            reader.read_exact(buf)?;
-            Ok(TdmsData::U32(data))
-        }
-        DataType::U64 => {
-            let mut data = vec![0u64; count];
-            let buf =
-                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 8) };
-            reader.read_exact(buf)?;
-            Ok(TdmsData::U64(data))
-        }
-        DataType::SingleFloat => {
-            let mut data = vec![0.0f32; count];
-            let buf =
-                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 4) };
-            reader.read_exact(buf)?;
-            Ok(TdmsData::Float(data))
-        }
-        DataType::DoubleFloat => {
-            let mut data = vec![0.0f64; count];
-            let buf =
-                unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, count * 8) };
-            reader.read_exact(buf)?;
-            Ok(TdmsData::Double(data))
-        }
-        DataType::Boolean => {
-            let mut data = vec![0u8; count];
-            reader.read_exact(&mut data)?;
-            let bool_data: Vec<bool> = data.into_iter().map(|v| v != 0).collect();
-            Ok(TdmsData::Boolean(bool_data))
-        }
-        DataType::TimeStamp => {
-            let mut data = Vec::with_capacity(count);
-            for _ in 0..count {
-                let fraction = reader.read_u64::<LittleEndian>()?;
-                let seconds = reader.read_i64::<LittleEndian>()?;
-                data.push((seconds, fraction));
-            }
-            Ok(TdmsData::TimeStamp(data))
-        }
-    }
-}
-
 impl Display for PropertyValue {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
@@ -652,46 +507,10 @@ impl From<(i64, u64)> for PropertyValue {
     }
 }
 
-// Empty data creation helper
-#[allow(dead_code)]
-pub fn create_empty_data(dtype: &DataType) -> Result<TdmsData> {
-    match dtype {
-        DataType::I8 => Ok(TdmsData::I8(Vec::new())),
-        DataType::I16 => Ok(TdmsData::I16(Vec::new())),
-        DataType::I32 => Ok(TdmsData::I32(Vec::new())),
-        DataType::I64 => Ok(TdmsData::I64(Vec::new())),
-        DataType::U8 => Ok(TdmsData::U8(Vec::new())),
-        DataType::U16 => Ok(TdmsData::U16(Vec::new())),
-        DataType::U32 => Ok(TdmsData::U32(Vec::new())),
-        DataType::U64 => Ok(TdmsData::U64(Vec::new())),
-        DataType::SingleFloat => Ok(TdmsData::Float(Vec::new())),
-        DataType::DoubleFloat => Ok(TdmsData::Double(Vec::new())),
-        DataType::Boolean => Ok(TdmsData::Boolean(Vec::new())),
-        DataType::String => Ok(TdmsData::String(Vec::new())),
-        DataType::TimeStamp => Ok(TdmsData::TimeStamp(Vec::new())),
-        _ => Err(TdmsError::NotImplemented(format!(
-            "Empty data for {:?}",
-            dtype
-        ))),
-    }
-}
-
 /// Read raw data directly into caller-provided buffer.
 /// Returns the number of elements read (may be less than buffer length for partial reads).
 ///
-/// This function performs zero-copy reading: it reads directly from the file
-/// into the provided buffer without intermediate allocations.
-///
-/// # Arguments
-///
-/// * `reader` - The source to read from
-/// * `data_type` - The TDMS data type to read
-/// * `buffer` - Caller-owned buffer to fill
-/// * `total_size_bytes` - Total size in bytes (required for String type)
-///
-/// # Returns
-///
-/// Number of elements successfully read into the buffer
+/// Advanced API for direct buffer reading.
 #[allow(dead_code)]
 pub fn read_raw_data_into<R: Read + Seek>(
     reader: &mut R,
@@ -772,8 +591,7 @@ pub fn read_raw_data_into<R: Read + Seek>(
     }
 }
 
-/// Type-specific slice-based reading functions for numeric types.
-/// These functions read directly into typed slices, avoiding allocations.
+/// Advanced API for direct buffer reading into typed slices.
 #[allow(dead_code)]
 pub fn read_i8_into<R: Read + Seek>(reader: &mut R, buffer: &mut [i8]) -> Result<usize> {
     let buf =

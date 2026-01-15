@@ -2,109 +2,65 @@
 
 [![Crates.io](https://img.shields.io/crates/v/tdms-rs.svg)](https://crates.io/crates/tdms-rs)
 [![Documentation](https://docs.rs/tdms-rs/badge.svg)](https://docs.rs/tdms-rs)
-[![License](https://img.shields.io/crates/l/tdms-rs.svg)](https://github.com/robingkn/tdms-rs#license)
+[![License](https://img.shields.io/crates/l/tdms-rs.svg)](#license)
 
-A pure Rust library for reading and writing National Instruments TDMS (Technical Data Management Streaming) files with full format support and high performance.
+A pure Rust library for reading and writing National Instruments TDMS (Technical Data Management Streaming) files with high performance and zero-copy capabilities.
 
-## Key Features
+## 🚀 Key Features
 
-- **Complete TDMS Support**: Read and write all TDMS data types and hierarchical structures.
-- **High Performance**: Zero-copy parsing where possible and efficient memory usage.
-- **Type Safety**: Leverages Rust's type system for safe and ergonomic data handling.
-- **Binary Compatibility**: Output files are verified against National Instruments software.
-- **Pure Rust**: No external C dependencies, ensuring easy cross-compilation.
+- **⚡ High Performance**: Designed for high-throughput I/O. Achieves near-disk bandwidth by minimizing syscalls and using zero-copy serialization.
+- **📦 Zero-Copy Persistence**: Leverages `mmap` for reading and direct-to-file writes for writing large datasets.
+- **🛡️ Type Safe**: Strongly-typed channel access ensures data integrity at compile time.
+- **🔗 Pure Rust**: No external C dependencies, making cross-compilation seamless.
+- **📊 Full Format Support**: Supports all TDMS data types, hierarchical structures, and multi-segment files.
 
-## Installation
+## 📖 Documentation
 
-Add `tdms-rs` to your `Cargo.toml`:
+- [**Quick Start Guide**](docs/API.md) - Get up and running in minutes.
+- [**Architecture & Design**](docs/ARCHITECTURE.md) - Deep dive into internal reader/writer models and performance tradeoffs.
+- [**API Reference** (docs.rs)](https://docs.rs/tdms-rs) - Detailed module and function-level documentation.
 
-```toml
-[dependencies]
-tdms-rs = "1.0"
-```
+## 🛠️ Quick Start
 
-## Quick Start
-
-### Reading TDMS Files
+### Reading
 
 ```rust
 use tdms_rs::TdmsFile;
-use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let file = TdmsFile::load(Path::new("data.tdms"))?;
+    let file = TdmsFile::open("data.tdms")?;
+    let channel = file.group("Sensors")?.channel("Temperature")?;
     
-    // Direct channel access
-    if let Some(channel) = file.get_channel("Sensors", "Temperature") {
-        println!("Samples: {}", channel.data_len());
-        
-        // Type-safe data access
-        if let Some(data) = channel.as_f64() {
-            let avg = data.iter().sum::<f64>() / data.len() as f64;
-            println!("Average: {:.2}", avg);
-        }
-    }
+    let slice = channel.read_all()?;
+    let data: &[f64] = slice.as_typed()?;
     
+    println!("Read {} samples", data.len());
     Ok(())
 }
 ```
 
-### Writing TDMS Files
+### Writing
 
 ```rust
-use tdms_rs::{TdmsFileWriter, TdmsData};
+use tdms_rs::TdmsWriter;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut writer = TdmsFileWriter::new("output.tdms");
+    let mut writer = TdmsWriter::create("output.tdms")?;
+    let mut group = writer.add_group("DAQ")?;
+    let mut channel = group.add_channel::<f64>("Voltage")?;
     
-    writer.add_property("Author", "Rust App")?;
-    
-    let group = writer.add_group("Sensors")?;
-    let channel = group.add_channel("Temperature", 
-        TdmsData::Double(vec![20.1, 21.5, 22.3]))?;
-    
-    channel.add_property("wf_unit_string", "°C")?;
-    
-    writer.write()?;
+    channel.write(&[1.0, 2.0, 3.0])?;
+    writer.close()?;
     Ok(())
 }
 ```
 
-## Supported Data Types
+## 📐 Philosophy & Guarantees
 
-| TDMS Type | Rust Type | Description |
-|-----------|-----------|-------------|
-| I8-I64    | `i8`-`i64` | Signed integers |
-| U8-U64    | `u8`-`u64` | Unsigned integers |
-| Float     | `f32`     | 32-bit floating point |
-| Double    | `f64`     | 64-bit floating point |
-| String    | `String`  | UTF-8 encoded text |
-| Boolean   | `bool`    | True/false values |
-| TimeStamp | `(i64, u64)`| TDMS timestamp (seconds since 1904, fraction) |
+1.  **Memory Efficiency**: Never load data you don't ask for. Metadata is indexed; raw data is lazy-loaded.
+2.  **Safety First**: Safe wrappers around `unsafe` memory operations.
+3.  **Modern MSRV**: Supports the latest stable Rust features.
 
-## Command Line Tool
-
-The crate includes `tdms-to-json`, a tool to inspect and validate TDMS files.
-
-```bash
-cargo install tdms-rs
-tdms-to-json input.tdms
-```
-
-## Performance & Guarantees
-
-- **Memory Efficiency**: Streaming reads and minimal allocations during parsing.
-- **Data Integrity**: Round-trip tested to ensure data consistency.
-- **Deterministic**: Groups and channels are written in consistent order.
-
-## Testing
-
-The library is verified against a corpus of 24+ TDMS scenarios covering multi-segment files, sparse data, and Unicode support.
-
-```bash
-cargo test
-```
-
-## License
+## 🤝 License
 
 Licensed under either of [Apache License 2.0](LICENSE-APACHE) or [MIT License](LICENSE-MIT) at your option.
