@@ -378,6 +378,7 @@ pub fn read_property_value<R: Read + Seek>(
     }
 }
 
+#[allow(dead_code)]
 pub fn read_raw_data<R: Read + Seek>(
     reader: &mut R,
     data_type: &DataType,
@@ -651,6 +652,8 @@ impl From<(i64, u64)> for PropertyValue {
     }
 }
 
+// Empty data creation helper
+#[allow(dead_code)]
 pub fn create_empty_data(dtype: &DataType) -> Result<TdmsData> {
     match dtype {
         DataType::I8 => Ok(TdmsData::I8(Vec::new())),
@@ -689,6 +692,7 @@ pub fn create_empty_data(dtype: &DataType) -> Result<TdmsData> {
 /// # Returns
 ///
 /// Number of elements successfully read into the buffer
+#[allow(dead_code)]
 pub fn read_raw_data_into<R: Read + Seek>(
     reader: &mut R,
     data_type: &DataType,
@@ -770,7 +774,7 @@ pub fn read_raw_data_into<R: Read + Seek>(
 
 /// Type-specific slice-based reading functions for numeric types.
 /// These functions read directly into typed slices, avoiding allocations.
-
+#[allow(dead_code)]
 pub fn read_i8_into<R: Read + Seek>(reader: &mut R, buffer: &mut [i8]) -> Result<usize> {
     let buf = unsafe {
         std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len())
@@ -779,6 +783,7 @@ pub fn read_i8_into<R: Read + Seek>(reader: &mut R, buffer: &mut [i8]) -> Result
     Ok(buffer.len())
 }
 
+#[allow(dead_code)]
 pub fn read_i16_into<R: Read + Seek>(reader: &mut R, buffer: &mut [i16]) -> Result<usize> {
     let buf = unsafe {
         std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len() * 2)
@@ -787,6 +792,7 @@ pub fn read_i16_into<R: Read + Seek>(reader: &mut R, buffer: &mut [i16]) -> Resu
     Ok(buffer.len())
 }
 
+#[allow(dead_code)]
 pub fn read_i32_into<R: Read + Seek>(reader: &mut R, buffer: &mut [i32]) -> Result<usize> {
     let buf = unsafe {
         std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len() * 4)
@@ -795,6 +801,7 @@ pub fn read_i32_into<R: Read + Seek>(reader: &mut R, buffer: &mut [i32]) -> Resu
     Ok(buffer.len())
 }
 
+#[allow(dead_code)]
 pub fn read_i64_into<R: Read + Seek>(reader: &mut R, buffer: &mut [i64]) -> Result<usize> {
     let buf = unsafe {
         std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len() * 8)
@@ -803,11 +810,13 @@ pub fn read_i64_into<R: Read + Seek>(reader: &mut R, buffer: &mut [i64]) -> Resu
     Ok(buffer.len())
 }
 
+#[allow(dead_code)]
 pub fn read_u8_into<R: Read + Seek>(reader: &mut R, buffer: &mut [u8]) -> Result<usize> {
     reader.read_exact(buffer)?;
     Ok(buffer.len())
 }
 
+#[allow(dead_code)]
 pub fn read_u16_into<R: Read + Seek>(reader: &mut R, buffer: &mut [u16]) -> Result<usize> {
     let buf = unsafe {
         std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len() * 2)
@@ -816,6 +825,7 @@ pub fn read_u16_into<R: Read + Seek>(reader: &mut R, buffer: &mut [u16]) -> Resu
     Ok(buffer.len())
 }
 
+#[allow(dead_code)]
 pub fn read_u32_into<R: Read + Seek>(reader: &mut R, buffer: &mut [u32]) -> Result<usize> {
     let buf = unsafe {
         std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len() * 4)
@@ -824,6 +834,7 @@ pub fn read_u32_into<R: Read + Seek>(reader: &mut R, buffer: &mut [u32]) -> Resu
     Ok(buffer.len())
 }
 
+#[allow(dead_code)]
 pub fn read_u64_into<R: Read + Seek>(reader: &mut R, buffer: &mut [u64]) -> Result<usize> {
     let buf = unsafe {
         std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len() * 8)
@@ -832,6 +843,7 @@ pub fn read_u64_into<R: Read + Seek>(reader: &mut R, buffer: &mut [u64]) -> Resu
     Ok(buffer.len())
 }
 
+#[allow(dead_code)]
 pub fn read_f32_into<R: Read + Seek>(reader: &mut R, buffer: &mut [f32]) -> Result<usize> {
     let buf = unsafe {
         std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len() * 4)
@@ -840,6 +852,7 @@ pub fn read_f32_into<R: Read + Seek>(reader: &mut R, buffer: &mut [f32]) -> Resu
     Ok(buffer.len())
 }
 
+#[allow(dead_code)]
 pub fn read_f64_into<R: Read + Seek>(reader: &mut R, buffer: &mut [f64]) -> Result<usize> {
     let buf = unsafe {
         std::slice::from_raw_parts_mut(buffer.as_mut_ptr() as *mut u8, buffer.len() * 8)
@@ -848,6 +861,7 @@ pub fn read_f64_into<R: Read + Seek>(reader: &mut R, buffer: &mut [f64]) -> Resu
     Ok(buffer.len())
 }
 
+#[allow(dead_code)]
 pub fn read_bool_into<R: Read + Seek>(reader: &mut R, buffer: &mut [bool]) -> Result<usize> {
     let mut bytes = vec![0u8; buffer.len()];
     reader.read_exact(&mut bytes)?;
@@ -857,6 +871,7 @@ pub fn read_bool_into<R: Read + Seek>(reader: &mut R, buffer: &mut [bool]) -> Re
     Ok(buffer.len())
 }
 
+#[allow(dead_code)]
 pub fn read_timestamp_into<R: Read + Seek>(
     reader: &mut R,
     buffer: &mut [(i64, u64)],

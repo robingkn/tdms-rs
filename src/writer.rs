@@ -90,7 +90,7 @@ impl TdmsWriter {
     /// let mut g = w.add_group("Sensors")?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn add_group(&mut self, name: impl Into<String>) -> Result<WriterGroup> {
+    pub fn add_group(&mut self, name: impl Into<String>) -> Result<WriterGroup<'_>> {
         let name = name.into();
 
         if name.is_empty() {

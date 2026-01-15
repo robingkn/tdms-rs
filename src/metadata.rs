@@ -79,6 +79,7 @@ use crate::datatypes::{DataType, PropertyValue, TdmsData};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct RawDataMeta {
     pub data_type: DataType,
     pub dimension: u32,
@@ -87,6 +88,7 @@ pub struct RawDataMeta {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct DataLocation {
     pub offset: u64,
     pub number_of_values: u64,
@@ -95,6 +97,7 @@ pub struct DataLocation {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ParsingMetadata {
     pub path: ObjectPath,
     pub raw_data_index: u32,

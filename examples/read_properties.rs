@@ -176,7 +176,7 @@ fn show_common_properties(channel: &tdms_rs::TdmsChannel) {
     let common_keys: Vec<&str> = common_props.iter().map(|(k, _)| *k).collect();
     let custom_props: Vec<_> = channel
         .properties()
-        .filter(|(key, _)| !common_keys.contains(&key))
+        .filter(|(key, _)| !common_keys.contains(key))
         .collect();
 
     if !custom_props.is_empty() {

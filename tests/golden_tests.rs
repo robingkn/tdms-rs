@@ -62,9 +62,7 @@ fn read_channel_data_as_json(
         TdmsDType::I64 => serde_json::Value::from(
             slice
                 .as_typed::<i64>()?
-                .iter()
-                .copied()
-                .collect::<Vec<i64>>(),
+                .to_vec(),
         ),
         TdmsDType::U8 => serde_json::Value::from(
             slice
@@ -90,16 +88,12 @@ fn read_channel_data_as_json(
         TdmsDType::U64 => serde_json::Value::from(
             slice
                 .as_typed::<u64>()?
-                .iter()
-                .copied()
-                .collect::<Vec<u64>>(),
+                .to_vec(),
         ),
         TdmsDType::Bool => serde_json::Value::from(
             slice
                 .as_typed::<bool>()?
-                .iter()
-                .copied()
-                .collect::<Vec<bool>>(),
+                .to_vec(),
         ),
         TdmsDType::TimeStamp => {
             return Err("timestamp channel JSON comparison not implemented".into());

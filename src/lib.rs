@@ -41,7 +41,7 @@ pub use writer::{TdmsWriter, WriterGroup, WriterChannel};
 
 use indexmap::IndexMap;
 use std::fs::File;
-use std::io::{BufReader, Seek, SeekFrom};
+use std::io::{BufReader, SeekFrom};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -204,7 +204,7 @@ impl TdmsFile {
     /// let g = f.group("Sensors").unwrap();
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn group(&self, name: &str) -> Option<TdmsGroup> {
+    pub fn group(&self, name: &str) -> Option<TdmsGroup<'_>> {
         let data = self.inner.groups.get(name)?;
         Some(TdmsGroup { file: self, data })
     }
@@ -257,7 +257,7 @@ impl TdmsFile {
     /// }
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn groups(&self) -> impl Iterator<Item = TdmsGroup> {
+    pub fn groups(&self) -> impl Iterator<Item = TdmsGroup<'_>> {
         self.inner
             .groups
             .values()
