@@ -132,7 +132,9 @@ impl TdmsWriter {
     ) -> Result<&mut Self> {
         let name = name.into();
         if name.is_empty() {
-            return Err(TdmsError::InvalidName("Property name cannot be empty".into()));
+            return Err(TdmsError::InvalidName(
+                "Property name cannot be empty".into(),
+            ));
         }
         self.properties.insert(name, value);
         Ok(self)
@@ -379,7 +381,9 @@ impl<'w> WriterGroup<'w> {
         let name = name.into();
 
         if name.is_empty() {
-            return Err(TdmsError::InvalidName("Channel name cannot be empty".into()));
+            return Err(TdmsError::InvalidName(
+                "Channel name cannot be empty".into(),
+            ));
         }
 
         let group = self
@@ -427,7 +431,9 @@ impl<'w> WriterGroup<'w> {
     ) -> Result<&mut Self> {
         let name = name.into();
         if name.is_empty() {
-            return Err(TdmsError::InvalidName("Property name cannot be empty".into()));
+            return Err(TdmsError::InvalidName(
+                "Property name cannot be empty".into(),
+            ));
         }
         let group = self
             .writer
@@ -460,12 +466,9 @@ impl<'w, T: WritableType> WriterChannel<'w, T> {
             .get_mut(&self.group_name)
             .ok_or_else(|| TdmsError::GroupNotFound(self.group_name.clone()))?;
 
-        let channel = group
-            .channels
-            .get_mut(&self.channel_name)
-            .ok_or_else(|| {
-                TdmsError::ChannelNotFound(self.channel_name.clone(), self.group_name.clone())
-            })?;
+        let channel = group.channels.get_mut(&self.channel_name).ok_or_else(|| {
+            TdmsError::ChannelNotFound(self.channel_name.clone(), self.group_name.clone())
+        })?;
 
         T::write_to_buffer(data, &mut channel.data)?;
         Ok(())
@@ -491,7 +494,9 @@ impl<'w, T: WritableType> WriterChannel<'w, T> {
     ) -> Result<&mut Self> {
         let name = name.into();
         if name.is_empty() {
-            return Err(TdmsError::InvalidName("Property name cannot be empty".into()));
+            return Err(TdmsError::InvalidName(
+                "Property name cannot be empty".into(),
+            ));
         }
 
         let group = self
@@ -500,12 +505,9 @@ impl<'w, T: WritableType> WriterChannel<'w, T> {
             .get_mut(&self.group_name)
             .ok_or_else(|| TdmsError::GroupNotFound(self.group_name.clone()))?;
 
-        let channel = group
-            .channels
-            .get_mut(&self.channel_name)
-            .ok_or_else(|| {
-                TdmsError::ChannelNotFound(self.channel_name.clone(), self.group_name.clone())
-            })?;
+        let channel = group.channels.get_mut(&self.channel_name).ok_or_else(|| {
+            TdmsError::ChannelNotFound(self.channel_name.clone(), self.group_name.clone())
+        })?;
 
         channel.properties.insert(name, value);
         Ok(self)

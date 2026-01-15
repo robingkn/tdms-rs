@@ -24,7 +24,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Pressure sensor data (32-bit integers, representing pascals)
     let mut pressure = sensors.add_channel::<i32>("Pressure")?;
-    pressure.write(&[101325, 101330, 101320, 101315, 101310, 101305, 101300, 101295])?;
+    pressure.write(&[
+        101325, 101330, 101320, 101315, 101310, 101305, 101300, 101295,
+    ])?;
 
     // Humidity sensor data (single precision floats)
     let mut humidity = sensors.add_channel::<f32>("Humidity")?;
@@ -40,13 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Digital input states (8-bit unsigned integers)
     let mut input_states = digital.add_channel::<u8>("InputStates")?;
     input_states.write(&[
-        0b00000001,
-        0b00000011,
-        0b00000111,
-        0b00001111,
-        0b00011111,
-        0b00111111,
-        0b01111111,
+        0b00000001, 0b00000011, 0b00000111, 0b00001111, 0b00011111, 0b00111111, 0b01111111,
         0b11111111,
     ])?;
 
@@ -71,30 +67,55 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 TdmsDType::F64 => {
                     let slice = channel.read_all()?;
                     let values = slice.as_typed::<f64>()?;
-                    println!("     Channel '{}': {} f64 values", channel.name(), values.len());
+                    println!(
+                        "     Channel '{}': {} f64 values",
+                        channel.name(),
+                        values.len()
+                    );
                 }
                 TdmsDType::F32 => {
                     let slice = channel.read_all()?;
                     let values = slice.as_typed::<f32>()?;
-                    println!("     Channel '{}': {} f32 values", channel.name(), values.len());
+                    println!(
+                        "     Channel '{}': {} f32 values",
+                        channel.name(),
+                        values.len()
+                    );
                 }
                 TdmsDType::I32 => {
                     let slice = channel.read_all()?;
                     let values = slice.as_typed::<i32>()?;
-                    println!("     Channel '{}': {} i32 values", channel.name(), values.len());
+                    println!(
+                        "     Channel '{}': {} i32 values",
+                        channel.name(),
+                        values.len()
+                    );
                 }
                 TdmsDType::U8 => {
                     let slice = channel.read_all()?;
                     let values = slice.as_typed::<u8>()?;
-                    println!("     Channel '{}': {} u8 values", channel.name(), values.len());
+                    println!(
+                        "     Channel '{}': {} u8 values",
+                        channel.name(),
+                        values.len()
+                    );
                 }
                 TdmsDType::Bool => {
                     let slice = channel.read_all()?;
                     let values = slice.as_typed::<bool>()?;
-                    println!("     Channel '{}': {} bool values", channel.name(), values.len());
+                    println!(
+                        "     Channel '{}': {} bool values",
+                        channel.name(),
+                        values.len()
+                    );
                 }
                 other => {
-                    println!("     Channel '{}': {} samples ({:?})", channel.name(), channel.len(), other);
+                    println!(
+                        "     Channel '{}': {} samples ({:?})",
+                        channel.name(),
+                        channel.len(),
+                        other
+                    );
                 }
             }
         }

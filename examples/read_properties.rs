@@ -146,7 +146,10 @@ fn format_property_detailed(value: &PropertyValue) -> String {
 fn show_common_properties(channel: &tdms_rs::TdmsChannel) {
     // Check for common TDMS channel properties and explain their meaning
     let common_props = [
-        ("wf_increment", "Waveform time increment (sampling interval)"),
+        (
+            "wf_increment",
+            "Waveform time increment (sampling interval)",
+        ),
         ("wf_start_offset", "Waveform start time offset"),
         ("wf_samples", "Number of samples in waveform"),
         ("wf_start_time", "Waveform start time"),

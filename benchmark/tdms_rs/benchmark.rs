@@ -236,14 +236,16 @@ fn run_read_benchmark(
         let start = Instant::now();
 
         let file = TdmsFile::open(Path::new(file_name))?;
-        let group = file.group("BenchmarkGroup")
+        let group = file
+            .group("BenchmarkGroup")
             .ok_or("BenchmarkGroup not found")?;
-        let channel = group.channel("BenchmarkChannel")
+        let channel = group
+            .channel("BenchmarkChannel")
             .ok_or("BenchmarkChannel not found")?;
 
         let slice = channel.read_all()?;
         let data = slice.as_typed::<f64>()?;
-        
+
         // Force evaluation to ensure data is actually read
         std::hint::black_box(data.len());
 

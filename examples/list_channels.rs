@@ -47,7 +47,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } else {
             for channel in group.channels() {
                 println!("\n   📊 Channel: '{}'", channel.name());
-                println!("      Data: {:?} ({} samples)", channel.dtype(), channel.len());
+                println!(
+                    "      Data: {:?} ({} samples)",
+                    channel.dtype(),
+                    channel.len()
+                );
 
                 if channel.properties().count() > 0 {
                     println!("      Properties:");

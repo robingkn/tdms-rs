@@ -56,7 +56,7 @@ impl<R: Read + Seek> TdmsReader<R> {
                 self.reader.read_exact(&mut path_bytes)?;
                 let path_str =
                     String::from_utf8(path_bytes).map_err(|_| TdmsError::StringEncoding)?;
-                
+
                 // println!("DEBUG: Read object path: '{}'", path_str);
                 self.object_order.push(path_str.clone());
 
@@ -172,25 +172,45 @@ impl<R: Read + Seek> TdmsReader<R> {
             }
         }
 
-            // Parse Raw Data
-            // RawDataOffset is relative to the segment payload (Start + 28).
-            // Dump shows: RawDataOffset = 93.
-            // Header: 28 bytes.
-            // 28 + 93 = 121 (0x79).
-            // Dump at 0x79: 05 00 00 00 (Offset 5).
-            // This is correct.
+        // Parse Raw Data
+        // RawDataOffset is relative to the segment payload (Start + 28).
+        // Dump shows: RawDataOffset = 93.
+        // Header: 28 bytes.
+        // 28 + 93 = 121 (0x79).
+        // Dump at 0x79: 05 00 00 00 (Offset 5).
+        // This is correct.
 
-            let mut current_raw_offset = start_pos + 28 + raw_data_offset;
+        let mut current_raw_offset = start_pos + 28 + raw_data_offset;
 
-            for obj in &mut objects {
-                let path_str = obj.path.raw.clone();
+        for obj in &mut objects {
+            let path_str = obj.path.raw.clone();
 
-                if let Some(meta) = &obj.raw_data_meta {
-                    // Update active meta for this channel
-                    self.active_meta.insert(path_str.clone(), meta.clone());
+            if let Some(meta) = &obj.raw_data_meta {
+                // Update active meta for this channel
+                self.active_meta.insert(path_str.clone(), meta.clone());
 
+                if meta.number_of_values > 0 {
+                    // Record location instead of reading
+                    let size = if let Some(s) = meta.data_type.size_of() {
+                        s * meta.number_of_values
+                    } else {
+                        // String or Void
+                        meta.total_size_bytes.unwrap_or(0)
+                    };
+
+                    obj.data_location = Some(crate::metadata::DataLocation {
+                        offset: current_raw_offset,
+                        number_of_values: meta.number_of_values,
+                        data_type: meta.data_type.clone(),
+                        total_size_bytes: meta.total_size_bytes,
+                    });
+
+                    current_raw_offset += size;
+                }
+            } else if obj.raw_data_index == 0 {
+                // Use cached meta if available
+                if let Some(meta) = self.active_meta.get(&path_str) {
                     if meta.number_of_values > 0 {
-                        // Record location instead of reading
                         let size = if let Some(s) = meta.data_type.size_of() {
                             s * meta.number_of_values
                         } else {
@@ -207,37 +227,15 @@ impl<R: Read + Seek> TdmsReader<R> {
 
                         current_raw_offset += size;
                     }
-                } else if obj.raw_data_index == 0 {
-                    // Use cached meta if available
-                    if let Some(meta) = self.active_meta.get(&path_str) {
-                        if meta.number_of_values > 0 {
-                            let size = if let Some(s) = meta.data_type.size_of() {
-                                s * meta.number_of_values
-                            } else {
-                                // String or Void
-                                meta.total_size_bytes.unwrap_or(0)
-                            };
-
-                            obj.data_location = Some(crate::metadata::DataLocation {
-                                offset: current_raw_offset,
-                                number_of_values: meta.number_of_values,
-                                data_type: meta.data_type.clone(),
-                                total_size_bytes: meta.total_size_bytes,
-                            });
-
-                            current_raw_offset += size;
-                        }
-                    }
                 }
             }
+        }
 
         let target_pos = if next_segment_offset != 0xFFFFFFFFFFFFFFFF {
             start_pos + 28 + next_segment_offset
         } else {
             current_raw_offset
         };
-
-
 
         let current_pos = self.reader.stream_position()?;
         if current_pos != target_pos {

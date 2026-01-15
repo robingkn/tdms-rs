@@ -37,7 +37,7 @@ mod writer;
 pub use datatypes::PropertyValue;
 pub use datatypes::TdmsData;
 pub use error::{Result, TdmsError};
-pub use writer::{TdmsWriter, WriterGroup, WriterChannel};
+pub use writer::{TdmsWriter, WriterChannel, WriterGroup};
 
 use indexmap::IndexMap;
 use std::fs::File;
@@ -154,15 +154,15 @@ impl TdmsFile {
                         });
 
                     if let Some(c_name) = obj.path.channel_name() {
-                        let channel = group
-                            .channels
-                            .entry(c_name.to_string())
-                            .or_insert_with(|| TdmsChannelData {
-                                name: c_name.to_string(),
-                                dtype: TdmsDType::F64, // Will be updated
-                                len: 0,
-                                data_locations: Vec::new(),
-                                properties: IndexMap::new(),
+                        let channel =
+                            group.channels.entry(c_name.to_string()).or_insert_with(|| {
+                                TdmsChannelData {
+                                    name: c_name.to_string(),
+                                    dtype: TdmsDType::F64, // Will be updated
+                                    len: 0,
+                                    data_locations: Vec::new(),
+                                    properties: IndexMap::new(),
+                                }
                             });
 
                         channel.properties.extend(obj.properties);
@@ -238,10 +238,7 @@ impl TdmsFile {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn properties(&self) -> impl Iterator<Item = (&str, &PropertyValue)> {
-        self.inner
-            .properties
-            .iter()
-            .map(|(k, v)| (k.as_str(), v))
+        self.inner.properties.iter().map(|(k, v)| (k.as_str(), v))
     }
 
     /// Iterate over all groups in the file.
@@ -302,10 +299,7 @@ impl<'a> TdmsGroup<'a> {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn properties(&self) -> impl Iterator<Item = (&str, &PropertyValue)> {
-        self.data
-            .properties
-            .iter()
-            .map(|(k, v)| (k.as_str(), v))
+        self.data.properties.iter().map(|(k, v)| (k.as_str(), v))
     }
 
     /// Get a channel by name.
@@ -398,10 +392,7 @@ impl<'a> TdmsChannel<'a> {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn properties(&self) -> impl Iterator<Item = (&str, &PropertyValue)> {
-        self.data
-            .properties
-            .iter()
-            .map(|(k, v)| (k.as_str(), v))
+        self.data.properties.iter().map(|(k, v)| (k.as_str(), v))
     }
 
     /// Check if the channel is empty.
@@ -433,7 +424,11 @@ impl<'a> TdmsChannel<'a> {
     /// Alias for [`read`](Self::read).
     pub fn read_range(&self, range: Range<usize>) -> Result<TdmsSlice<'a>> {
         if range.end > self.data.len {
-            return Err(TdmsError::InvalidRange(range.start, range.end, self.data.len));
+            return Err(TdmsError::InvalidRange(
+                range.start,
+                range.end,
+                self.data.len,
+            ));
         }
 
         // For now, always use owned data
@@ -462,7 +457,11 @@ impl<'a> TdmsChannel<'a> {
     /// ```
     pub fn read_into<T: Pod>(&self, range: Range<usize>, out: &mut [T]) -> Result<usize> {
         if range.end > self.data.len {
-            return Err(TdmsError::InvalidRange(range.start, range.end, self.data.len));
+            return Err(TdmsError::InvalidRange(
+                range.start,
+                range.end,
+                self.data.len,
+            ));
         }
         if std::mem::size_of::<T>() != self.data.dtype.itemsize() {
             return Err(TdmsError::TypeMismatch);
@@ -475,7 +474,10 @@ impl<'a> TdmsChannel<'a> {
         }
 
         let out_bytes = unsafe {
-            std::slice::from_raw_parts_mut(out.as_mut_ptr() as *mut u8, requested * std::mem::size_of::<T>())
+            std::slice::from_raw_parts_mut(
+                out.as_mut_ptr() as *mut u8,
+                requested * std::mem::size_of::<T>(),
+            )
         };
 
         let file = File::open(&self.file.inner.path)?;

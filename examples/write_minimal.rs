@@ -42,7 +42,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("     Channel '{}': {} double values", c.name(), data.len());
                 println!("     Values: {:?}", data);
             } else {
-                println!("     Channel '{}': {} samples ({:?})", c.name(), c.len(), c.dtype());
+                println!(
+                    "     Channel '{}': {} samples ({:?})",
+                    c.name(),
+                    c.len(),
+                    c.dtype()
+                );
             }
         }
     }

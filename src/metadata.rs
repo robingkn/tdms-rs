@@ -121,9 +121,8 @@ mod tests {
         assert_eq!(p2.components, vec!["Group", "Channel"]);
         assert_eq!(p2.group_name(), Some("Group"));
         assert_eq!(p2.channel_name(), Some("Channel"));
-        
+
         let p3 = ObjectPath::new("/'Group' ".to_string());
         assert_eq!(p3.components, vec!["Group"]);
     }
 }
-

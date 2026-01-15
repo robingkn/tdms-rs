@@ -17,7 +17,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut writer = TdmsWriter::create("examples/output/with_properties.tdms")?;
 
     // Add file-level properties (using new From<T> conversions)
-    writer.add_property("Author", PropertyValue::String("TDMS Writer Example".into()))?;
+    writer.add_property(
+        "Author",
+        PropertyValue::String("TDMS Writer Example".into()),
+    )?;
     writer.add_property("Version", PropertyValue::I32(1))?;
     writer.add_property("Creation_Date", PropertyValue::String("2026-01-09".into()))?;
     writer.add_property(
@@ -40,7 +43,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     voltage_channel.add_property("wf_unit_string", PropertyValue::String("V".into()))?;
     voltage_channel.add_property("wf_increment", PropertyValue::Double(0.001))?;
     voltage_channel.add_property("wf_start_time", PropertyValue::Double(0.0))?;
-    voltage_channel.add_property("Description", PropertyValue::String("AC voltage measurement".into()))?;
+    voltage_channel.add_property(
+        "Description",
+        PropertyValue::String("AC voltage measurement".into()),
+    )?;
     voltage_channel.add_property("Range", PropertyValue::String("±10V".into()))?;
     voltage_channel.add_property("Calibrated", PropertyValue::Boolean(true))?;
 
@@ -50,7 +56,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     current_channel.add_property("wf_unit_string", PropertyValue::String("A".into()))?;
     current_channel.add_property("wf_increment", PropertyValue::Double(0.001))?;
     current_channel.add_property("wf_start_time", PropertyValue::Double(0.0))?;
-    current_channel.add_property("Description", PropertyValue::String("AC current measurement".into()))?;
+    current_channel.add_property(
+        "Description",
+        PropertyValue::String("AC current measurement".into()),
+    )?;
     current_channel.add_property("Range", PropertyValue::String("±1A".into()))?;
     current_channel.add_property("Shunt_Resistance", PropertyValue::Double(0.1))?;
 
@@ -60,8 +69,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     temp_channel.add_property("wf_unit_string", PropertyValue::String("°C".into()))?;
     temp_channel.add_property("wf_increment", PropertyValue::Double(0.001))?;
     temp_channel.add_property("wf_start_time", PropertyValue::Double(0.0))?;
-    temp_channel.add_property("Description", PropertyValue::String("Thermocouple temperature".into()))?;
-    temp_channel.add_property("Sensor_Type", PropertyValue::String("K-Type Thermocouple".into()))?;
+    temp_channel.add_property(
+        "Description",
+        PropertyValue::String("Thermocouple temperature".into()),
+    )?;
+    temp_channel.add_property(
+        "Sensor_Type",
+        PropertyValue::String("K-Type Thermocouple".into()),
+    )?;
     temp_channel.add_property("Scale_Factor", PropertyValue::Double(0.01))?;
     temp_channel.add_property("Offset", PropertyValue::Double(0.0))?;
 
@@ -77,8 +92,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Error flags channel
     let mut error_channel = status.add_channel::<bool>("Error_Flags")?;
-    error_channel.write(&[false, false, false, false, false, true, false, false, false, false])?;
-    error_channel.add_property("Description", PropertyValue::String("Error condition flags".into()))?;
+    error_channel.write(&[
+        false, false, false, false, false, true, false, false, false, false,
+    ])?;
+    error_channel.add_property(
+        "Description",
+        PropertyValue::String("Error condition flags".into()),
+    )?;
     error_channel.add_property("Error_Code", PropertyValue::I32(0x0020))?;
 
     // Write the file
@@ -116,7 +136,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         for channel in group.channels() {
             println!("     Channel: {}", channel.name());
-            println!("       Data: {} samples ({:?})", channel.len(), channel.dtype());
+            println!(
+                "       Data: {} samples ({:?})",
+                channel.len(),
+                channel.dtype()
+            );
 
             if channel.properties().count() > 0 {
                 println!("       Channel Properties:");

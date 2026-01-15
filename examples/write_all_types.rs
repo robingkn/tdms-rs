@@ -17,13 +17,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut writer = TdmsWriter::create("examples/output/all_types.tdms")?;
 
     // Add file-level properties
-    writer.add_property("Title", PropertyValue::String("Comprehensive Data Type Example".into()))?;
+    writer.add_property(
+        "Title",
+        PropertyValue::String("Comprehensive Data Type Example".into()),
+    )?;
     writer.add_property("Test_Version", PropertyValue::I32(1))?;
 
     // === SIGNED INTEGER TYPES ===
     {
         let mut integers = writer.add_group("Signed_Integers")?;
-        integers.add_property("Description", PropertyValue::String("All signed integer types with edge cases".into()))?;
+        integers.add_property(
+            "Description",
+            PropertyValue::String("All signed integer types with edge cases".into()),
+        )?;
 
         // 8-bit signed integers
         let mut ch_i8 = integers.add_channel::<i8>("Int8")?;
@@ -45,7 +51,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // === UNSIGNED INTEGER TYPES ===
     {
         let mut unsigned = writer.add_group("Unsigned_Integers")?;
-        unsigned.add_property("Description", PropertyValue::String("All unsigned integer types with full range".into()))?;
+        unsigned.add_property(
+            "Description",
+            PropertyValue::String("All unsigned integer types with full range".into()),
+        )?;
 
         // 8-bit unsigned integers
         let mut ch_u8 = unsigned.add_channel::<u8>("UInt8")?;
@@ -67,15 +76,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // === FLOATING POINT TYPES ===
     {
         let mut floats = writer.add_group("Floating_Point")?;
-        floats.add_property("Description", PropertyValue::String("Floating point types with special values".into()))?;
+        floats.add_property(
+            "Description",
+            PropertyValue::String("Floating point types with special values".into()),
+        )?;
 
         // 32-bit floating point with special values
         let mut ch_f32 = floats.add_channel::<f32>("Float32")?;
-        ch_f32.write(&[f32::NEG_INFINITY, -1000.0, -1.0, -0.0, 0.0, 1.0, 1000.0, f32::INFINITY, f32::NAN])?;
+        ch_f32.write(&[
+            f32::NEG_INFINITY,
+            -1000.0,
+            -1.0,
+            -0.0,
+            0.0,
+            1.0,
+            1000.0,
+            f32::INFINITY,
+            f32::NAN,
+        ])?;
 
         // 64-bit floating point with special values
         let mut ch_f64 = floats.add_channel::<f64>("Float64")?;
-        ch_f64.write(&[f64::NEG_INFINITY, -1000.0, -1.0, -0.0, 0.0, 1.0, 1000.0, f64::INFINITY, f64::NAN])?;
+        ch_f64.write(&[
+            f64::NEG_INFINITY,
+            -1000.0,
+            -1.0,
+            -0.0,
+            0.0,
+            1.0,
+            1000.0,
+            f64::INFINITY,
+            f64::NAN,
+        ])?;
 
         // High precision values
         let mut ch_hp = floats.add_channel::<f64>("High_Precision")?;
@@ -91,7 +123,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // === BOOLEAN TYPE ===
     {
         let mut booleans = writer.add_group("Booleans")?;
-        booleans.add_property("Description", PropertyValue::String("Boolean values and patterns".into()))?;
+        booleans.add_property(
+            "Description",
+            PropertyValue::String("Boolean values and patterns".into()),
+        )?;
 
         let mut ch_simple = booleans.add_channel::<bool>("Simple")?;
         ch_simple.write(&[true, false, true, false, true])?;
@@ -109,7 +144,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // === MIXED DATA GROUP ===
     {
         let mut mixed = writer.add_group("Mixed_Data")?;
-        mixed.add_property("Description", PropertyValue::String("Different data types in one group".into()))?;
+        mixed.add_property(
+            "Description",
+            PropertyValue::String("Different data types in one group".into()),
+        )?;
         mixed.add_property("Channel_Count", PropertyValue::I32(4))?;
 
         // Add one channel of each major numeric type

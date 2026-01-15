@@ -29,9 +29,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let group = file
         .group(target_group)
         .ok_or_else(|| format!("Group '{}' not found", target_group))?;
-    let channel = group
-        .channel(target_channel)
-        .ok_or_else(|| format!("Channel '{}' not found in group '{}'", target_channel, target_group))?;
+    let channel = group.channel(target_channel).ok_or_else(|| {
+        format!(
+            "Channel '{}' not found in group '{}'",
+            target_channel, target_group
+        )
+    })?;
 
     println!("\n✅ Successfully opened channel!");
     println!("dtype = {:?}", channel.dtype());
@@ -59,10 +62,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             analyze_bool(values);
         }
         TdmsDType::String | TdmsDType::TimeStamp => {
-            println!("This example does not decode String/TimeStamp channels in the redesigned API.");
+            println!(
+                "This example does not decode String/TimeStamp channels in the redesigned API."
+            );
         }
         other => {
-            println!("This example does not implement analysis for dtype {:?}", other);
+            println!(
+                "This example does not implement analysis for dtype {:?}",
+                other
+            );
         }
     }
 
@@ -151,10 +159,23 @@ fn print_sample_values<T: std::fmt::Display>(values: &[T]) {
     const SAMPLE_SIZE: usize = 5;
 
     if values.len() <= SAMPLE_SIZE * 2 {
-        println!("All values: {:?}", values.iter().map(|v| v.to_string()).collect::<Vec<_>>());
+        println!(
+            "All values: {:?}",
+            values.iter().map(|v| v.to_string()).collect::<Vec<_>>()
+        );
     } else {
-        let first: Vec<String> = values.iter().take(SAMPLE_SIZE).map(|v| v.to_string()).collect();
-        let last: Vec<String> = values.iter().rev().take(SAMPLE_SIZE).rev().map(|v| v.to_string()).collect();
+        let first: Vec<String> = values
+            .iter()
+            .take(SAMPLE_SIZE)
+            .map(|v| v.to_string())
+            .collect();
+        let last: Vec<String> = values
+            .iter()
+            .rev()
+            .take(SAMPLE_SIZE)
+            .rev()
+            .map(|v| v.to_string())
+            .collect();
 
         println!("First {} values: [{}]", SAMPLE_SIZE, first.join(", "));
         println!("Last {} values: [{}]", SAMPLE_SIZE, last.join(", "));

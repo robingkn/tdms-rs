@@ -240,7 +240,10 @@ fn round_trip_file_properties() -> Result<(), Box<dyn std::error::Error>> {
         w.add_property("Author", PropertyValue::String("TDMS Writer".into()))?;
         w.add_property("Version", PropertyValue::I32(1))?;
         w.add_property("Sample_Rate", PropertyValue::Double(1000.0))?;
-        w.add_property("Test_Timestamp", PropertyValue::TimeStamp((1000, 500000000)))?;
+        w.add_property(
+            "Test_Timestamp",
+            PropertyValue::TimeStamp((1000, 500000000)),
+        )?;
 
         let mut g = w.add_group("TestGroup")?;
         let mut ch = g.add_channel::<f64>("TestChannel")?;

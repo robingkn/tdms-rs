@@ -1,11 +1,11 @@
 //! Debug test to see what's being written
 
-use tdms_rs::{TdmsWriter, TdmsFile};
+use tdms_rs::{TdmsFile, TdmsWriter};
 
 #[test]
 fn test_debug_write() -> Result<(), Box<dyn std::error::Error>> {
     let test_file = "test_debug.tdms";
-    
+
     // Write
     {
         let mut w = TdmsWriter::create(test_file)?;
@@ -14,11 +14,11 @@ fn test_debug_write() -> Result<(), Box<dyn std::error::Error>> {
         ch.write(&[1.0, 2.0, 3.0])?;
         w.close()?;
     }
-    
+
     // Read and debug
     {
         let f = TdmsFile::open(test_file)?;
-        
+
         println!("Groups found:");
         for g in f.groups() {
             println!("  - '{}'", g.name());
@@ -27,9 +27,9 @@ fn test_debug_write() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-    
+
     // Clean up
     std::fs::remove_file(test_file).ok();
-    
+
     Ok(())
 }

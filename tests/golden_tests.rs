@@ -59,11 +59,7 @@ fn read_channel_data_as_json(
                 .map(|v| *v as i64)
                 .collect::<Vec<i64>>(),
         ),
-        TdmsDType::I64 => serde_json::Value::from(
-            slice
-                .as_typed::<i64>()?
-                .to_vec(),
-        ),
+        TdmsDType::I64 => serde_json::Value::from(slice.as_typed::<i64>()?.to_vec()),
         TdmsDType::U8 => serde_json::Value::from(
             slice
                 .as_typed::<u8>()?
@@ -85,16 +81,8 @@ fn read_channel_data_as_json(
                 .map(|v| *v as u64)
                 .collect::<Vec<u64>>(),
         ),
-        TdmsDType::U64 => serde_json::Value::from(
-            slice
-                .as_typed::<u64>()?
-                .to_vec(),
-        ),
-        TdmsDType::Bool => serde_json::Value::from(
-            slice
-                .as_typed::<bool>()?
-                .to_vec(),
-        ),
+        TdmsDType::U64 => serde_json::Value::from(slice.as_typed::<u64>()?.to_vec()),
+        TdmsDType::Bool => serde_json::Value::from(slice.as_typed::<bool>()?.to_vec()),
         TdmsDType::TimeStamp => {
             return Err("timestamp channel JSON comparison not implemented".into());
         }
@@ -196,7 +184,12 @@ fn run_test_case(tdms_path: &Path) {
     // assert_eq!(tdms_file.properties.len(), golden.file_properties.len(), "File property count mismatch");
 
     // Assert Groups
-    assert_eq!(tdms_file.groups().count(), golden.groups.len(), "Group count mismatch for {:?}", tdms_path);
+    assert_eq!(
+        tdms_file.groups().count(),
+        golden.groups.len(),
+        "Group count mismatch for {:?}",
+        tdms_path
+    );
 
     for (g_name, g_golden) in &golden.groups {
         let g_parsed = tdms_file
@@ -243,8 +236,15 @@ fn run_test_case(tdms_path: &Path) {
                     }
                 };
 
-                if let (Some(expected), Some(actual)) = (c_golden.data.as_array(), data_json.as_array()) {
-                    assert_eq!(actual.len(), expected.len(), "Count mismatch for {}", c_name);
+                if let (Some(expected), Some(actual)) =
+                    (c_golden.data.as_array(), data_json.as_array())
+                {
+                    assert_eq!(
+                        actual.len(),
+                        expected.len(),
+                        "Count mismatch for {}",
+                        c_name
+                    );
 
                     match c_parsed.dtype() {
                         TdmsDType::F64 | TdmsDType::F32 => {
@@ -257,10 +257,16 @@ fn run_test_case(tdms_path: &Path) {
                                         "nan" | "NaN" => f64::NAN,
                                         "inf" | "Infinity" => f64::INFINITY,
                                         "-inf" | "-Infinity" => f64::NEG_INFINITY,
-                                        _ => panic!("Unknown float string {} at {} for {}", s, i, c_name),
+                                        _ => panic!(
+                                            "Unknown float string {} at {} for {}",
+                                            s, i, c_name
+                                        ),
                                     }
                                 } else {
-                                    panic!("Expected numeric JSON for actual at {} for {}", i, c_name);
+                                    panic!(
+                                        "Expected numeric JSON for actual at {} for {}",
+                                        i, c_name
+                                    );
                                 };
                                 let e = if let Some(n) = e.as_f64() {
                                     n
@@ -270,7 +276,9 @@ fn run_test_case(tdms_path: &Path) {
                                         "inf" | "Infinity" => f64::INFINITY,
                                         "-inf" | "-Infinity" => f64::NEG_INFINITY,
                                         // Try to parse as a regular float (handles "-0.0" etc.)
-                                        other => other.parse::<f64>().unwrap_or_else(|_| panic!("Unknown float string {}", s)),
+                                        other => other.parse::<f64>().unwrap_or_else(|_| {
+                                            panic!("Unknown float string {}", s)
+                                        }),
                                     }
                                 } else {
                                     panic!("Expected numeric JSON");
@@ -298,10 +306,7 @@ fn run_test_case(tdms_path: &Path) {
                                 }
                             }
                         }
-                        TdmsDType::I8
-                        | TdmsDType::I16
-                        | TdmsDType::I32
-                        | TdmsDType::I64 => {
+                        TdmsDType::I8 | TdmsDType::I16 | TdmsDType::I32 | TdmsDType::I64 => {
                             for (i, (a, e)) in actual.iter().zip(expected.iter()).enumerate() {
                                 let a = a.as_i64().expect("expected i64 JSON");
                                 let e = e.as_i64().expect("expected i64 JSON");
