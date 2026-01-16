@@ -11,14 +11,13 @@ use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::ops::Range;
 use std::path::Path;
-use std::sync::Arc;
 
 /// A TDMS file handle for reading.
 ///
 /// This struct indexes the file structure (groups, channels, properties) on open
 /// without loading raw data into memory.
 pub struct TdmsFile {
-    pub(crate) inner: Arc<TdmsFileInner>,
+    pub(crate) inner: TdmsFileInner,
 }
 
 /// A group within a TDMS file.
@@ -104,11 +103,11 @@ impl TdmsFile {
         }
 
         Ok(Self {
-            inner: Arc::new(TdmsFileInner {
+            inner: TdmsFileInner {
                 path: path.to_path_buf(),
                 groups,
                 properties: file_properties,
-            }),
+            },
         })
     }
 
