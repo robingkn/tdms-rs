@@ -22,7 +22,6 @@ exclude = [
     "Cargo.toml.orig",
     "requirements.txt",
     "src/bin_disabled/",
-    "benchmark/",
     "api_design/"
 ]
 
@@ -33,6 +32,10 @@ path = "tests/integration_tests/mod.rs"
 [[test]]
 name = "golden"
 path = "tests/golden_tests/mod.rs"
+
+[[bin]]
+name = "benchmark"
+path = "benchmark/tdms_rs/benchmark.rs"
 
 [dependencies]
 byteorder = "1.4"
