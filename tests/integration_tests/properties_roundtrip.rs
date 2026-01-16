@@ -28,7 +28,7 @@ fn file_properties_roundtrip() -> Result<(), Box<dyn std::error::Error>> {
         let mut group = writer.add_group("G")?;
         let mut ch = group.add_channel::<f64>("C")?;
         ch.write(&[0.0])?;
-        writer.close()?;
+        // File is automatically flushed and closed when writer goes out of scope
     }
 
     let file = TdmsFile::open(path)?;
@@ -78,7 +78,7 @@ fn group_and_channel_properties_roundtrip() -> Result<(), Box<dyn std::error::Er
         channel.add_property("c_f64", PropertyValue::Double(std::f64::consts::PI))?;
         channel.add_property("c_bool", PropertyValue::Boolean(false))?;
         channel.write(&[1.0, 2.0])?;
-        writer.close()?;
+        // File is automatically flushed and closed when writer goes out of scope
     }
 
     let file = TdmsFile::open(path)?;

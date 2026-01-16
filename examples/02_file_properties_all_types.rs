@@ -41,7 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut group = writer.add_group("Dummy")?;
         let mut channel = group.add_channel::<f64>("DummyChannel")?;
         channel.write(&[0.0])?;
-        writer.close()?;
+        // File is automatically flushed and closed when writer goes out of scope
     }
 
     // Read back and verify all properties

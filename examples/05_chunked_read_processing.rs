@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut channel = group.add_channel::<f64>("Signal")?;
         let data = vec![1.23; total_samples];
         channel.write(&data)?;
-        writer.close()?;
+        // File is automatically flushed and closed when writer goes out of scope
     }
 
     // Read and process in chunks

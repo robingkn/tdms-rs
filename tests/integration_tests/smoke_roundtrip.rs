@@ -14,7 +14,7 @@ fn smoke_roundtrip_f64() -> Result<(), Box<dyn std::error::Error>> {
         let mut group = writer.add_group("Test")?;
         let mut channel = group.add_channel::<f64>("Data")?;
         channel.write(&[1.0, 2.0, 3.0, 4.0, 5.0])?;
-        writer.close()?;
+        // File is automatically flushed and closed when writer goes out of scope
     }
 
     // Read and verify
@@ -44,7 +44,7 @@ fn smoke_roundtrip_bool() -> Result<(), Box<dyn std::error::Error>> {
         let mut group = writer.add_group("Test")?;
         let mut channel = group.add_channel::<bool>("Flags")?;
         channel.write(&[true, false, true, false, true])?;
-        writer.close()?;
+        // File is automatically flushed and closed when writer goes out of scope
     }
 
     // Read and verify

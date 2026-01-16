@@ -13,7 +13,7 @@ fn read_invalid_range() -> Result<(), Box<dyn std::error::Error>> {
         let mut group = writer.add_group("G")?;
         let mut channel = group.add_channel::<f64>("C")?;
         channel.write(&[1.0, 2.0, 3.0])?;
-        writer.close()?;
+        // File is automatically flushed and closed when writer goes out of scope
     }
 
     let file = TdmsFile::open(path)?;
@@ -64,7 +64,7 @@ fn read_buffer_too_small() -> Result<(), Box<dyn std::error::Error>> {
         let mut group = writer.add_group("G")?;
         let mut channel = group.add_channel::<f64>("C")?;
         channel.write(&[1.0, 2.0, 3.0])?;
-        writer.close()?;
+        // File is automatically flushed and closed when writer goes out of scope
     }
 
     let file = TdmsFile::open(path)?;
@@ -94,7 +94,7 @@ fn read_type_mismatch() -> Result<(), Box<dyn std::error::Error>> {
         let mut group = writer.add_group("G")?;
         let mut channel = group.add_channel::<f64>("C")?;
         channel.write(&[1.0, 2.0, 3.0])?;
-        writer.close()?;
+        // File is automatically flushed and closed when writer goes out of scope
     }
 
     let file = TdmsFile::open(path)?;
@@ -122,7 +122,7 @@ fn read_empty_channel() -> Result<(), Box<dyn std::error::Error>> {
         let mut group = writer.add_group("G")?;
         let _channel = group.add_channel::<f64>("C")?;
         // Write no data
-        writer.close()?;
+        // File is automatically flushed and closed when writer goes out of scope
     }
 
     let file = TdmsFile::open(path)?;

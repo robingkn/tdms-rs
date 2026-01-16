@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Write minimal data to finalize
         channel.write(&[20.0, 21.0, 22.0])?;
-        writer.close()?;
+        // File is automatically flushed and closed when writer goes out of scope
     }
 
     // Read back and verify group and channel properties

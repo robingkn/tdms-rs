@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut group = writer.add_group("Sensors")?;
         let mut channel = group.add_channel::<f64>("Temperature")?;
         channel.write(&[20.0, 21.0, 22.0, 23.0, 24.0])?;
-        writer.close()?;
+        // File is automatically flushed and closed when writer goes out of scope
     }
 
     // Read the file back and verify

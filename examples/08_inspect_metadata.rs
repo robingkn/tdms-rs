@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ch3.add_property("description", PropertyValue::String("System OK".into()))?;
         ch3.write(&[true, false, true])?;
 
-        writer.close()?;
+        // File is automatically flushed and closed when writer goes out of scope
     }
 
     // Inspect the file metadata

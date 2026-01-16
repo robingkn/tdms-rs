@@ -50,7 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut ch_bool = group.add_channel::<bool>("Boolean")?;
         ch_bool.write(&[true, false, true, false, true])?;
 
-        writer.close()?;
+        // File is automatically flushed and closed when writer goes out of scope
     }
 
     // Read back and verify all channel data

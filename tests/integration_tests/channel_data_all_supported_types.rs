@@ -16,7 +16,7 @@ macro_rules! test_channel_type {
                 let mut group = writer.add_group("G")?;
                 let mut channel = group.add_channel::<$ty>("C")?;
                 channel.write($data)?;
-                writer.close()?;
+                // File is automatically flushed and closed when writer goes out of scope
             }
 
             // Read and verify
@@ -135,7 +135,7 @@ fn channel_unsupported_types_error() -> Result<(), Box<dyn std::error::Error>> {
         let mut group = writer.add_group("G")?;
         let mut ch = group.add_channel::<f64>("Data")?;
         ch.write(&[1.0, 2.0, 3.0])?;
-        writer.close()?;
+        // File is automatically flushed and closed when writer goes out of scope
     }
 
     let file = TdmsFile::open(path)?;

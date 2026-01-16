@@ -46,12 +46,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 use tdms_rs::TdmsWriter;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut writer = TdmsWriter::create("output.tdms")?;
-    let mut group = writer.add_group("DAQ")?;
-    let mut channel = group.add_channel::<f64>("Voltage")?;
-    
-    channel.write(&[1.0, 2.0, 3.0])?;
-    writer.close()?;
+    {
+        let mut writer = TdmsWriter::create("output.tdms")?;
+        let mut group = writer.add_group("DAQ")?;
+        let mut channel = group.add_channel::<f64>("Voltage")?;
+        
+        channel.write(&[1.0, 2.0, 3.0])?;
+        // Optional: explicitly flush to ensure data is written
+        writer.flush()?;
+        // File is automatically flushed and closed when writer goes out of scope
+    }
     Ok(())
 }
 ```

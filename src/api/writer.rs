@@ -10,23 +10,22 @@ use std::path::{Path, PathBuf};
 
 /// A TDMS file writer.
 ///
-/// Data is batched in memory and written to disk when `close()` is called.
+/// Data is batched in memory and written to disk when `flush()` is called
+/// or when the writer is dropped.
 ///
 /// # Lifecycle
 ///
-/// The writer follows a strict single-use lifecycle:
+/// The writer follows a RAII-based lifecycle:
 /// 1. **Create** - Call `TdmsWriter::create()` to create a new writer
 /// 2. **Write** - Add groups, channels, and data using the provided methods
-/// 3. **Close** - Call `close()` to write the file to disk
+/// 3. **Flush** - Call `flush()` to write buffered data to disk (optional)
+/// 4. **Drop** - Data is automatically flushed when the writer goes out of scope
 ///
-/// The writer is move-only and consumes itself when `close()` is called.
-/// Dropping a writer without calling `close()` will emit a warning, as this
-/// typically indicates a bug in the calling code.
+/// The writer is move-only and automatically flushes data when dropped.
 pub struct TdmsWriter {
     path: PathBuf,
     groups: IndexMap<String, WriterGroupData>,
     properties: IndexMap<String, PropertyValue>,
-    closed: bool,
 }
 
 struct WriterGroupData {
@@ -62,7 +61,6 @@ impl TdmsWriter {
             path: path.as_ref().to_path_buf(),
             groups: IndexMap::new(),
             properties: IndexMap::new(),
-            closed: false,
         })
     }
 
@@ -106,13 +104,17 @@ impl TdmsWriter {
         Ok(self)
     }
 
-    /// Write the TDMS file to disk.
-    pub fn close(mut self) -> Result<()> {
-        if self.closed {
-            return Err(TdmsError::WriterClosed);
-        }
+    /// Write buffered data to disk.
+    ///
+    /// This flushes all buffered data to the file but keeps the writer usable
+    /// for additional writes. The writer can be flushed multiple times.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be written or if there's an issue
+    /// with the TDMS format.
+    pub fn flush(&mut self) -> Result<()> {
         self.write_file()?;
-        self.closed = true;
         Ok(())
     }
 
@@ -275,11 +277,10 @@ impl TdmsWriter {
 
 impl Drop for TdmsWriter {
     fn drop(&mut self) {
-        if !self.closed {
-            // Writer was dropped without being explicitly closed.
-            // This is a logic error - users should always call close().
-            // We log a warning but don't panic to avoid disrupting cleanup.
-            eprintln!("Warning: TdmsWriter dropped without calling close(). This may indicate a bug in your code.");
+        // Automatically flush data when the writer is dropped
+        // Errors during drop are ignored to prevent panics
+        if let Err(e) = self.write_file() {
+            eprintln!("Warning: Failed to flush TDMS data on drop: {}", e);
         }
     }
 }

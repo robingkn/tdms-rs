@@ -15,9 +15,11 @@ use std::path::Path;
 /// A TDMS file handle for reading.
 ///
 /// This struct indexes the file structure (groups, channels, properties) on open
-/// without loading raw data into memory.
+/// without loading raw data into memory. The file handle is automatically closed
+/// when the TdmsFile is dropped.
 pub struct TdmsFile {
     pub(crate) inner: TdmsFileInner,
+    pub(crate) file_handle: Option<BufReader<File>>,
 }
 
 /// A group within a TDMS file.
@@ -36,7 +38,8 @@ impl TdmsFile {
     /// Open a TDMS file for reading.
     ///
     /// This parses and indexes all segment metadata eagerly, but does not read
-    /// raw channel data until it is requested.
+    /// raw channel data until it is requested. The file handle is automatically
+    /// closed when the TdmsFile is dropped.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         let file = File::open(path)?;
@@ -102,12 +105,16 @@ impl TdmsFile {
             }
         }
 
+        // Reopen the file for data reading
+        let file_handle = BufReader::new(File::open(path)?);
+
         Ok(Self {
             inner: TdmsFileInner {
                 path: path.to_path_buf(),
                 groups,
                 properties: file_properties,
             },
+            file_handle: Some(file_handle),
         })
     }
 
@@ -230,6 +237,16 @@ impl<'a> TdmsChannel<'a> {
             )
         };
 
+        // Use the owned file handle, creating a new one if needed
+        let _file_handle = self.file.file_handle.as_ref().ok_or_else(|| {
+            TdmsError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "File handle not available",
+            ))
+        })?;
+
+        // We need to seek independently, so we'll create a new reader from the file
+        // This is necessary because we can't have multiple mutable borrows
         let file = File::open(&self.file.inner.path)?;
         let mut reader = BufReader::new(file);
         self.read_range_into_bytes(&range, out_bytes, &mut reader)?;
@@ -510,5 +527,13 @@ impl<R: Read + Seek> TdmsReaderInternal<R> {
             _toc_mask: mask.convert(),
             objects,
         })
+    }
+}
+
+impl Drop for TdmsFile {
+    fn drop(&mut self) {
+        // The file handle will be automatically closed when dropped
+        // This is just for documentation purposes
+        self.file_handle.take();
     }
 }

@@ -190,7 +190,7 @@ fn run_write_benchmark(
             let mut group = writer.add_group("BenchmarkGroup")?;
             let mut channel = group.add_channel::<f64>("BenchmarkChannel")?;
             channel.write(&data)?;
-            writer.close()?;
+            // File is automatically flushed and closed when writer goes out of scope
         }
 
         let duration = start.elapsed();

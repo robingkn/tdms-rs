@@ -6,6 +6,7 @@ This document provides a high-level overview of the `tdms-rs` public API. For de
 
 ### Reading Files
 The hierarchy follows the TDMS standard: `TdmsFile` → `TdmsGroup` → `TdmsChannel`.
+Files are automatically closed when the `TdmsFile` is dropped.
 
 ```rust
 let file = TdmsFile::open("data.tdms")?;
@@ -15,18 +16,23 @@ let channel = group.channel("Temperature").ok_or("Channel not found")?;
 // Read into a pre-allocated buffer
 let mut data = vec![0.0f64; channel.len()];
 channel.read(0..channel.len(), &mut data)?;
+// File is automatically closed when 'file' goes out of scope
 ```
 
 ### Writing Files
-Writing uses a builder-like pattern through `TdmsWriter`.
+Writing uses a builder-like pattern through `TdmsWriter` with RAII-based lifecycle.
 
 ```rust
-let mut writer = TdmsWriter::create("output.tdms")?;
-let mut group = writer.add_group("Measurement")?;
-let mut channel = group.add_channel::<f64>("Voltage")?;
+{
+    let mut writer = TdmsWriter::create("output.tdms")?;
+    let mut group = writer.add_group("Measurement")?;
+    let mut channel = group.add_channel::<f64>("Voltage")?;
 
-channel.write(&[1.0, 2.0, 3.0])?;
-writer.close()?;
+    channel.write(&[1.0, 2.0, 3.0])?;
+    // Optional: explicitly flush to ensure data is written
+    writer.flush()?; 
+    // File is automatically flushed and closed when writer goes out of scope
+}
 ```
 
 ## Data Types
