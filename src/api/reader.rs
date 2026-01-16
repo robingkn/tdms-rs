@@ -34,6 +34,10 @@ pub struct TdmsChannel<'a> {
 }
 
 impl TdmsFile {
+    /// Open a TDMS file for reading.
+    ///
+    /// This parses and indexes all segment metadata eagerly, but does not read
+    /// raw channel data until it is requested.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         let file = File::open(path)?;
@@ -108,19 +112,23 @@ impl TdmsFile {
         })
     }
 
+    /// Look up a group by name.
     pub fn group(&self, name: &str) -> Option<TdmsGroup<'_>> {
         let data = self.inner.groups.get(name)?;
         Some(TdmsGroup { file: self, data })
     }
 
+    /// Look up a file-level property by name.
     pub fn property(&self, name: &str) -> Option<&PropertyValue> {
         self.inner.properties.get(name)
     }
 
+    /// Iterate over all file-level properties.
     pub fn properties(&self) -> impl Iterator<Item = (&str, &PropertyValue)> {
         self.inner.properties.iter().map(|(k, v)| (k.as_str(), v))
     }
 
+    /// Iterate over all groups in the file.
     pub fn groups(&self) -> impl Iterator<Item = TdmsGroup<'_>> {
         self.inner
             .groups
@@ -130,18 +138,22 @@ impl TdmsFile {
 }
 
 impl<'a> TdmsGroup<'a> {
+    /// Return the group name.
     pub fn name(&self) -> &str {
         &self.data.name
     }
 
+    /// Look up a group-level property by name.
     pub fn property(&self, name: &str) -> Option<&PropertyValue> {
         self.data.properties.get(name)
     }
 
+    /// Iterate over all group-level properties.
     pub fn properties(&self) -> impl Iterator<Item = (&str, &PropertyValue)> {
         self.data.properties.iter().map(|(k, v)| (k.as_str(), v))
     }
 
+    /// Look up a channel by name.
     pub fn channel(&self, name: &str) -> Option<TdmsChannel<'a>> {
         let data = self.data.channels.get(name)?;
         Some(TdmsChannel {
@@ -150,6 +162,7 @@ impl<'a> TdmsGroup<'a> {
         })
     }
 
+    /// Iterate over all channels in the group.
     pub fn channels(&self) -> impl Iterator<Item = TdmsChannel<'a>> {
         let file = self.file;
         self.data
@@ -160,30 +173,39 @@ impl<'a> TdmsGroup<'a> {
 }
 
 impl<'a> TdmsChannel<'a> {
+    /// Return the channel name.
     pub fn name(&self) -> &str {
         &self.data.name
     }
 
+    /// Return the channel data type.
     pub fn dtype(&self) -> DataType {
         self.data.dtype.clone()
     }
 
+    /// Return the number of values in the channel.
     pub fn len(&self) -> usize {
         self.data.len
     }
 
+    /// Returns `true` if the channel contains no values.
     pub fn is_empty(&self) -> bool {
         self.data.len == 0
     }
 
+    /// Look up a channel-level property by name.
     pub fn property(&self, name: &str) -> Option<&PropertyValue> {
         self.data.properties.get(name)
     }
 
+    /// Iterate over all channel-level properties.
     pub fn properties(&self) -> impl Iterator<Item = (&str, &PropertyValue)> {
         self.data.properties.iter().map(|(k, v)| (k.as_str(), v))
     }
 
+    /// Read a range of values into the provided output buffer.
+    ///
+    /// The element type `T` must match the TDMS channel element size.
     pub fn read<T: Pod>(&self, range: Range<usize>, out: &mut [T]) -> Result<usize> {
         if range.end > self.data.len {
             return Err(TdmsError::InvalidRange(
@@ -215,6 +237,8 @@ impl<'a> TdmsChannel<'a> {
         Ok(requested)
     }
 
+    /// If the waveform timing properties are present, return an iterator of
+    /// timestamps (in seconds) corresponding to each sample.
     pub fn timestamps(&self) -> Option<TimestampIterator> {
         let start_time = self.data.properties.get("wf_start_time").and_then(|v| {
             if let PropertyValue::Double(d) = v {
@@ -293,6 +317,7 @@ impl<'a> TdmsChannel<'a> {
     }
 }
 
+/// Iterator returned by [`TdmsChannel::timestamps`].
 pub struct TimestampIterator {
     start: f64,
     increment: f64,
@@ -314,6 +339,7 @@ impl Iterator for TimestampIterator {
     }
 }
 
+/// Marker trait for plain-old-data types supported by [`TdmsChannel::read`].
 pub trait Pod: Copy {}
 impl Pod for i8 {}
 impl Pod for u8 {}
@@ -495,8 +521,8 @@ impl<R: Read + Seek> TdmsReaderInternal<R> {
                     obj.data_location = Some(crate::format::metadata::DataLocation {
                         offset: current_raw_offset,
                         number_of_values: meta.number_of_values,
-                        data_type: meta.data_type.clone(),
-                        total_size_bytes: meta.total_size_bytes,
+                        _data_type: meta.data_type.clone(),
+                        _total_size_bytes: meta.total_size_bytes,
                     });
                     current_raw_offset += size;
                 }
@@ -507,8 +533,8 @@ impl<R: Read + Seek> TdmsReaderInternal<R> {
                         obj.data_location = Some(crate::format::metadata::DataLocation {
                             offset: current_raw_offset,
                             number_of_values: meta.number_of_values,
-                            data_type: meta.data_type.clone(),
-                            total_size_bytes: meta.total_size_bytes,
+                            _data_type: meta.data_type.clone(),
+                            _total_size_bytes: meta.total_size_bytes,
                         });
                         current_raw_offset += size;
                     }
@@ -528,10 +554,10 @@ impl<R: Read + Seek> TdmsReaderInternal<R> {
         }
 
         Ok(Segment {
-            version,
-            next_segment_offset,
-            raw_data_offset,
-            toc_mask: mask.convert(),
+            _version: version,
+            _next_segment_offset: next_segment_offset,
+            _raw_data_offset: raw_data_offset,
+            _toc_mask: mask.convert(),
             objects,
         })
     }

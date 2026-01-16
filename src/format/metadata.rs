@@ -73,8 +73,8 @@ pub struct RawDataMeta {
 pub struct DataLocation {
     pub offset: u64,
     pub number_of_values: u64,
-    pub data_type: DataType,
-    pub total_size_bytes: Option<u64>,
+    pub _data_type: DataType,
+    pub _total_size_bytes: Option<u64>,
 }
 
 #[derive(Debug)]

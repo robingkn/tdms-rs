@@ -29,11 +29,12 @@ use tdms_rs::TdmsFile;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file = TdmsFile::open("data.tdms")?;
-    let channel = file.group("Sensors")?.channel("Temperature")?;
-    
+    let group = file.group("Sensors").ok_or("Group not found")?;
+    let channel = group.channel("Temperature").ok_or("Channel not found")?;
+
     let mut data = vec![0.0f64; channel.len()];
     channel.read(0..channel.len(), &mut data)?;
-    
+
     println!("Read {} samples", data.len());
     Ok(())
 }

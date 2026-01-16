@@ -36,6 +36,7 @@ pub struct WriterGroup<'w> {
     pub(crate) group_name: String,
 }
 
+/// A typed writer handle for a single channel.
 pub struct WriterChannel<'w, T> {
     pub(crate) writer: &'w mut TdmsWriter,
     pub(crate) group_name: String,
@@ -44,6 +45,7 @@ pub struct WriterChannel<'w, T> {
 }
 
 impl TdmsWriter {
+    /// Create a new TDMS writer targeting the given output path.
     pub fn create(path: impl AsRef<Path>) -> Result<Self> {
         Ok(Self {
             path: path.as_ref().to_path_buf(),
@@ -53,6 +55,7 @@ impl TdmsWriter {
         })
     }
 
+    /// Add (or look up) a group in the output file.
     pub fn add_group(&mut self, name: impl Into<String>) -> Result<WriterGroup<'_>> {
         let name = name.into();
         if name.is_empty() {
@@ -76,6 +79,7 @@ impl TdmsWriter {
         })
     }
 
+    /// Add a file-level property.
     pub fn add_property(
         &mut self,
         name: impl Into<String>,
@@ -91,6 +95,7 @@ impl TdmsWriter {
         Ok(self)
     }
 
+    /// Write the TDMS file to disk.
     pub fn close(mut self) -> Result<()> {
         if self.closed {
             return Err(TdmsError::WriterClosed);
@@ -100,6 +105,7 @@ impl TdmsWriter {
         Ok(())
     }
 
+    /// Abort writing and delete the output file if it already exists.
     pub fn abort(self) -> Result<()> {
         if self.path.exists() {
             std::fs::remove_file(&self.path)?;
@@ -265,6 +271,7 @@ impl TdmsWriter {
 }
 
 impl<'w> WriterGroup<'w> {
+    /// Add (or look up) a channel within this group.
     pub fn add_channel<T: WritableType>(
         &mut self,
         name: impl Into<String>,
@@ -301,6 +308,7 @@ impl<'w> WriterGroup<'w> {
         })
     }
 
+    /// Add a group-level property.
     pub fn add_property(
         &mut self,
         name: impl Into<String>,
@@ -323,6 +331,7 @@ impl<'w> WriterGroup<'w> {
 }
 
 impl<'w, T: WritableType> WriterChannel<'w, T> {
+    /// Append the provided data to the channel.
     pub fn write(&mut self, data: &[T]) -> Result<()> {
         let group = self
             .writer
@@ -336,6 +345,7 @@ impl<'w, T: WritableType> WriterChannel<'w, T> {
         Ok(())
     }
 
+    /// Add a channel-level property.
     pub fn add_property(
         &mut self,
         name: impl Into<String>,
@@ -360,6 +370,7 @@ impl<'w, T: WritableType> WriterChannel<'w, T> {
     }
 }
 
+/// Trait implemented for element types that can be written as TDMS channel data.
 pub trait WritableType: Sized {
     fn data_type() -> DataType;
     fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()>;

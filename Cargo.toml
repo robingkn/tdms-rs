@@ -19,15 +19,9 @@ exclude = [
     "tools/",
     "target/",
     ".git/",
-    "*.md",
-    "!README.md",
-    "!CHANGELOG.md"
+    "benchmark/",
+    "api_design/"
 ]
-
-# Temporarily disabled during API redesign
-# [[bin]]
-# name = "tdms-to-json"
-# path = "src/bin/tdms_to_json.rs"
 
 [[bin]]
 name = "benchmark"

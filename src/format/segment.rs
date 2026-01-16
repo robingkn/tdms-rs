@@ -2,10 +2,10 @@ use crate::format::metadata::ParsingMetadata;
 
 #[derive(Debug)]
 pub struct Segment {
-    pub version: u32,
-    pub next_segment_offset: u64,
-    pub raw_data_offset: u64,
-    pub toc_mask: u32,
+    pub _version: u32,
+    pub _next_segment_offset: u64,
+    pub _raw_data_offset: u64,
+    pub _toc_mask: u32,
     pub objects: Vec<ParsingMetadata>,
 }
 
