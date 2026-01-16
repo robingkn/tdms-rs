@@ -243,8 +243,8 @@ fn run_read_benchmark(
             .channel("BenchmarkChannel")
             .ok_or("BenchmarkChannel not found")?;
 
-        let slice = channel.read_all()?;
-        let data = slice.as_typed::<f64>()?;
+        let mut data = vec![0.0f64; channel.len()];
+        channel.read_into(0..channel.len(), &mut data)?;
 
         // Force evaluation to ensure data is actually read
         std::hint::black_box(data.len());

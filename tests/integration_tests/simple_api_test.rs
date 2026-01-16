@@ -23,8 +23,8 @@ fn test_write_and_read_simple() -> Result<(), Box<dyn std::error::Error>> {
 
         assert_eq!(ch.len(), 5);
 
-        let slice = ch.read(0..5)?;
-        let data: &[f64] = slice.as_typed()?;
+        let mut data = vec![0.0f64; 5];
+        ch.read_into(0..5, &mut data)?;
 
         assert_eq!(data, &[1.0, 2.0, 3.0, 4.0, 5.0]);
     }
@@ -55,10 +55,15 @@ fn test_chunks() -> Result<(), Box<dyn std::error::Error>> {
         let ch = f.group("G").unwrap().channel("C").unwrap();
 
         let mut count = 0;
-        for chunk in ch.chunks(25) {
-            let slice = chunk?;
-            assert!(slice.len() <= 25);
-            count += slice.len();
+        let chunk_size = 25;
+        let total_len = ch.len();
+        let mut buffer = vec![0.0f64; chunk_size];
+
+        for start in (0..total_len).step_by(chunk_size) {
+            let end = (start + chunk_size).min(total_len);
+            let current_chunk_size = end - start;
+            ch.read_into(start..end, &mut buffer[0..current_chunk_size])?;
+            count += current_chunk_size;
         }
 
         assert_eq!(count, 100);

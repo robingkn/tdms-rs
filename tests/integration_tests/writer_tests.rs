@@ -9,70 +9,70 @@ fn copy_channel_numeric(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match src.dtype() {
         TdmsDType::F64 => {
-            let slice = src.read_all()?;
-            let data = slice.as_typed::<f64>()?;
+            let mut data = vec![0.0f64; src.len()];
+            src.read_into(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<f64>(channel_name)?;
-            ch.write(data)?;
+            ch.write(&data)?;
         }
         TdmsDType::F32 => {
-            let slice = src.read_all()?;
-            let data = slice.as_typed::<f32>()?;
+            let mut data = vec![0.0f32; src.len()];
+            src.read_into(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<f32>(channel_name)?;
-            ch.write(data)?;
+            ch.write(&data)?;
         }
         TdmsDType::I8 => {
-            let slice = src.read_all()?;
-            let data = slice.as_typed::<i8>()?;
+            let mut data = vec![0i8; src.len()];
+            src.read_into(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<i8>(channel_name)?;
-            ch.write(data)?;
+            ch.write(&data)?;
         }
         TdmsDType::I16 => {
-            let slice = src.read_all()?;
-            let data = slice.as_typed::<i16>()?;
+            let mut data = vec![0i16; src.len()];
+            src.read_into(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<i16>(channel_name)?;
-            ch.write(data)?;
+            ch.write(&data)?;
         }
         TdmsDType::I32 => {
-            let slice = src.read_all()?;
-            let data = slice.as_typed::<i32>()?;
+            let mut data = vec![0i32; src.len()];
+            src.read_into(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<i32>(channel_name)?;
-            ch.write(data)?;
+            ch.write(&data)?;
         }
         TdmsDType::I64 => {
-            let slice = src.read_all()?;
-            let data = slice.as_typed::<i64>()?;
+            let mut data = vec![0i64; src.len()];
+            src.read_into(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<i64>(channel_name)?;
-            ch.write(data)?;
+            ch.write(&data)?;
         }
         TdmsDType::U8 => {
-            let slice = src.read_all()?;
-            let data = slice.as_typed::<u8>()?;
+            let mut data = vec![0u8; src.len()];
+            src.read_into(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<u8>(channel_name)?;
-            ch.write(data)?;
+            ch.write(&data)?;
         }
         TdmsDType::U16 => {
-            let slice = src.read_all()?;
-            let data = slice.as_typed::<u16>()?;
+            let mut data = vec![0u16; src.len()];
+            src.read_into(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<u16>(channel_name)?;
-            ch.write(data)?;
+            ch.write(&data)?;
         }
         TdmsDType::U32 => {
-            let slice = src.read_all()?;
-            let data = slice.as_typed::<u32>()?;
+            let mut data = vec![0u32; src.len()];
+            src.read_into(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<u32>(channel_name)?;
-            ch.write(data)?;
+            ch.write(&data)?;
         }
         TdmsDType::U64 => {
-            let slice = src.read_all()?;
-            let data = slice.as_typed::<u64>()?;
+            let mut data = vec![0u64; src.len()];
+            src.read_into(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<u64>(channel_name)?;
-            ch.write(data)?;
+            ch.write(&data)?;
         }
         TdmsDType::Bool => {
-            let slice = src.read_all()?;
-            let data = slice.as_typed::<bool>()?;
+            let mut data = vec![false; src.len()];
+            src.read_into(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<bool>(channel_name)?;
-            ch.write(data)?;
+            ch.write(&data)?;
         }
         TdmsDType::String | TdmsDType::TimeStamp => {
             // Explicitly unsupported by current writer/read typed API.
@@ -113,10 +113,10 @@ fn round_trip_minimal_file() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(written_channel.dtype(), reference_channel.dtype());
     assert_eq!(written_channel.len(), reference_channel.len());
 
-    let written_slice = written_channel.read_all()?;
-    let ref_slice = reference_channel.read_all()?;
-    let written_data = written_slice.as_typed::<f64>()?;
-    let reference_data = ref_slice.as_typed::<f64>()?;
+    let mut written_data = vec![0.0f64; written_channel.len()];
+    let mut reference_data = vec![0.0f64; reference_channel.len()];
+    written_channel.read_into(0..written_channel.len(), &mut written_data)?;
+    reference_channel.read_into(0..reference_channel.len(), &mut reference_data)?;
     assert_eq!(written_data, reference_data);
 
     Ok(())
@@ -214,10 +214,10 @@ fn round_trip_integers() -> Result<(), Box<dyn std::error::Error>> {
 
     let written_channel = written_integers.channel("Int32").unwrap();
     let reference_channel = reference_integers.channel("Int32").unwrap();
-    let w_slice = written_channel.read_all()?;
-    let w = w_slice.as_typed::<i32>()?;
-    let r_slice = reference_channel.read_all()?;
-    let r = r_slice.as_typed::<i32>()?;
+    let mut w = vec![0i32; written_channel.len()];
+    let mut r = vec![0i32; reference_channel.len()];
+    written_channel.read_into(0..written_channel.len(), &mut w)?;
+    reference_channel.read_into(0..reference_channel.len(), &mut r)?;
     assert_eq!(w, r);
 
     Ok(())
@@ -288,8 +288,8 @@ fn round_trip_file_properties() -> Result<(), Box<dyn std::error::Error>> {
     let g = written_file.group("TestGroup").unwrap();
     let channel = g.channel("TestChannel").unwrap();
 
-    let slice = channel.read_all()?;
-    let data = slice.as_typed::<f64>()?;
+    let mut data = vec![0.0f64; channel.len()];
+    channel.read_into(0..channel.len(), &mut data)?;
     assert_eq!(data, &[1.0, 2.0, 3.0]);
 
     Ok(())

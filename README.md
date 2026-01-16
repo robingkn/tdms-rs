@@ -31,8 +31,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file = TdmsFile::open("data.tdms")?;
     let channel = file.group("Sensors")?.channel("Temperature")?;
     
-    let slice = channel.read_all()?;
-    let data: &[f64] = slice.as_typed()?;
+    let mut data = vec![0.0f64; channel.len()];
+    channel.read_into(0..channel.len(), &mut data)?;
     
     println!("Read {} samples", data.len());
     Ok(())

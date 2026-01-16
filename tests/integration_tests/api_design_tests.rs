@@ -19,8 +19,8 @@ fn test_basic_read() -> Result<(), Box<dyn std::error::Error>> {
         .channel("C")
         .ok_or("channel not found")?;
 
-    let slice = ch.read(0..100)?;
-    let data: &[f64] = slice.as_typed()?;
+    let mut data = vec![0.0f64; 100];
+    ch.read_into(0..100, &mut data)?;
 
     println!("read {} values", data.len());
     Ok(())
@@ -41,9 +41,15 @@ fn test_chunk_streaming() -> Result<(), Box<dyn std::error::Error>> {
         .channel("C")
         .ok_or("channel not found")?;
 
-    for chunk in ch.chunks(10_000_000) {
-        let slice = chunk?;
-        println!("chunk len = {}", slice.len());
+    let chunk_size = 10_000_000;
+    let total_len = ch.len();
+    let mut buffer = vec![0.0f64; chunk_size];
+
+    for start in (0..total_len).step_by(chunk_size) {
+        let end = (start + chunk_size).min(total_len);
+        let count = end - start;
+        ch.read_into(start..end, &mut buffer[0..count])?;
+        println!("chunk len = {}", count);
     }
     Ok(())
 }
@@ -85,8 +91,10 @@ fn test_parallel_reads() -> Result<(), Box<dyn std::error::Error>> {
             let f = f.clone();
             thread::spawn(move || {
                 let ch = f.group("G").unwrap().channel("C").unwrap();
-                let slice = ch.read(i * 1_000_000..(i + 1) * 1_000_000).unwrap();
-                slice.len()
+                let mut data = vec![0.0f64; 1_000_000];
+                ch.read_into(i * 1_000_000..(i + 1) * 1_000_000, &mut data)
+                    .unwrap();
+                data.len()
             })
         })
         .collect();
@@ -113,8 +121,8 @@ fn test_timestamps() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("channel not found")?;
 
     if let Some(ts) = ch.timestamps() {
-        let slice = ch.read(0..ch.len())?;
-        let values: &[f64] = slice.as_typed()?;
+        let mut values = vec![0.0f64; ch.len()];
+        ch.read_into(0..ch.len(), &mut values)?;
 
         for (t, v) in ts.zip(values.iter()) {
             println!("{t} -> {v}");
@@ -154,26 +162,5 @@ fn test_writer_abort() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify file was deleted
     assert!(!std::path::Path::new("partial.tdms").exists());
-    Ok(())
-}
-
-#[test]
-fn test_zero_copy_check() -> Result<(), Box<dyn std::error::Error>> {
-    // This test requires a data.tdms file
-    // For now, we'll skip if the file doesn't exist
-    if !std::path::Path::new("data.tdms").exists() {
-        return Ok(());
-    }
-
-    let f = TdmsFile::open("data.tdms")?;
-    let ch = f
-        .group("G")
-        .ok_or("group not found")?
-        .channel("C")
-        .ok_or("channel not found")?;
-
-    let slice = ch.read(0..1000)?;
-    println!("zero-copy: {}", slice.is_zero_copy());
-
     Ok(())
 }

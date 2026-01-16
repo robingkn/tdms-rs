@@ -8,20 +8,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .channel("C")
         .ok_or("Channel C not found")?;
 
-    // THE ZERO-COPY PHILOSOPHY:
-    // 1. TdmsFile::open() only reads metadata.
-    // 2. channel.read() returns a TdmsSlice which may point to memory-mapped data.
-    // 3. slice.as_typed() provides a direct &'a [T] reference to that data.
-
     // Process in chunks to keep memory usage constant regardless of file size
     let chunk_size = 100_000;
-    for chunk in channel.chunks(chunk_size) {
-        let slice = chunk?;
+    let total_len = channel.len();
+    let mut buffer = vec![0.0f64; chunk_size];
 
-        // This is zero-copy if the platform supports it
-        println!("Is zero-copy? {}", slice.is_zero_copy());
+    for start in (0..total_len).step_by(chunk_size) {
+        let end = (start + chunk_size).min(total_len);
+        let count = end - start;
 
-        let data: &[f64] = slice.as_typed()?;
+        channel.read_into(start..end, &mut buffer[0..count])?;
+        let data = &buffer[0..count];
+
         // Process data...
         let _sum: f64 = data.iter().sum();
     }

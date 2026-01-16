@@ -27,16 +27,6 @@ pub struct TdmsChannel<'a> {
     pub(crate) data: &'a TdmsChannelData,
 }
 
-pub struct TdmsSlice<'a> {
-    pub(crate) data: ChannelData<'a>,
-    pub(crate) dtype: DataType,
-}
-
-pub enum ChannelData<'a> {
-    Mmap(&'a [u8]),
-    Owned(Vec<u8>),
-}
-
 impl TdmsFile {
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
@@ -188,32 +178,6 @@ impl<'a> TdmsChannel<'a> {
         self.data.properties.iter().map(|(k, v)| (k.as_str(), v))
     }
 
-    pub fn read(&self, range: Range<usize>) -> Result<TdmsSlice<'a>> {
-        if range.end > self.data.len {
-            return Err(TdmsError::InvalidRange(
-                range.start,
-                range.end,
-                self.data.len,
-            ));
-        }
-
-        let mut buffer = Vec::new();
-        self.read_range_into(&range, &mut buffer)?;
-
-        Ok(TdmsSlice {
-            data: ChannelData::Owned(buffer),
-            dtype: self.data.dtype.clone(),
-        })
-    }
-
-    pub fn read_range(&self, range: Range<usize>) -> Result<TdmsSlice<'a>> {
-        self.read(range)
-    }
-
-    pub fn read_all(&self) -> Result<TdmsSlice<'a>> {
-        self.read(0..self.len())
-    }
-
     pub fn read_into<T: Pod>(&self, range: Range<usize>, out: &mut [T]) -> Result<usize> {
         if range.end > self.data.len {
             return Err(TdmsError::InvalidRange(
@@ -245,22 +209,6 @@ impl<'a> TdmsChannel<'a> {
         Ok(requested)
     }
 
-    pub fn read_all_into<T: Pod>(&self, out: &mut [T]) -> Result<usize> {
-        self.read_into(0..self.len(), out)
-    }
-
-    pub fn chunks(&'a self, chunk_size: usize) -> ChunkIterator<'a> {
-        ChunkIterator {
-            channel: self,
-            chunk_size,
-            offset: 0,
-        }
-    }
-
-    pub fn iter_chunks(&'a self, chunk_size: usize) -> ChunkIterator<'a> {
-        self.chunks(chunk_size)
-    }
-
     pub fn timestamps(&self) -> Option<TimestampIterator> {
         let start_time = self.data.properties.get("wf_start_time").and_then(|v| {
             if let PropertyValue::Double(d) = v {
@@ -284,20 +232,6 @@ impl<'a> TdmsChannel<'a> {
             index: 0,
             len: self.data.len,
         })
-    }
-
-    fn read_range_into(&self, range: &Range<usize>, buffer: &mut Vec<u8>) -> Result<()> {
-        let file = File::open(&self.file.inner.path)?;
-        let mut reader = BufReader::new(file);
-
-        let itemsize = self.data.dtype.itemsize();
-        let total_bytes = (range.end - range.start) * itemsize;
-        buffer.reserve(total_bytes);
-
-        let start_len = buffer.len();
-        buffer.resize(start_len + total_bytes, 0);
-
-        self.read_range_into_bytes(range, &mut buffer[start_len..], &mut reader)
     }
 
     fn read_range_into_bytes<R: std::io::Read + std::io::Seek>(
@@ -353,28 +287,6 @@ impl<'a> TdmsChannel<'a> {
     }
 }
 
-pub struct ChunkIterator<'a> {
-    channel: &'a TdmsChannel<'a>,
-    chunk_size: usize,
-    offset: usize,
-}
-
-impl<'a> Iterator for ChunkIterator<'a> {
-    type Item = Result<TdmsSlice<'a>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.offset >= self.channel.len() {
-            return None;
-        }
-
-        let end = (self.offset + self.chunk_size).min(self.channel.len());
-        let result = self.channel.read_range(self.offset..end);
-        self.offset = end;
-
-        Some(result)
-    }
-}
-
 pub struct TimestampIterator {
     start: f64,
     increment: f64,
@@ -393,47 +305,6 @@ impl Iterator for TimestampIterator {
         let t = self.start + (self.index as f64) * self.increment;
         self.index += 1;
         Some(t)
-    }
-}
-
-impl<'a> TdmsSlice<'a> {
-    pub fn len(&self) -> usize {
-        let bytes = match &self.data {
-            ChannelData::Mmap(b) => b.len(),
-            ChannelData::Owned(b) => b.len(),
-        };
-        bytes / self.dtype.itemsize()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn is_zero_copy(&self) -> bool {
-        matches!(self.data, ChannelData::Mmap(_))
-    }
-
-    pub fn as_typed<T: Pod>(&self) -> Result<&[T]> {
-        if std::mem::size_of::<T>() != self.dtype.itemsize() {
-            return Err(TdmsError::TypeMismatch);
-        }
-
-        let bytes = match &self.data {
-            ChannelData::Mmap(b) => *b,
-            ChannelData::Owned(b) => b.as_slice(),
-        };
-
-        if bytes.is_empty() {
-            return Ok(&[]);
-        }
-
-        if bytes.as_ptr() as usize % std::mem::align_of::<T>() != 0 {
-            return Err(TdmsError::AlignmentError);
-        }
-
-        let ptr = bytes.as_ptr() as *const T;
-        let len = bytes.len() / std::mem::size_of::<T>();
-        Ok(unsafe { std::slice::from_raw_parts(ptr, len) })
     }
 }
 

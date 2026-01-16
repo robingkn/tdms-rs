@@ -12,9 +12,9 @@ let file = TdmsFile::open("data.tdms")?;
 let group = file.group("Sensors").ok_or("Group not found")?;
 let channel = group.channel("Temperature").ok_or("Channel not found")?;
 
-// Read as a typed slice
-let slice = channel.read_all()?;
-let data: &[f64] = slice.as_typed()?;
+// Read into a pre-allocated buffer
+let mut data = vec![0.0f64; channel.len()];
+channel.read_into(0..channel.len(), &mut data)?;
 ```
 
 ### Writing Files
@@ -40,12 +40,17 @@ The following types are supported for properties and channel data:
 ## Advanced Features
 
 ### Chunked Reading
-To process large files without loading everything into memory:
+To process large files without loading everything into memory, you can iterate over ranges:
 ```rust
-for chunk in channel.chunks(1024) {
-    let slice = chunk?;
-    let data = slice.as_typed::<f64>()?;
-    // process data...
+let chunk_size = 1024;
+let total_len = channel.len();
+let mut buffer = vec![0.0f64; chunk_size];
+
+for start in (0..total_len).step_by(chunk_size) {
+    let end = (start + chunk_size).min(total_len);
+    let count = end - start;
+    channel.read_into(start..end, &mut buffer[0..count])?;
+    // process buffer[0..count]...
 }
 ```
 

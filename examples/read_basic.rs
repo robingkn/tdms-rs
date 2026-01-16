@@ -16,16 +16,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("  Channel: {} ({} samples)", channel.name(), channel.len());
 
             // 3. Read data
-            // read_all() loads the entire channel data into a TdmsSlice.
-            let slice = channel.read_all()?;
-
-            // 4. Access as typed slice
-            // as_typed() provides zero-copy access to the underlying buffer
-            // if the type matches (e.g., f64 for a double channel).
-            let data: &[f64] = slice.as_typed()?;
+            // read_into() loads the data into a pre-allocated buffer.
+            let mut data = vec![0.0f64; channel.len()];
+            channel.read_into(0..channel.len(), &mut data)?;
 
             if !data.is_empty() {
-                let avg = data.iter().sum::<f64>() / data.len() as f64;
+                let avg: f64 = data.iter().sum::<f64>() / data.len() as f64;
                 println!("  Average Temperature: {:.2}°C", avg);
             }
         }
