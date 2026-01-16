@@ -8,8 +8,8 @@ A pure Rust library for reading and writing National Instruments TDMS (Technical
 
 ## 🚀 Key Features
 
-- **⚡ High Performance**: Designed for high-throughput I/O. Achieves near-disk bandwidth by minimizing syscalls and using zero-copy serialization.
-- **📦 Zero-Copy Persistence**: Leverages `mmap` for reading and direct-to-file writes for writing large datasets.
+- **⚡ High Performance**: Designed for high-throughput I/O. Achieves near-disk bandwidth by minimizing syscalls and using efficient buffer management.
+- **📦 Lazy Loading**: Only loads data when requested. Metadata is indexed eagerly, while raw data is read on-demand to minimize memory footprint.
 - **🛡️ Type Safe**: Strongly-typed channel access ensures data integrity at compile time.
 - **🔗 Pure Rust**: No external C dependencies, making cross-compilation seamless.
 - **📊 Full Format Support**: Supports all TDMS data types, hierarchical structures, and multi-segment files.

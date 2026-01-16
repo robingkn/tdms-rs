@@ -9,10 +9,8 @@ The reader uses an indexed approach. When a file is opened:
 2.  Metadata is parsed into an in-memory index (`IndexMap`).
 3.  Raw data locations (offsets and lengths) are stored without loading the actual data.
 
-### Lazy Loading & Zero-Copy
 - **Metadata**: Loaded eagerly to provide fast navigation.
-- **Raw Data**: Loaded lazily when `read()` or `read()` is called.
-- **Zero-Copy**: The structure supports memory-mapping (`mmap`) for high-throughput reads, though owned buffers are used as a fallback.
+- **Raw Data**: Loaded lazily when `read()` is called, using file seeking and direct reads into user-provided buffers to minimize memory overhead.
 
 ## Writer Model
 The writer uses a staged approach to optimize for disk I/O throughput:
@@ -27,10 +25,9 @@ From performance audits, the primary bottleneck for TDMS writes is often the OS-
 - Using `unsafe` pointer casting for zero-copy serialization of numeric slices.
 - Minimizing syscalls (typically ~4 syscalls for a 1GB file write).
 
-## Ownership & Buffer Responsibility
-- `TdmsFile` owns the file handle and the index.
+- `TdmsFile` owns the file path and the index.
 - `TdmsChannel` and `TdmsGroup` are lightweight views into the index.
-- `TdmsSlice` manages the lifecycle of returned data (whether owned or mapped).
+- Data is read directly into user-provided buffers via the `read()` method.
 
 ## Performance Tradeoffs
 - **In-memory Index**: For files with millions of objects, memory usage for the index may be significant.
