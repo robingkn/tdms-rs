@@ -8,8 +8,6 @@ use tdms_rs::{TdmsDType, TdmsFile};
 fn read_channel_data_as_json(
     channel: &tdms_rs::TdmsChannel,
 ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-    let slice = channel.read_all()?;
-
     // Helper to convert f64 values to JSON, handling special floats
     fn f64_to_json_value(v: f64) -> serde_json::Value {
         if v.is_nan() {
@@ -23,66 +21,65 @@ fn read_channel_data_as_json(
         }
     }
 
+    let len = channel.len();
+    let range = 0..len;
+
     let json = match channel.dtype() {
-        TdmsDType::F64 => serde_json::Value::Array(
-            slice
-                .as_typed::<f64>()?
-                .iter()
-                .map(|&v| f64_to_json_value(v))
-                .collect(),
-        ),
-        TdmsDType::F32 => serde_json::Value::Array(
-            slice
-                .as_typed::<f32>()?
-                .iter()
-                .map(|v| f64_to_json_value(*v as f64))
-                .collect(),
-        ),
-        TdmsDType::I8 => serde_json::Value::from(
-            slice
-                .as_typed::<i8>()?
-                .iter()
-                .map(|v| *v as i64)
-                .collect::<Vec<i64>>(),
-        ),
-        TdmsDType::I16 => serde_json::Value::from(
-            slice
-                .as_typed::<i16>()?
-                .iter()
-                .map(|v| *v as i64)
-                .collect::<Vec<i64>>(),
-        ),
-        TdmsDType::I32 => serde_json::Value::from(
-            slice
-                .as_typed::<i32>()?
-                .iter()
-                .map(|v| *v as i64)
-                .collect::<Vec<i64>>(),
-        ),
-        TdmsDType::I64 => serde_json::Value::from(slice.as_typed::<i64>()?.to_vec()),
-        TdmsDType::U8 => serde_json::Value::from(
-            slice
-                .as_typed::<u8>()?
-                .iter()
-                .map(|v| *v as u64)
-                .collect::<Vec<u64>>(),
-        ),
-        TdmsDType::U16 => serde_json::Value::from(
-            slice
-                .as_typed::<u16>()?
-                .iter()
-                .map(|v| *v as u64)
-                .collect::<Vec<u64>>(),
-        ),
-        TdmsDType::U32 => serde_json::Value::from(
-            slice
-                .as_typed::<u32>()?
-                .iter()
-                .map(|v| *v as u64)
-                .collect::<Vec<u64>>(),
-        ),
-        TdmsDType::U64 => serde_json::Value::from(slice.as_typed::<u64>()?.to_vec()),
-        TdmsDType::Bool => serde_json::Value::from(slice.as_typed::<bool>()?.to_vec()),
+        TdmsDType::F64 => {
+            let mut data = vec![0.0f64; len];
+            channel.read(range, &mut data)?;
+            serde_json::Value::Array(data.iter().map(|&v| f64_to_json_value(v)).collect())
+        }
+        TdmsDType::F32 => {
+            let mut data = vec![0.0f32; len];
+            channel.read(range, &mut data)?;
+            serde_json::Value::Array(data.iter().map(|&v| f64_to_json_value(v as f64)).collect())
+        }
+        TdmsDType::I8 => {
+            let mut data = vec![0i8; len];
+            channel.read(range, &mut data)?;
+            serde_json::Value::from(data.iter().map(|&v| v as i64).collect::<Vec<i64>>())
+        }
+        TdmsDType::I16 => {
+            let mut data = vec![0i16; len];
+            channel.read(range, &mut data)?;
+            serde_json::Value::from(data.iter().map(|&v| v as i64).collect::<Vec<i64>>())
+        }
+        TdmsDType::I32 => {
+            let mut data = vec![0i32; len];
+            channel.read(range, &mut data)?;
+            serde_json::Value::from(data.iter().map(|&v| v as i64).collect::<Vec<i64>>())
+        }
+        TdmsDType::I64 => {
+            let mut data = vec![0i64; len];
+            channel.read(range, &mut data)?;
+            serde_json::Value::from(data)
+        }
+        TdmsDType::U8 => {
+            let mut data = vec![0u8; len];
+            channel.read(range, &mut data)?;
+            serde_json::Value::from(data.iter().map(|&v| v as u64).collect::<Vec<u64>>())
+        }
+        TdmsDType::U16 => {
+            let mut data = vec![0u16; len];
+            channel.read(range, &mut data)?;
+            serde_json::Value::from(data.iter().map(|&v| v as u64).collect::<Vec<u64>>())
+        }
+        TdmsDType::U32 => {
+            let mut data = vec![0u32; len];
+            channel.read(range, &mut data)?;
+            serde_json::Value::from(data.iter().map(|&v| v as u64).collect::<Vec<u64>>())
+        }
+        TdmsDType::U64 => {
+            let mut data = vec![0u64; len];
+            channel.read(range, &mut data)?;
+            serde_json::Value::from(data)
+        }
+        TdmsDType::Bool => {
+            let mut data = vec![false; len];
+            channel.read(range, &mut data)?;
+            serde_json::Value::from(data)
+        }
         TdmsDType::TimeStamp => {
             return Err("timestamp channel JSON comparison not implemented".into());
         }

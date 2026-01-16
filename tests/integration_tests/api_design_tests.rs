@@ -106,32 +106,6 @@ fn test_parallel_reads() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn test_timestamps() -> Result<(), Box<dyn std::error::Error>> {
-    // This test requires a daq.tdms file
-    // For now, we'll skip if the file doesn't exist
-    if !std::path::Path::new("daq.tdms").exists() {
-        return Ok(());
-    }
-
-    let f = TdmsFile::open("daq.tdms")?;
-    let ch = f
-        .group("DAQ")
-        .ok_or("group not found")?
-        .channel("Voltage")
-        .ok_or("channel not found")?;
-
-    if let Some(ts) = ch.timestamps() {
-        let mut values = vec![0.0f64; ch.len()];
-        ch.read(0..ch.len(), &mut values)?;
-
-        for (t, v) in ts.zip(values.iter()) {
-            println!("{t} -> {v}");
-        }
-    }
-    Ok(())
-}
-
-#[test]
 fn test_writer_basic() -> Result<(), Box<dyn std::error::Error>> {
     let mut w = TdmsWriter::create("test_out.tdms")?;
     let mut g = w.add_group("DAQ")?;
