@@ -11,6 +11,17 @@ use std::path::{Path, PathBuf};
 /// A TDMS file writer.
 ///
 /// Data is batched in memory and written to disk when `close()` is called.
+///
+/// # Lifecycle
+///
+/// The writer follows a strict single-use lifecycle:
+/// 1. **Create** - Call `TdmsWriter::create()` to create a new writer
+/// 2. **Write** - Add groups, channels, and data using the provided methods
+/// 3. **Close** - Call `close()` to write the file to disk
+///
+/// The writer is move-only and consumes itself when `close()` is called.
+/// Dropping a writer without calling `close()` will emit a warning, as this
+/// typically indicates a bug in the calling code.
 pub struct TdmsWriter {
     path: PathBuf,
     groups: IndexMap<String, WriterGroupData>,
@@ -102,14 +113,6 @@ impl TdmsWriter {
         }
         self.write_file()?;
         self.closed = true;
-        Ok(())
-    }
-
-    /// Abort writing and delete the output file if it already exists.
-    pub fn abort(self) -> Result<()> {
-        if self.path.exists() {
-            std::fs::remove_file(&self.path)?;
-        }
         Ok(())
     }
 
@@ -267,6 +270,17 @@ impl TdmsWriter {
             }
         }
         Ok(())
+    }
+}
+
+impl Drop for TdmsWriter {
+    fn drop(&mut self) {
+        if !self.closed {
+            // Writer was dropped without being explicitly closed.
+            // This is a logic error - users should always call close().
+            // We log a warning but don't panic to avoid disrupting cleanup.
+            eprintln!("Warning: TdmsWriter dropped without calling close(). This may indicate a bug in your code.");
+        }
     }
 }
 

@@ -236,7 +236,6 @@ impl<'a> TdmsChannel<'a> {
         Ok(requested)
     }
 
-
     fn read_range_into_bytes<R: std::io::Read + std::io::Seek>(
         &self,
         range: &Range<usize>,
@@ -289,7 +288,6 @@ impl<'a> TdmsChannel<'a> {
         Ok(())
     }
 }
-
 
 /// Marker trait for plain-old-data types supported by [`TdmsChannel::read`].
 pub trait Pod: Copy {}
