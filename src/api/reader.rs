@@ -237,32 +237,6 @@ impl<'a> TdmsChannel<'a> {
         Ok(requested)
     }
 
-    /// If the waveform timing properties are present, return an iterator of
-    /// timestamps (in seconds) corresponding to each sample.
-    pub fn timestamps(&self) -> Option<TimestampIterator> {
-        let start_time = self.data.properties.get("wf_start_time").and_then(|v| {
-            if let PropertyValue::Double(d) = v {
-                Some(*d)
-            } else {
-                None
-            }
-        })?;
-
-        let increment = self.data.properties.get("wf_increment").and_then(|v| {
-            if let PropertyValue::Double(d) = v {
-                Some(*d)
-            } else {
-                None
-            }
-        })?;
-
-        Some(TimestampIterator {
-            start: start_time,
-            increment,
-            index: 0,
-            len: self.data.len,
-        })
-    }
 
     fn read_range_into_bytes<R: std::io::Read + std::io::Seek>(
         &self,
@@ -317,27 +291,6 @@ impl<'a> TdmsChannel<'a> {
     }
 }
 
-/// Iterator returned by [`TdmsChannel::timestamps`].
-pub struct TimestampIterator {
-    start: f64,
-    increment: f64,
-    index: usize,
-    len: usize,
-}
-
-impl Iterator for TimestampIterator {
-    type Item = f64;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.len {
-            return None;
-        }
-
-        let t = self.start + (self.index as f64) * self.increment;
-        self.index += 1;
-        Some(t)
-    }
-}
 
 /// Marker trait for plain-old-data types supported by [`TdmsChannel::read`].
 pub trait Pod: Copy {}
