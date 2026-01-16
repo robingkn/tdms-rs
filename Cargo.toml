@@ -19,13 +19,12 @@ exclude = [
     "tools/",
     "target/",
     ".git/",
+    "Cargo.toml.orig",
+    "requirements.txt",
+    "src/bin_disabled/",
     "benchmark/",
     "api_design/"
 ]
-
-[[bin]]
-name = "benchmark"
-path = "benchmark/tdms_rs/benchmark.rs"
 
 [[test]]
 name = "integration"
