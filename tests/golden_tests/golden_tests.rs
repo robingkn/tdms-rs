@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use tdms_rs::{TdmsDType, TdmsFile};
+use tdms_rs::{DataType, TdmsFile};
 
 fn read_channel_data_as_json(
     channel: &tdms_rs::TdmsChannel,
@@ -25,65 +25,65 @@ fn read_channel_data_as_json(
     let range = 0..len;
 
     let json = match channel.dtype() {
-        TdmsDType::F64 => {
+        DataType::Double => {
             let mut data = vec![0.0f64; len];
             channel.read(range, &mut data)?;
             serde_json::Value::Array(data.iter().map(|&v| f64_to_json_value(v)).collect())
         }
-        TdmsDType::F32 => {
+        DataType::Float => {
             let mut data = vec![0.0f32; len];
             channel.read(range, &mut data)?;
             serde_json::Value::Array(data.iter().map(|&v| f64_to_json_value(v as f64)).collect())
         }
-        TdmsDType::I8 => {
+        DataType::I8 => {
             let mut data = vec![0i8; len];
             channel.read(range, &mut data)?;
             serde_json::Value::from(data.iter().map(|&v| v as i64).collect::<Vec<i64>>())
         }
-        TdmsDType::I16 => {
+        DataType::I16 => {
             let mut data = vec![0i16; len];
             channel.read(range, &mut data)?;
             serde_json::Value::from(data.iter().map(|&v| v as i64).collect::<Vec<i64>>())
         }
-        TdmsDType::I32 => {
+        DataType::I32 => {
             let mut data = vec![0i32; len];
             channel.read(range, &mut data)?;
             serde_json::Value::from(data.iter().map(|&v| v as i64).collect::<Vec<i64>>())
         }
-        TdmsDType::I64 => {
+        DataType::I64 => {
             let mut data = vec![0i64; len];
             channel.read(range, &mut data)?;
             serde_json::Value::from(data)
         }
-        TdmsDType::U8 => {
+        DataType::U8 => {
             let mut data = vec![0u8; len];
             channel.read(range, &mut data)?;
             serde_json::Value::from(data.iter().map(|&v| v as u64).collect::<Vec<u64>>())
         }
-        TdmsDType::U16 => {
+        DataType::U16 => {
             let mut data = vec![0u16; len];
             channel.read(range, &mut data)?;
             serde_json::Value::from(data.iter().map(|&v| v as u64).collect::<Vec<u64>>())
         }
-        TdmsDType::U32 => {
+        DataType::U32 => {
             let mut data = vec![0u32; len];
             channel.read(range, &mut data)?;
             serde_json::Value::from(data.iter().map(|&v| v as u64).collect::<Vec<u64>>())
         }
-        TdmsDType::U64 => {
+        DataType::U64 => {
             let mut data = vec![0u64; len];
             channel.read(range, &mut data)?;
             serde_json::Value::from(data)
         }
-        TdmsDType::Bool => {
+        DataType::Boolean => {
             let mut data = vec![false; len];
             channel.read(range, &mut data)?;
             serde_json::Value::from(data)
         }
-        TdmsDType::TimeStamp => {
+        DataType::TimeStamp => {
             return Err("timestamp channel JSON comparison not implemented".into());
         }
-        TdmsDType::String => {
+        DataType::String => {
             return Err("string channel decoding not supported by new API".into());
         }
     };
@@ -247,7 +247,7 @@ fn run_test_case(tdms_path: &Path) {
                     );
 
                     match c_parsed.dtype() {
-                        TdmsDType::F64 | TdmsDType::F32 => {
+                        DataType::Double | DataType::Float => {
                             for (i, (a, e)) in actual.iter().zip(expected.iter()).enumerate() {
                                 // Parse actual value - may be f64 or special float string
                                 let a = if let Some(n) = a.as_f64() {
@@ -306,28 +306,28 @@ fn run_test_case(tdms_path: &Path) {
                                 }
                             }
                         }
-                        TdmsDType::I8 | TdmsDType::I16 | TdmsDType::I32 | TdmsDType::I64 => {
+                        DataType::I8 | DataType::I16 | DataType::I32 | DataType::I64 => {
                             for (i, (a, e)) in actual.iter().zip(expected.iter()).enumerate() {
                                 let a = a.as_i64().expect("expected i64 JSON");
                                 let e = e.as_i64().expect("expected i64 JSON");
                                 assert_eq!(a, e, "Value mismatch at {} for {}", i, c_name);
                             }
                         }
-                        TdmsDType::U8 | TdmsDType::U16 | TdmsDType::U32 | TdmsDType::U64 => {
+                        DataType::U8 | DataType::U16 | DataType::U32 | DataType::U64 => {
                             for (i, (a, e)) in actual.iter().zip(expected.iter()).enumerate() {
                                 let a = a.as_u64().expect("expected u64 JSON");
                                 let e = e.as_u64().expect("expected u64 JSON");
                                 assert_eq!(a, e, "Value mismatch at {} for {}", i, c_name);
                             }
                         }
-                        TdmsDType::Bool => {
+                        DataType::Boolean => {
                             for (i, (a, e)) in actual.iter().zip(expected.iter()).enumerate() {
                                 let a = a.as_bool().expect("expected bool JSON");
                                 let e = e.as_bool().expect("expected bool JSON");
                                 assert_eq!(a, e, "Value mismatch at {} for {}", i, c_name);
                             }
                         }
-                        TdmsDType::TimeStamp | TdmsDType::String => {
+                        DataType::TimeStamp | DataType::String => {
                             // Explicitly not supported by the new API's typed decoding.
                         }
                     }

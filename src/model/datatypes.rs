@@ -71,16 +71,6 @@ impl DataType {
     }
 }
 
-// Backward compatibility variant aliases for code that uses explicit types
-#[allow(non_upper_case_globals)]
-impl DataType {
-    pub const SingleFloat: DataType = DataType::Float;
-    pub const DoubleFloat: DataType = DataType::Double;
-    pub const F32: DataType = DataType::Float;
-    pub const F64: DataType = DataType::Double;
-    pub const Bool: DataType = DataType::Boolean;
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum PropertyValue {
     I8(i8),

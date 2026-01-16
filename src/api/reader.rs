@@ -497,11 +497,7 @@ impl<R: Read + Seek> TdmsReaderInternal<R> {
             if let Some(meta) = &obj.raw_data_meta {
                 self.active_meta.insert(path_str.clone(), meta.clone());
                 if meta.number_of_values > 0 {
-                    let size = if let Some(s) = meta.data_type.size_of_old() {
-                        s * meta.number_of_values
-                    } else {
-                        meta.total_size_bytes.unwrap_or(0)
-                    };
+                    let size = (meta.data_type.itemsize() as u64) * meta.number_of_values;
                     obj.data_location = Some(crate::format::metadata::DataLocation {
                         offset: current_raw_offset,
                         number_of_values: meta.number_of_values,
@@ -513,11 +509,7 @@ impl<R: Read + Seek> TdmsReaderInternal<R> {
             } else if obj.raw_data_index == 0 {
                 if let Some(meta) = self.active_meta.get(&path_str) {
                     if meta.number_of_values > 0 {
-                        let size = if let Some(s) = meta.data_type.size_of_old() {
-                            s * meta.number_of_values
-                        } else {
-                            meta.total_size_bytes.unwrap_or(0)
-                        };
+                        let size = (meta.data_type.itemsize() as u64) * meta.number_of_values;
                         obj.data_location = Some(crate::format::metadata::DataLocation {
                             offset: current_raw_offset,
                             number_of_values: meta.number_of_values,
@@ -548,18 +540,5 @@ impl<R: Read + Seek> TdmsReaderInternal<R> {
             toc_mask: mask.convert(),
             objects,
         })
-    }
-}
-
-impl DataType {
-    fn size_of_old(&self) -> Option<u64> {
-        match self {
-            DataType::I8 | DataType::U8 | DataType::Boolean => Some(1),
-            DataType::I16 | DataType::U16 => Some(2),
-            DataType::I32 | DataType::U32 | DataType::Float => Some(4),
-            DataType::I64 | DataType::U64 | DataType::Double => Some(8),
-            DataType::TimeStamp => Some(16),
-            DataType::String => None,
-        }
     }
 }

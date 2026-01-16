@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::Path;
-use tdms_rs::{PropertyValue, TdmsDType, TdmsFile, TdmsWriter};
+use tdms_rs::{DataType, PropertyValue, TdmsFile, TdmsWriter};
 
 fn copy_channel_numeric(
     src: &tdms_rs::TdmsChannel,
@@ -8,73 +8,73 @@ fn copy_channel_numeric(
     channel_name: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match src.dtype() {
-        TdmsDType::F64 => {
+        DataType::Double => {
             let mut data = vec![0.0f64; src.len()];
             src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<f64>(channel_name)?;
             ch.write(&data)?;
         }
-        TdmsDType::F32 => {
+        DataType::Float => {
             let mut data = vec![0.0f32; src.len()];
             src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<f32>(channel_name)?;
             ch.write(&data)?;
         }
-        TdmsDType::I8 => {
+        DataType::I8 => {
             let mut data = vec![0i8; src.len()];
             src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<i8>(channel_name)?;
             ch.write(&data)?;
         }
-        TdmsDType::I16 => {
+        DataType::I16 => {
             let mut data = vec![0i16; src.len()];
             src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<i16>(channel_name)?;
             ch.write(&data)?;
         }
-        TdmsDType::I32 => {
+        DataType::I32 => {
             let mut data = vec![0i32; src.len()];
             src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<i32>(channel_name)?;
             ch.write(&data)?;
         }
-        TdmsDType::I64 => {
+        DataType::I64 => {
             let mut data = vec![0i64; src.len()];
             src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<i64>(channel_name)?;
             ch.write(&data)?;
         }
-        TdmsDType::U8 => {
+        DataType::U8 => {
             let mut data = vec![0u8; src.len()];
             src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<u8>(channel_name)?;
             ch.write(&data)?;
         }
-        TdmsDType::U16 => {
+        DataType::U16 => {
             let mut data = vec![0u16; src.len()];
             src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<u16>(channel_name)?;
             ch.write(&data)?;
         }
-        TdmsDType::U32 => {
+        DataType::U32 => {
             let mut data = vec![0u32; src.len()];
             src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<u32>(channel_name)?;
             ch.write(&data)?;
         }
-        TdmsDType::U64 => {
+        DataType::U64 => {
             let mut data = vec![0u64; src.len()];
             src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<u64>(channel_name)?;
             ch.write(&data)?;
         }
-        TdmsDType::Bool => {
+        DataType::Boolean => {
             let mut data = vec![false; src.len()];
             src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<bool>(channel_name)?;
             ch.write(&data)?;
         }
-        TdmsDType::String | TdmsDType::TimeStamp => {
+        DataType::String | DataType::TimeStamp => {
             // Explicitly unsupported by current writer/read typed API.
         }
     }
