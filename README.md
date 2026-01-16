@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let channel = file.group("Sensors")?.channel("Temperature")?;
     
     let mut data = vec![0.0f64; channel.len()];
-    channel.read_into(0..channel.len(), &mut data)?;
+    channel.read(0..channel.len(), &mut data)?;
     
     println!("Read {} samples", data.len());
     Ok(())

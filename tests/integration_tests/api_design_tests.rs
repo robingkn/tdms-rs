@@ -20,7 +20,7 @@ fn test_basic_read() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("channel not found")?;
 
     let mut data = vec![0.0f64; 100];
-    ch.read_into(0..100, &mut data)?;
+    ch.read(0..100, &mut data)?;
 
     println!("read {} values", data.len());
     Ok(())
@@ -48,7 +48,7 @@ fn test_chunk_streaming() -> Result<(), Box<dyn std::error::Error>> {
     for start in (0..total_len).step_by(chunk_size) {
         let end = (start + chunk_size).min(total_len);
         let count = end - start;
-        ch.read_into(start..end, &mut buffer[0..count])?;
+        ch.read(start..end, &mut buffer[0..count])?;
         println!("chunk len = {}", count);
     }
     Ok(())
@@ -92,7 +92,7 @@ fn test_parallel_reads() -> Result<(), Box<dyn std::error::Error>> {
             thread::spawn(move || {
                 let ch = f.group("G").unwrap().channel("C").unwrap();
                 let mut data = vec![0.0f64; 1_000_000];
-                ch.read_into(i * 1_000_000..(i + 1) * 1_000_000, &mut data)
+                ch.read(i * 1_000_000..(i + 1) * 1_000_000, &mut data)
                     .unwrap();
                 data.len()
             })
@@ -122,7 +122,7 @@ fn test_timestamps() -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(ts) = ch.timestamps() {
         let mut values = vec![0.0f64; ch.len()];
-        ch.read_into(0..ch.len(), &mut values)?;
+        ch.read(0..ch.len(), &mut values)?;
 
         for (t, v) in ts.zip(values.iter()) {
             println!("{t} -> {v}");

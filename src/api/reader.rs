@@ -178,7 +178,7 @@ impl<'a> TdmsChannel<'a> {
         self.data.properties.iter().map(|(k, v)| (k.as_str(), v))
     }
 
-    pub fn read_into<T: Pod>(&self, range: Range<usize>, out: &mut [T]) -> Result<usize> {
+    pub fn read<T: Pod>(&self, range: Range<usize>, out: &mut [T]) -> Result<usize> {
         if range.end > self.data.len {
             return Err(TdmsError::InvalidRange(
                 range.start,

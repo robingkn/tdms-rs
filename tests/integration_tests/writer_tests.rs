@@ -10,67 +10,67 @@ fn copy_channel_numeric(
     match src.dtype() {
         TdmsDType::F64 => {
             let mut data = vec![0.0f64; src.len()];
-            src.read_into(0..src.len(), &mut data)?;
+            src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<f64>(channel_name)?;
             ch.write(&data)?;
         }
         TdmsDType::F32 => {
             let mut data = vec![0.0f32; src.len()];
-            src.read_into(0..src.len(), &mut data)?;
+            src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<f32>(channel_name)?;
             ch.write(&data)?;
         }
         TdmsDType::I8 => {
             let mut data = vec![0i8; src.len()];
-            src.read_into(0..src.len(), &mut data)?;
+            src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<i8>(channel_name)?;
             ch.write(&data)?;
         }
         TdmsDType::I16 => {
             let mut data = vec![0i16; src.len()];
-            src.read_into(0..src.len(), &mut data)?;
+            src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<i16>(channel_name)?;
             ch.write(&data)?;
         }
         TdmsDType::I32 => {
             let mut data = vec![0i32; src.len()];
-            src.read_into(0..src.len(), &mut data)?;
+            src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<i32>(channel_name)?;
             ch.write(&data)?;
         }
         TdmsDType::I64 => {
             let mut data = vec![0i64; src.len()];
-            src.read_into(0..src.len(), &mut data)?;
+            src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<i64>(channel_name)?;
             ch.write(&data)?;
         }
         TdmsDType::U8 => {
             let mut data = vec![0u8; src.len()];
-            src.read_into(0..src.len(), &mut data)?;
+            src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<u8>(channel_name)?;
             ch.write(&data)?;
         }
         TdmsDType::U16 => {
             let mut data = vec![0u16; src.len()];
-            src.read_into(0..src.len(), &mut data)?;
+            src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<u16>(channel_name)?;
             ch.write(&data)?;
         }
         TdmsDType::U32 => {
             let mut data = vec![0u32; src.len()];
-            src.read_into(0..src.len(), &mut data)?;
+            src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<u32>(channel_name)?;
             ch.write(&data)?;
         }
         TdmsDType::U64 => {
             let mut data = vec![0u64; src.len()];
-            src.read_into(0..src.len(), &mut data)?;
+            src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<u64>(channel_name)?;
             ch.write(&data)?;
         }
         TdmsDType::Bool => {
             let mut data = vec![false; src.len()];
-            src.read_into(0..src.len(), &mut data)?;
+            src.read(0..src.len(), &mut data)?;
             let mut ch = dst_group.add_channel::<bool>(channel_name)?;
             ch.write(&data)?;
         }
@@ -115,8 +115,8 @@ fn round_trip_minimal_file() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut written_data = vec![0.0f64; written_channel.len()];
     let mut reference_data = vec![0.0f64; reference_channel.len()];
-    written_channel.read_into(0..written_channel.len(), &mut written_data)?;
-    reference_channel.read_into(0..reference_channel.len(), &mut reference_data)?;
+    written_channel.read(0..written_channel.len(), &mut written_data)?;
+    reference_channel.read(0..reference_channel.len(), &mut reference_data)?;
     assert_eq!(written_data, reference_data);
 
     Ok(())
@@ -216,8 +216,8 @@ fn round_trip_integers() -> Result<(), Box<dyn std::error::Error>> {
     let reference_channel = reference_integers.channel("Int32").unwrap();
     let mut w = vec![0i32; written_channel.len()];
     let mut r = vec![0i32; reference_channel.len()];
-    written_channel.read_into(0..written_channel.len(), &mut w)?;
-    reference_channel.read_into(0..reference_channel.len(), &mut r)?;
+    written_channel.read(0..written_channel.len(), &mut w)?;
+    reference_channel.read(0..reference_channel.len(), &mut r)?;
     assert_eq!(w, r);
 
     Ok(())
@@ -289,7 +289,7 @@ fn round_trip_file_properties() -> Result<(), Box<dyn std::error::Error>> {
     let channel = g.channel("TestChannel").unwrap();
 
     let mut data = vec![0.0f64; channel.len()];
-    channel.read_into(0..channel.len(), &mut data)?;
+    channel.read(0..channel.len(), &mut data)?;
     assert_eq!(data, &[1.0, 2.0, 3.0]);
 
     Ok(())

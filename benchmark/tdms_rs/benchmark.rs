@@ -244,7 +244,7 @@ fn run_read_benchmark(
             .ok_or("BenchmarkChannel not found")?;
 
         let mut data = vec![0.0f64; channel.len()];
-        channel.read_into(0..channel.len(), &mut data)?;
+        channel.read(0..channel.len(), &mut data)?;
 
         // Force evaluation to ensure data is actually read
         std::hint::black_box(data.len());

@@ -16,9 +16,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("  Channel: {} ({} samples)", channel.name(), channel.len());
 
             // 3. Read data
-            // read_into() loads the data into a pre-allocated buffer.
+            // read() loads the data into a pre-allocated buffer.
             let mut data = vec![0.0f64; channel.len()];
-            channel.read_into(0..channel.len(), &mut data)?;
+            channel.read(0..channel.len(), &mut data)?;
 
             if !data.is_empty() {
                 let avg: f64 = data.iter().sum::<f64>() / data.len() as f64;

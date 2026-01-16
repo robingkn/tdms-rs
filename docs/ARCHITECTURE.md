@@ -11,7 +11,7 @@ The reader uses an indexed approach. When a file is opened:
 
 ### Lazy Loading & Zero-Copy
 - **Metadata**: Loaded eagerly to provide fast navigation.
-- **Raw Data**: Loaded lazily when `read()` or `read_into()` is called.
+- **Raw Data**: Loaded lazily when `read()` or `read()` is called.
 - **Zero-Copy**: The structure supports memory-mapping (`mmap`) for high-throughput reads, though owned buffers are used as a fallback.
 
 ## Writer Model

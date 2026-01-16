@@ -24,7 +24,7 @@ fn test_write_and_read_simple() -> Result<(), Box<dyn std::error::Error>> {
         assert_eq!(ch.len(), 5);
 
         let mut data = vec![0.0f64; 5];
-        ch.read_into(0..5, &mut data)?;
+        ch.read(0..5, &mut data)?;
 
         assert_eq!(data, &[1.0, 2.0, 3.0, 4.0, 5.0]);
     }
@@ -62,7 +62,7 @@ fn test_chunks() -> Result<(), Box<dyn std::error::Error>> {
         for start in (0..total_len).step_by(chunk_size) {
             let end = (start + chunk_size).min(total_len);
             let current_chunk_size = end - start;
-            ch.read_into(start..end, &mut buffer[0..current_chunk_size])?;
+            ch.read(start..end, &mut buffer[0..current_chunk_size])?;
             count += current_chunk_size;
         }
 

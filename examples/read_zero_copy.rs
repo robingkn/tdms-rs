@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let end = (start + chunk_size).min(total_len);
         let count = end - start;
 
-        channel.read_into(start..end, &mut buffer[0..count])?;
+        channel.read(start..end, &mut buffer[0..count])?;
         let data = &buffer[0..count];
 
         // Process data...

@@ -14,7 +14,7 @@ let channel = group.channel("Temperature").ok_or("Channel not found")?;
 
 // Read into a pre-allocated buffer
 let mut data = vec![0.0f64; channel.len()];
-channel.read_into(0..channel.len(), &mut data)?;
+channel.read(0..channel.len(), &mut data)?;
 ```
 
 ### Writing Files
@@ -49,7 +49,7 @@ let mut buffer = vec![0.0f64; chunk_size];
 for start in (0..total_len).step_by(chunk_size) {
     let end = (start + chunk_size).min(total_len);
     let count = end - start;
-    channel.read_into(start..end, &mut buffer[0..count])?;
+    channel.read(start..end, &mut buffer[0..count])?;
     // process buffer[0..count]...
 }
 ```
@@ -58,5 +58,5 @@ for start in (0..total_len).step_by(chunk_size) {
 Minimize allocations by reading into a pre-allocated buffer:
 ```rust
 let mut buffer = vec![0.0f64; 1000];
-channel.read_into(0..1000, &mut buffer)?;
+channel.read(0..1000, &mut buffer)?;
 ```
