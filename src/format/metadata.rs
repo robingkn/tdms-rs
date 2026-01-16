@@ -41,7 +41,7 @@ impl ObjectPath {
     }
 
     pub fn group_name(&self) -> Option<&str> {
-        self.components.get(0).map(|s| s.as_str())
+        self.components.first().map(|s| s.as_str())
     }
 
     pub fn channel_name(&self) -> Option<&str> {

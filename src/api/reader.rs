@@ -13,15 +13,21 @@ use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
 
+/// A TDMS file handle for reading.
+///
+/// This struct indexes the file structure (groups, channels, properties) on open
+/// without loading raw data into memory.
 pub struct TdmsFile {
     pub(crate) inner: Arc<TdmsFileInner>,
 }
 
+/// A group within a TDMS file.
 pub struct TdmsGroup<'a> {
     pub(crate) file: &'a TdmsFile,
     pub(crate) data: &'a TdmsGroupData,
 }
 
+/// A channel within a TDMS group.
 pub struct TdmsChannel<'a> {
     pub(crate) file: &'a TdmsFile,
     pub(crate) data: &'a TdmsChannelData,

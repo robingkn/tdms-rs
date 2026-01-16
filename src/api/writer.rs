@@ -8,6 +8,9 @@ use std::io::{BufWriter, Seek, Write};
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
+/// A TDMS file writer.
+///
+/// Data is batched in memory and written to disk when `close()` is called.
 pub struct TdmsWriter {
     path: PathBuf,
     groups: IndexMap<String, WriterGroupData>,

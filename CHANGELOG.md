@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-01-16
+
+### Changed
+- **API Consolidation**: Finalized the v2.0.0 API surface for production use.
+- **Improved Examples**: All examples are now self-contained and generate their own test data.
+- **Renamed Examples**: `read_zero_copy.rs` renamed to `read_chunks.rs` to better reflect its behavior.
+- **CI/CD Hygiene**: Enabled strict Clippy warnings and fixed all linting issues.
+- **Formatting**: Applied project-wide formatting using `cargo fmt`.
+
+### Fixed
+- Fixed Clippy warning regarding `get(0)` vs `first()`.
+- Fixed examples that were failing due to missing data files.
+
 ## [1.0.0] - 2026-01-09
 
 ### Added
