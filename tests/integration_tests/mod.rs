@@ -1,5 +1,6 @@
-mod api_design_tests;
-mod debug_writer;
-mod error_tests;
-mod simple_api_test;
-mod writer_tests;
+mod abort_semantics;
+mod channel_data_all_supported_types;
+mod properties_roundtrip;
+mod read_range_validation;
+mod smoke_roundtrip;
+mod timestamps_iterator;
