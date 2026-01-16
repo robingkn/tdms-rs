@@ -12,7 +12,7 @@ A pure Rust library for reading and writing National Instruments TDMS (Technical
 - **📦 Lazy Loading**: Only loads data when requested. Metadata is indexed eagerly, while raw data is read on-demand to minimize memory footprint.
 - **🛡️ Type Safe**: Strongly-typed channel access ensures data integrity at compile time.
 - **🔗 Pure Rust**: No external C dependencies, making cross-compilation seamless.
-- **📊 Full Format Support**: Supports all TDMS data types, hierarchical structures, and multi-segment files.
+- **📊 Full Format Support**: Supports all TDMS data types, hierarchical structures, and multi-segment files (Little-Endian).
 
 ## 📖 Documentation
 

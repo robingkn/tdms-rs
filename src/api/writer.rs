@@ -1,6 +1,6 @@
 use crate::error::{Result, TdmsError};
+use crate::io::ext::TdmsWriteExt;
 use crate::model::datatypes::{DataType, PropertyValue};
-use byteorder::{LittleEndian, WriteBytesExt};
 use indexmap::IndexMap;
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -110,12 +110,12 @@ impl TdmsWriter {
 
         writer.write_all(b"TDSm")?;
         let toc = 0x0E;
-        writer.write_u32::<LittleEndian>(toc)?;
-        writer.write_u32::<LittleEndian>(4712)?;
+        writer.write_u32(toc)?;
+        writer.write_u32(4712)?;
 
         let segment_offset_pos = writer.stream_position()?;
-        writer.write_u64::<LittleEndian>(0xFFFFFFFFFFFFFFFF)?;
-        writer.write_u64::<LittleEndian>(0)?;
+        writer.write_u64(0xFFFFFFFFFFFFFFFF)?;
+        writer.write_u64(0)?;
 
         let mut object_count = 0;
         if !self.properties.is_empty() {
@@ -126,7 +126,7 @@ impl TdmsWriter {
             object_count += group.channels.len() as u32;
         }
 
-        writer.write_u32::<LittleEndian>(object_count)?;
+        writer.write_u32(object_count)?;
 
         if !self.properties.is_empty() {
             self.write_object_internal(&mut writer, "/", &self.properties, None)?;
@@ -156,7 +156,7 @@ impl TdmsWriter {
 
         let end_pos = writer.stream_position()?;
         writer.seek(std::io::SeekFrom::Start(segment_offset_pos + 8))?;
-        writer.write_u64::<LittleEndian>(raw_data_offset - 28)?;
+        writer.write_u64(raw_data_offset - 28)?;
         writer.seek(std::io::SeekFrom::Start(end_pos))?;
 
         writer.flush()?;
@@ -170,7 +170,7 @@ impl TdmsWriter {
         properties: &IndexMap<String, PropertyValue>,
         raw_data: Option<(&DataType, usize)>,
     ) -> Result<()> {
-        writer.write_u32::<LittleEndian>(path.len() as u32)?;
+        writer.write_u32(path.len() as u32)?;
         writer.write_all(path.as_bytes())?;
 
         let raw_data_index = if raw_data.is_some() {
@@ -178,18 +178,18 @@ impl TdmsWriter {
         } else {
             0xFFFFFFFF_u32
         };
-        writer.write_u32::<LittleEndian>(raw_data_index)?;
+        writer.write_u32(raw_data_index)?;
 
         if let Some((dtype, byte_len)) = raw_data {
-            writer.write_u32::<LittleEndian>(dtype.to_u32())?;
-            writer.write_u32::<LittleEndian>(1)?;
+            writer.write_u32(dtype.to_u32())?;
+            writer.write_u32(1)?;
             let count = byte_len / dtype.itemsize();
-            writer.write_u64::<LittleEndian>(count as u64)?;
+            writer.write_u64(count as u64)?;
         }
 
-        writer.write_u32::<LittleEndian>(properties.len() as u32)?;
+        writer.write_u32(properties.len() as u32)?;
         for (key, value) in properties {
-            writer.write_u32::<LittleEndian>(key.len() as u32)?;
+            writer.write_u32(key.len() as u32)?;
             writer.write_all(key.as_bytes())?;
             self.write_property_value_internal(writer, value)?;
         }
@@ -203,58 +203,58 @@ impl TdmsWriter {
     ) -> Result<()> {
         match value {
             PropertyValue::I8(v) => {
-                writer.write_u32::<LittleEndian>(DataType::I8.to_u32())?;
+                writer.write_u32(DataType::I8.to_u32())?;
                 writer.write_i8(*v)?;
             }
             PropertyValue::I16(v) => {
-                writer.write_u32::<LittleEndian>(DataType::I16.to_u32())?;
-                writer.write_i16::<LittleEndian>(*v)?;
+                writer.write_u32(DataType::I16.to_u32())?;
+                writer.write_i16(*v)?;
             }
             PropertyValue::I32(v) => {
-                writer.write_u32::<LittleEndian>(DataType::I32.to_u32())?;
-                writer.write_i32::<LittleEndian>(*v)?;
+                writer.write_u32(DataType::I32.to_u32())?;
+                writer.write_i32(*v)?;
             }
             PropertyValue::I64(v) => {
-                writer.write_u32::<LittleEndian>(DataType::I64.to_u32())?;
-                writer.write_i64::<LittleEndian>(*v)?;
+                writer.write_u32(DataType::I64.to_u32())?;
+                writer.write_i64(*v)?;
             }
             PropertyValue::U8(v) => {
-                writer.write_u32::<LittleEndian>(DataType::U8.to_u32())?;
+                writer.write_u32(DataType::U8.to_u32())?;
                 writer.write_u8(*v)?;
             }
             PropertyValue::U16(v) => {
-                writer.write_u32::<LittleEndian>(DataType::U16.to_u32())?;
-                writer.write_u16::<LittleEndian>(*v)?;
+                writer.write_u32(DataType::U16.to_u32())?;
+                writer.write_u16(*v)?;
             }
             PropertyValue::U32(v) => {
-                writer.write_u32::<LittleEndian>(DataType::U32.to_u32())?;
-                writer.write_u32::<LittleEndian>(*v)?;
+                writer.write_u32(DataType::U32.to_u32())?;
+                writer.write_u32(*v)?;
             }
             PropertyValue::U64(v) => {
-                writer.write_u32::<LittleEndian>(DataType::U64.to_u32())?;
-                writer.write_u64::<LittleEndian>(*v)?;
+                writer.write_u32(DataType::U64.to_u32())?;
+                writer.write_u64(*v)?;
             }
             PropertyValue::Float(v) => {
-                writer.write_u32::<LittleEndian>(DataType::Float.to_u32())?;
-                writer.write_f32::<LittleEndian>(*v)?;
+                writer.write_u32(DataType::Float.to_u32())?;
+                writer.write_f32(*v)?;
             }
             PropertyValue::Double(v) => {
-                writer.write_u32::<LittleEndian>(DataType::Double.to_u32())?;
-                writer.write_f64::<LittleEndian>(*v)?;
+                writer.write_u32(DataType::Double.to_u32())?;
+                writer.write_f64(*v)?;
             }
             PropertyValue::String(s) => {
-                writer.write_u32::<LittleEndian>(DataType::String.to_u32())?;
-                writer.write_u32::<LittleEndian>(s.len() as u32)?;
+                writer.write_u32(DataType::String.to_u32())?;
+                writer.write_u32(s.len() as u32)?;
                 writer.write_all(s.as_bytes())?;
             }
             PropertyValue::Boolean(b) => {
-                writer.write_u32::<LittleEndian>(DataType::Boolean.to_u32())?;
+                writer.write_u32(DataType::Boolean.to_u32())?;
                 writer.write_u8(if *b { 1 } else { 0 })?;
             }
             PropertyValue::TimeStamp((secs, frac)) => {
-                writer.write_u32::<LittleEndian>(DataType::TimeStamp.to_u32())?;
-                writer.write_u64::<LittleEndian>(*frac)?;
-                writer.write_i64::<LittleEndian>(*secs)?;
+                writer.write_u32(DataType::TimeStamp.to_u32())?;
+                writer.write_u64(*frac)?;
+                writer.write_i64(*secs)?;
             }
         }
         Ok(())
@@ -368,7 +368,7 @@ impl WritableType for f64 {
     }
     fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
         for &v in data {
-            buffer.write_f64::<LittleEndian>(v)?;
+            buffer.write_f64(v)?;
         }
         Ok(())
     }
@@ -380,7 +380,7 @@ impl WritableType for f32 {
     }
     fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
         for &v in data {
-            buffer.write_f32::<LittleEndian>(v)?;
+            buffer.write_f32(v)?;
         }
         Ok(())
     }
@@ -404,7 +404,7 @@ impl WritableType for i16 {
     }
     fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
         for &v in data {
-            buffer.write_i16::<LittleEndian>(v)?;
+            buffer.write_i16(v)?;
         }
         Ok(())
     }
@@ -416,7 +416,7 @@ impl WritableType for i32 {
     }
     fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
         for &v in data {
-            buffer.write_i32::<LittleEndian>(v)?;
+            buffer.write_i32(v)?;
         }
         Ok(())
     }
@@ -428,7 +428,7 @@ impl WritableType for i64 {
     }
     fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
         for &v in data {
-            buffer.write_i64::<LittleEndian>(v)?;
+            buffer.write_i64(v)?;
         }
         Ok(())
     }
@@ -450,7 +450,7 @@ impl WritableType for u16 {
     }
     fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
         for &v in data {
-            buffer.write_u16::<LittleEndian>(v)?;
+            buffer.write_u16(v)?;
         }
         Ok(())
     }
@@ -462,7 +462,7 @@ impl WritableType for u32 {
     }
     fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
         for &v in data {
-            buffer.write_u32::<LittleEndian>(v)?;
+            buffer.write_u32(v)?;
         }
         Ok(())
     }
@@ -474,7 +474,7 @@ impl WritableType for u64 {
     }
     fn write_to_buffer(data: &[Self], buffer: &mut Vec<u8>) -> Result<()> {
         for &v in data {
-            buffer.write_u64::<LittleEndian>(v)?;
+            buffer.write_u64(v)?;
         }
         Ok(())
     }

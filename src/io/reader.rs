@@ -1,5 +1,5 @@
 use crate::error::{Result, TdmsError};
-use byteorder::{LittleEndian, ReadBytesExt};
+use crate::io::ext::TdmsReadExt;
 use std::io::{Read, Seek};
 
 pub struct TdmsIoReader<R: Read + Seek> {
@@ -12,15 +12,15 @@ impl<R: Read + Seek> TdmsIoReader<R> {
     }
 
     pub fn read_string(&mut self) -> Result<String> {
-        let len = self.inner.read_u32::<LittleEndian>()?;
+        let len = self.inner.read_u32()?;
         let mut buf = vec![0u8; len as usize];
         self.inner.read_exact(&mut buf)?;
         String::from_utf8(buf).map_err(|_| TdmsError::StringEncoding)
     }
 
     pub fn read_timestamp(&mut self) -> Result<(i64, u64)> {
-        let fraction = self.inner.read_u64::<LittleEndian>()?;
-        let seconds = self.inner.read_i64::<LittleEndian>()?;
+        let fraction = self.inner.read_u64()?;
+        let seconds = self.inner.read_i64()?;
         Ok((seconds, fraction))
     }
 
