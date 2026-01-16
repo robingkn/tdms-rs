@@ -1,7 +1,6 @@
-use crate::metadata::ParsingMetadata;
+use crate::format::metadata::ParsingMetadata;
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct Segment {
     pub version: u32,
     pub next_segment_offset: u64,

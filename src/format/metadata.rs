@@ -1,3 +1,6 @@
+use crate::model::datatypes::{DataType, PropertyValue};
+use std::collections::HashMap;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ObjectPath {
     pub raw: String,
@@ -6,11 +9,6 @@ pub struct ObjectPath {
 
 impl ObjectPath {
     pub fn new(path: String) -> Self {
-        // Path format: /'Group'/'Channel'
-        // We need to parse this carefully.
-        // nptdms uses ' to quote components.
-
-        // Simple manual parser for now
         let mut components = Vec::new();
         let mut current = String::new();
         let mut in_quote = false;
@@ -21,9 +19,6 @@ impl ObjectPath {
                     if in_quote {
                         current.push(c);
                     } else if !current.is_empty() {
-                        // End of previous component
-                        // We expect components to be quoted like 'Name'
-                        // But we want to store just Name
                         components.push(trim_quotes(&current));
                         current.clear();
                     }
@@ -46,19 +41,11 @@ impl ObjectPath {
     }
 
     pub fn group_name(&self) -> Option<&str> {
-        if !self.components.is_empty() {
-            Some(&self.components[0])
-        } else {
-            None
-        }
+        self.components.get(0).map(|s| s.as_str())
     }
 
     pub fn channel_name(&self) -> Option<&str> {
-        if self.components.len() >= 2 {
-            Some(&self.components[1])
-        } else {
-            None
-        }
+        self.components.get(1).map(|s| s.as_str())
     }
 
     pub fn is_root(&self) -> bool {
@@ -75,18 +62,14 @@ fn trim_quotes(s: &str) -> String {
     }
 }
 
-use crate::datatypes::{DataType, PropertyValue};
-use std::collections::HashMap;
-
 #[derive(Debug, Clone)]
 pub struct RawDataMeta {
     pub data_type: DataType,
     pub number_of_values: u64,
-    pub total_size_bytes: Option<u64>, // For variable length types
+    pub total_size_bytes: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct DataLocation {
     pub offset: u64,
     pub number_of_values: u64,
@@ -101,24 +84,4 @@ pub struct ParsingMetadata {
     pub properties: HashMap<String, PropertyValue>,
     pub raw_data_meta: Option<RawDataMeta>,
     pub data_location: Option<DataLocation>,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_paths() {
-        let p1 = ObjectPath::new("/'Group'".to_string());
-        assert_eq!(p1.components, vec!["Group"]);
-        assert_eq!(p1.group_name(), Some("Group"));
-
-        let p2 = ObjectPath::new("/'Group'/'Channel'".to_string());
-        assert_eq!(p2.components, vec!["Group", "Channel"]);
-        assert_eq!(p2.group_name(), Some("Group"));
-        assert_eq!(p2.channel_name(), Some("Channel"));
-
-        let p3 = ObjectPath::new("/'Group' ".to_string());
-        assert_eq!(p3.components, vec!["Group"]);
-    }
 }

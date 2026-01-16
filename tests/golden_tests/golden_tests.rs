@@ -139,7 +139,10 @@ fn test_corpus() {
     })
     .unwrap();
 
-    println!("Visited {} TDMS files.", visited);
+    println!(
+        "\n>>> Golden Corpus Test Result: Passed {}/{} files.",
+        passed, visited
+    );
     assert!(visited > 0, "No TDMS files found in corpus!");
 }
 
